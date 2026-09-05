@@ -1,0 +1,56 @@
+Tell Codex: “Install this skill from https://github.com/yomage-ai/english-speaking-coach and practice English with me for ten minutes. Let's talk about today. Save the learning notes afterward and open my learning archive.”
+
+Once installed, try “Continue our last speaking practice,” “Open my flashcards and hide the answers,” or “Show me expressions I can now use independently.” [简体中文说明](README.md)
+
+# English Speaking Coach
+
+A Codex skill for natural English conversation, with a local learning journal, flip cards, and progress tracking. Practice usable expression: asking, explaining, clarifying, describing, and responding. Vocabulary and grammar support communication.
+
+## Use it in your own words
+
+- “Help me practice introducing myself for a job interview.”
+- “I'm traveling abroad. Let's practice asking a hotel receptionist for information.”
+- “I have two minutes. Open the vocabulary cards and let me guess the meanings first.”
+- “Continue our last conversation. Help me in Chinese when I need it.”
+
+Provide only the topic, goal, or review request. The agent handles installation checks, initialization, context recovery, saving, verification, and opening the viewer. No recurring questionnaire or mandatory webpage visit before speaking.
+
+## Your learning archive
+
+| View | Purpose |
+| --- | --- |
+| Overview | Latest practice, topic notebooks, and quick review |
+| Conversations | Selected wording, suggested expressions, summaries, and next steps |
+| Words and expressions | Reversible cards: Chinese to English, English to Chinese, or bilingual reading |
+| Reflection | Period activity, at most three expression summaries, and a small review suggestion |
+| Expression progress | Search and filters, 20 items per page; individual histories have month filters and 10 events per page |
+
+Period summaries use observations from that period and earlier, never later success. First observations are distinguished from improvements with a known baseline. Meaning, spoken reading, and independent use are tracked separately. Card flips are not mastery evidence. Success across days and contexts can support “more stable expression”; this is a product convention, not an exam score or proof of permanent mastery.
+
+## Your data stays yours
+
+The viewer ships with the skill; learning data is created by actual practice.
+
+- New learners default to `<skill>/data`. Existing machine configuration takes priority; a new window does not create a second archive.
+- Ask the agent to move records to a dedicated knowledge-base or Obsidian subfolder. It copies and verifies before switching, retaining the original.
+- Source records are Markdown. Indexes and views are rebuildable. Obsidian is optional.
+- Writes to embedded data produce one latest recovery copy outside the skill. The agent still preserves data before updates or removal. This is neither cloud sync nor complete backup history.
+- Recovery across windows requires access to the same local configuration and records. Moving to another computer requires data migration and path configuration.
+
+Learner records, machine configuration, backups, recordings, and private screenshots are excluded from this repository. Tests use explicitly synthetic samples.
+
+## Environment and boundaries
+
+Python 3.10+ and its standard library are required; no API key, database, or Node runtime dependency. The agent checks the environment.
+
+Fresh initialization, saving, recovery in a new process, local browsing, and the bundled launchd fallback have been verified on macOS without an additional service-manager skill. An existing host manager takes priority. The fallback lasts for the current login session and does not add login startup. Cross-platform CI checks storage and views on Linux and Windows; the agent uses the host's native supervisor for persistent serving there. Native desktop and Voice workflows on those platforms have not been tested on real devices.
+
+Skill instructions and usage documentation support Simplified Chinese and English and follow the user's language. Viewer navigation is currently primarily Chinese, with English learning content.
+
+Voice persistence requires transcripts, an observable end signal, and tool access from the host. Only learning-related excerpts are saved by default; there is no background recording. Reading judgments require actual accessible audio. Otherwise only observable meaning/use evidence is recorded. The skill cannot guarantee an automatic end callback in every Voice host.
+
+## Maintenance and acknowledgement
+
+See [references](references/) for agent-facing details. Maintainers can run `python3 -m unittest discover -s tests -v`; ordinary learners do not need to run commands.
+
+[MIT License](LICENSE)

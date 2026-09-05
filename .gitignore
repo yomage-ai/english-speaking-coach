@@ -1,0 +1,19 @@
+# Private runtime records never belong in a distributable skill.
+/data/
+__pycache__/
+*.pyc
+# Runtime and local tooling must not be published.
+.DS_Store
+.venv/
+.env
+.env.*
+*.log
+*.zip
+workspace.json
+/backups/
+/Sessions/
+/Evidence/
+/Pending/
+/Archive/
+/state.json
+/profile.json

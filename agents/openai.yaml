@@ -1,0 +1,6 @@
+interface:
+  display_name: "English Speaking Coach / 英语口语教练"
+  short_description: "自然英语对话练表达，保存本地学习档案，用翻面闪卡回顾并追踪进步"
+  default_prompt: "Use $english-speaking-coach to continue natural English conversation from my saved preferences and last practice. 读取已保存的偏好与上次练习，用英语自然接着聊，需要时再给中文帮助。"
+policy:
+  allow_implicit_invocation: true
