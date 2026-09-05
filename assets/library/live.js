@@ -5,7 +5,7 @@ window.CoachLive = (() => {
   const e = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const get = s => document.querySelector(s);
   const stamp = s => s ? new Date(s).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
-  const statusNames = {starting:'正在连接翻译',translating:'正在补充中文',draining:'正在处理最后几句',waiting_voice:'已就绪 · 等待本次 Voice',waiting_transcript:'正在等待新转写',ended:'本次伴随已结束',expired:'已暂停伴随',error:'伴随需要检查'};
+  const statusNames = {starting:'正在连接翻译',translating:'正在补充中文',recovering:'正在恢复已结束的对话',draining:'正在处理最后几句',waiting_voice:'字幕已就绪 · 等待本次 Voice',waiting_transcript:'正在等待新转写',ended:'本次伴随已结束',expired:'已暂停伴随',error:'伴随需要检查'};
   function shell() {
     return `<div class="page-heading"><div><span class="eyebrow">LISTEN, SPEAK & FOLLOW</span><h1>双语伴随</h1><p>继续用英文聊。没听懂时，看一眼这里。</p></div><span class="live-status" id="live-status" role="status">正在读取…</span></div>
       <div id="live-notice" class="live-notice" role="status" hidden></div>
@@ -26,11 +26,13 @@ window.CoachLive = (() => {
     get('#live-status').classList.toggle('live-error',!!(s?.stale||s?.error));
     let messages=[];
     if(s?.demo)messages.push('虚构测试演示 · 这里用于查看翻译效果，没有写入正式学习档案。');
+    if(s?.recovery_mode==='after_voice')messages.push(s.recovery_reason==='missing_binding'?'结束后恢复 · 本场会中没有连接字幕；这里是从指定日志补充的双语内容，不代表实时同步。':'结束后重新翻译或补充尾段 · 原话保留，新增译文不代表会中实时同步。');
+    if(s?.status==='ended')messages.push('这一场已经结束。再开一场 Voice 前，请对 Agent 说“继续练英语并连接双语伴随”，由 Agent 重新连接；旧场内容不会自动跟随新 Voice。');
     if(s?.stale)messages.push('最近未收到后台心跳，请让 Agent 检查伴随服务。页面仍可回看已有内容。');
     if(s?.error)messages.push(s.error);
     if(s?.invalid_lines)messages.push(`有 ${s.invalid_lines} 行日志未能读取，请让 Agent 检查遗漏。`);
     notice(messages.join(' '));
-    const runOptions=[`<option value="">当前伴随</option>`,...data.history.map(r=>`<option value="${e(r.id)}">${e(new Date(r.created_at).toLocaleString('zh-CN'))} · ${r.demo?'测试演示':'英语练习'}</option>`)].join('');
+    const runOptions=[`<option value="">当前伴随</option>`,...data.history.map(r=>`<option value="${e(r.id)}">${e(new Date(r.voice_started_at||r.created_at).toLocaleString('zh-CN'))} · ${r.demo?'测试演示':r.recovery_mode==='after_voice'?'结束后恢复':'英语练习'}</option>`)].join('');
     if(get('#live-runs').innerHTML!==runOptions){get('#live-runs').innerHTML=runOptions;get('#live-runs').value=options.run||'';}
     get('#live-count').textContent=` · ${data.total} 条发言`;
     const pending=(data.counts.pending||0)+(data.counts.translating||0);

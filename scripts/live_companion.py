@@ -169,9 +169,12 @@ class LiveStore:
 
     def stop(self, run_id, immediate=False):
         with self.db() as db:
-            result = db.execute('UPDATE runs SET desired=? WHERE id=?', ('stopped' if immediate else 'drain', run_id))
-            if result.rowcount != 1:
+            row = db.execute('SELECT state FROM runs WHERE id=?', (run_id,)).fetchone()
+            if not row:
                 raise ValueError('没有这个绑定；未停止其他练习。')
+            desired = 'stopped' if immediate or json.loads(row['state'])['status'] in TERMINAL else 'drain'
+            db.execute('UPDATE runs SET desired=? WHERE id=?', (desired, run_id))
+            return desired
 
     def resume(self, run_id):
         active = self.active()
@@ -300,9 +303,11 @@ class LiveStore:
                 state.pop(key, None)
             state['stale'] = bool(state['desired'] != 'stopped' and state['status'] not in TERMINAL and
                                   (not state.get('heartbeat_epoch') or time.time() - state['heartbeat_epoch'] > 8))
+            if state['status'] == 'recovering':
+                state['stale'] = time.time() - state.get('heartbeat_epoch', 0) > 90
         return {'state': state, 'items': rows, 'total': total, 'counts': counts, 'page': page, 'pages': pages,
                 'enabled': self.enabled(), 'server_time': now(),
-                'history': [{k: r.get(k) for k in ['id', 'created_at', 'demo', 'status', 'thread_id']} for r in history]}
+                'history': [{k: r.get(k) for k in ['id', 'created_at', 'demo', 'status', 'thread_id', 'recovery_mode', 'voice_started_at']} for r in history]}
 
 
 class LiveSupervisor:
@@ -428,7 +433,7 @@ def main():
             result = {'status': 'bound', 'run_id': result['id'], 'thread_id': result['thread_id'],
                       'voice_id': result['voice_id'], 'next': 'Open the managed library at #live and verify ready=true.'}
         elif args.command == 'stop':
-            store.stop(args.run); result = {'status': 'drain_requested', 'run_id': args.run}
+            desired = store.stop(args.run); result = {'status': 'stopped' if desired == 'stopped' else 'drain_requested', 'run_id': args.run}
         elif args.command == 'resume':
             store.resume(args.run); result = {'status': 'resume_requested', 'run_id': args.run}
         elif args.command == 'disable':

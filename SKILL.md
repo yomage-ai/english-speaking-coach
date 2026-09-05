@@ -24,7 +24,7 @@ Agent 先读项目页并运行 `resume`，恢复稳定偏好和最少必要上�
 
 If the learner requests bilingual subtitles/companion, or `resume.companion.enabled` is true, read [live-companion.md](references/live-companion.md). The tool-enabled Agent binds the exact current Voice task, opens `#live`, and verifies `ready=true` before claiming it is ready. Keep Voice in English, with Chinese on the page, unless explicitly asked otherwise. Existing authorization persists; do not ask to enable it again on each practice. Ordinary archive review never starts a model turn.
 
-用户要求双语字幕或伴随、或恢复结果中已启用时，Agent 按参考文档绑定本次 Voice、打开页面并核实就绪。口语继续英文，中文放在网页；用户明确另有要求时服从用户。不让 Voice 逐句调工具转发，也不把网页看板当成麦克风入口。
+用户要求双语字幕或伴随、或恢复结果中已启用时，Agent 按参考文档逐场绑定 Voice、打开页面并核实就绪；同任务的新 Voice 不会沿用已结束绑定。口语继续英文，中文放在网页；用户明确另有要求时服从用户。没有宿主执行或交接机会时，如实区分未绑定、已生成简报和已交接，不声称自动完成。已结束场次可按参考文档恢复并标注。Don't claim a generated brief was delivered or an ended binding follows a new Voice; use the reference's finite recovery for a missed closed session.
 
 ## Respond, help, continue / 回应、帮助、继续
 

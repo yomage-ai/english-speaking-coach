@@ -10,19 +10,26 @@ Use this mode when the learner requests a local bilingual page alongside Codex V
 2. Resolve the **actual Voice task ID**, using the current task identity or the explicit source task when handling a delegation. Do not bind the implementation task or a translator task. `start` can resolve an exact UUID filename under the local Codex sessions tree; it never chooses the newest arbitrary task. Verify the source header. A currently active Voice is continued; otherwise bind the **next** Voice in that task, without replaying closed sessions.
 3. Internally run `live_companion.py start --thread-id <voice-task-id>` (add `--source <verified-jsonl>` if necessary), then `open_library.py --page live --no-browser`. Reuse the host's existing manager. If it is serving an older installed implementation, inspect identity and perform an authorized precise restart; don't launch a competing service.
 4. Read `/api/live`: require matching `state.thread_id`, `ready=true`, and `stale=false`. Open and inspect the verified `/#live` URL through the host browser. `bound` only confirms the binding was saved; it does **not** mean the backend or page is ready. `probe` separately verifies CLI, login, model discovery and ephemeral thread creation without requesting a translation.
-5. Pass the normal `voice_brief` plus: “Keep spoken conversation in simple English. Chinese is available on the companion page unless the learner explicitly asks you to say it. Do not forward sentences with tools.” Continue the learner's topic. Don't recite setup in every Voice turn or require the learner to operate terminals or find files.
+5. When the host provides a context handoff, pass the normal `voice_brief` plus: “Keep spoken conversation in simple English. Chinese is available on the companion page unless the learner explicitly asks you to say it. Do not forward sentences with tools.” Generating a brief does not prove Voice received it. If no callable handoff exists, report that boundary; do not pretend a file update injected context. Continue the learner's topic. Don't recite setup in every Voice turn or require the learner to operate terminals or find files.
 
 Agent 先恢复学习，再绑定实际 Voice 所在任务。新用户主动提出伴随需求即可启用，已启用者不反复征询。Agent 完成依赖检查、服务复用与页面检查；用户只需说英语。`bound` 不等于已就绪；须核对任务 ID、后台心跳和 `ready=true`。网页仍为空时，不声称已看到实时转写。
+
+Each binding covers one Voice. A second Voice in the same task needs a fresh `start` and readiness check. If the host gives the Agent no execution opportunity, that Voice may be missed live. Do not use an earlier run's counts as coverage for the new Voice. Before maintenance or rebinding, inspect the current binding; leave another task's active Voice alone.
+
+同一任务连续开两场 Voice，也必须逐场绑定。宿主没有执行回调时，Agent 不能自动接上；要如实说明会中漏绑定，不能沿用上一场完成数。`voice_brief` 已生成不等于已交给 Voice；没有可用交接接口时，不声称已注入。维护前核对当前绑定，不打断其他任务正在用的 Voice。
 
 ## End and recovery / 结束与恢复
 
 - The exact Voice close event starts a drain. The worker keeps reading complete lines for at least five quiet seconds, translates pending rows, then closes its owned Codex child. An Agent-observed end should also run `stop --run <binding-id>`; this requests a drain and is idempotent. It does not terminate Voice or other tasks. Check for `ended` or report the actual error. With no end event, 30 minutes without new transcript (or six hours per binding) expires it visibly.
 - Restarting the archive service resumes a still-requested binding from its committed cursor. Completed translations persist. A model call interrupted before its result was committed may be sent again; do not claim exactly-once billing.
 - Two failed attempts on a batch stop automatic translation visibly. Preserve the English and error. After Agent fixes the cause, `resume --run <id>` explicitly retries failed rows and reads any later tail for the same binding. It never automatically switches source tasks. A normal new Voice uses `start` after the old binding has ended.
-- Late segments arriving after the five-second close grace require explicit `resume`; inspect the bound raw source if the host flushes late. An incomplete final line or changed source identity is reported, not silently skipped. Same-task file replacement can rewind with ID deduplication; a changed task fails closed.
+- For a missed **closed** Voice, use `recover_voice.py` with the verified task ID, exact Voice ID and source. It snapshots only that Voice, marks the page as **after-Voice recovery**, and never changes the active binding or enabled preference. Repeated recovery is idempotent; at most two failed attempts per batch stop it visibly. `--refresh-translations` explicitly recomputes an ended run's translations after a translator fix. Originals and formal lesson records remain unchanged.
+- Late segments arriving after the five-second close grace require explicit recovery; use the finite helper for an ended Voice, especially when another task now owns the active binding. An incomplete trailing line is left for a later snapshot. Invalid complete lines, conflicting IDs or a changed source identity fail visibly. Ordinary `resume` is for an existing binding that needs to continue; do not use it to displace another task's active run.
 - After draining, perform normal selected-evidence lesson save and validation. Keep the existing lesson ID and duplicate rules. Neither an assistant's translation nor viewing Chinese proves independent ability.
 
 结束时 Agent 请求当前绑定排空并检查结果，然后按原流程保存精选课次。后台只在明确绑定范围内读转写，不自动写“掌握”。超过结束宽限期才出现的尾段需要 Agent 恢复；不能承诺宿主任何延迟都无遗漏。
+
+漏绑定的已结束场次由 `recover_voice.py` 定向恢复，页面明确标“结束后恢复”，不接管当前字幕。重新运行只补缺项；修复译文后才显式加 `--refresh-translations`。恢复缓存不替代精选课次保存，也不能算作会中实时覆盖。
 
 ## Data, runtime and limits / 数据、环境与边界
 
@@ -31,6 +38,10 @@ Agent 先恢复学习，再绑定实际 Voice 所在任务。新用户主动提�
 The optional translator requires Python 3.11+ and a current Codex CLI supporting app-server. Agent checks the desktop bundled binary before an older PATH CLI; `ENGLISH_COACH_CODEX` may explicitly select a verified binary. No global CLI upgrade or auth-file copy is needed. Default model is `gpt-5.6-luna` with `low`, verified against the logged-in model list; no silent fallback to another model. It uses account quota. The app-server connection is reused for up to 20 turns, then replaced to bound translation context. Each batch has up to three segments, normally up to 4,500 characters; original single segments are limited to 12,000 characters.
 
 Shell, exec, apps, plugins, MCP, browsing, hooks, subagents and related tools are disabled in the translator's local process configuration. Transcript content is untrusted translation input. No configuration is written globally. Unexpected tool/approval requests abort the connection. The server uses a scratch working directory, ephemeral threads and no history persistence; the program never tails those threads. Existing account/platform request logging is outside this local cache's control.
+
+The program enumerates every English span in mixed Chinese/English segments and requires a Chinese meaning for each, including quoted teaching examples. Missing IDs or an English echo fail validation; a narrow proper-name exception preserves names. Chinese-only segments need no model request. These checks prevent omissions, but do not prove semantic perfection; the original remains available beside the separate Chinese display.
+
+中英混合句按英文片段逐项翻译，中文说明中引用的例句也要有中文句意。缺项或照抄英文不会标记完成，专名可保留原拼写；纯中文不请求模型。程序能检查覆盖，不能保证译意永远准确，原话始终保留。
 
 页面只连本机；翻译需要现有 Codex 登录及网络，会使用账户额度。没有新片段就没有模型轮次。默认每批至多三条，连接每二十轮轮换。临时缓存只用于字幕回看，正式档案仍在原目录。服务由现有档案管理器托管；没有额外麦克风、录音权限或网站。
 
@@ -46,5 +57,6 @@ python3 <skill>/scripts/open_library.py --page live --no-browser
 python3 <skill>/scripts/live_companion.py status
 python3 <skill>/scripts/live_companion.py stop --run <binding-id>
 python3 <skill>/scripts/live_companion.py resume --run <binding-id>
+python3 <skill>/scripts/recover_voice.py --thread-id <verified-task-id> --voice-id <closed-voice-id> --source <verified-jsonl>
 python3 <skill>/scripts/live_companion.py disable
 ```

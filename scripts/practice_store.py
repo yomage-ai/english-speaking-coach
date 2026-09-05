@@ -316,8 +316,12 @@ def resume(root, today):
     latest = state['sessions'][-1] if state['sessions'] else None
     due = sorted([e for e in state['expressions'] if e['next_review'] <= today], key=lambda e:(e['next_review'], e['id']))
     profile = state['profile']
-    brief = ('Use simple English first. ' if profile['practice_language'] == 'english_first' else 'Use bilingual scaffolding at the learner’s pace. ')
-    brief += 'Help language: ' + profile['help_language'] + '. Respond to meaning and continue with a natural follow-up. '
+    if companion['enabled'] and profile['practice_language'] == 'english_first':
+        brief = 'Speak simple English in Voice. Put Chinese help on the companion page; do not read it aloud unless the learner explicitly asks for spoken Chinese. '
+    else:
+        brief = ('Use simple English first. ' if profile['practice_language'] == 'english_first' else 'Use bilingual scaffolding at the learner’s pace. ')
+        brief += 'Help language: ' + profile['help_language'] + '. '
+    brief += 'Respond to meaning and continue with a natural follow-up. '
     brief += ('Give at most one short recast per turn. ' if profile['correction'] == 'light' else 'Give the requested detailed feedback without losing the conversation. ')
     brief += ('No compulsory repetition. ' if profile['drills'] == 'on_request' else 'Use guided practice where useful. ')
     brief += 'Do not repeatedly ask whether to continue. '
@@ -326,7 +330,7 @@ def resume(root, today):
     concepts = [{'id':c['id'],'term':c['term'],'meaning':c['meaning'],'level':c['level_label'],'next_step':c['next_step'],'last_observation':c['events'][-1]} for c in state.get('concepts',[]) if c['level']!='stable' or c['needs_revisit']][:profile['review_limit']]
     brief += ' Preserve stable concept IDs. If later speech shows changed understanding, reading or unprompted use, record the actual evidence separately; reading aloud is not proof of independent use.'
     if companion['enabled']:
-        brief += ' Bilingual companion is enabled: the tool-enabled Agent must bind this Voice task and verify the local #live page is ready. Speak English; Chinese help is on the companion page unless the learner explicitly asks you to say it. Do not forward each sentence through tools. Do not claim subtitles are live until actual transcript ingestion is observed.'
+        brief += ' Bilingual companion is enabled: the tool-enabled Agent must bind EACH new Voice in this task and verify its local #live page. An ended binding does not follow the next Voice. Do not forward each sentence through tools. Do not claim the voice host received this brief or live subtitles without observation.'
     return {'profile':profile, 'latest_session':latest, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], 'voice_brief':brief, 'companion':companion}
 
 def validate(root):

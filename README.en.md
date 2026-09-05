@@ -57,6 +57,8 @@ Speak through the existing Codex Voice interface. The fixed local page shows Eng
 
 Temporary transcripts and translations are stored in `Live/` inside the learning folder, separately from selected lessons and mastery evidence. The page shows up to 40 utterances at a time and supports recent-session review. Starting a new companion removes caches older than seven days. Say “Stop using the bilingual companion” and the agent disables future automatic activation.
 
+Each Voice needs a fresh agent binding, including consecutive Voices in one task. If the host provides no execution opportunity, live captions may be missed. Say “Recover the bilingual conversation that just ended” and the agent verifies and translates the closed session; the page labels it as after-Voice recovery. This leaves another active run alone and does not count as live coverage. English examples quoted inside Chinese teaching text receive their own Chinese meaning.
+
 Incremental reading and actual Codex translation requests have been verified. **Transcript flush delay during Voice, end-to-end latency and missing utterances still require an actual Voice trial**; completed logs do not establish those properties. Skill instructions cannot guarantee that a host always loads them or provides an end callback. The agent reports actual readiness, waiting, end and error states. See [bilingual companion implementation and recovery](references/live-companion.md).
 
 ## Maintenance and acknowledgement
