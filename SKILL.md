@@ -1,6 +1,6 @@
 ---
 name: english-speaking-coach
-description: Practice natural English conversation and resume saved learning, with a local journal, flip cards and traceable expression progress. Use for speaking practice, role-play, reviewing learned expressions or opening the learning archive. 用于英语口语、情景对话、继续上次练习、闪卡复习和查看学习档案。
+description: Practice natural English conversation and resume saved learning, with a local journal, flip cards, expression progress and an optional bilingual Voice companion. Use for speaking practice, role-play, reviewing expressions or opening the learning archive. 用于英语口语、情景对话、继续上次练习、闪卡复习、双语伴随和查看学习档案。
 ---
 
 # English Speaking Coach / 英语口语教练
@@ -21,6 +21,10 @@ For setup, explanations and reports, use the user's current language (Simplified
 4. Naturally bring back at most 1–2 suitable due expressions; fewer or none if the user has a specific topic, limited time or does not want review. Due items are suggestions, not debt. Never display the answer before an intended retrieval attempt.
 
 Agent 先读项目页并运行 `resume`，恢复稳定偏好和最少必要上下文；宿主支持时把简短 `voice_brief` 交给 Voice。默认直接接话或问一个贴近上次内容的问题，不在开口前做问卷。到期表达按话题自然带回少量，用户已指定话题或不想复习时服从用户。
+
+If the learner requests bilingual subtitles/companion, or `resume.companion.enabled` is true, read [live-companion.md](references/live-companion.md). The tool-enabled Agent binds the exact current Voice task, opens `#live`, and verifies `ready=true` before claiming it is ready. Keep Voice in English, with Chinese on the page, unless explicitly asked otherwise. Existing authorization persists; do not ask to enable it again on each practice. Ordinary archive review never starts a model turn.
+
+用户要求双语字幕或伴随、或恢复结果中已启用时，Agent 按参考文档绑定本次 Voice、打开页面并核实就绪。口语继续英文，中文放在网页；用户明确另有要求时服从用户。不让 Voice 逐句调工具转发，也不把网页看板当成麦克风入口。
 
 ## Respond, help, continue / 回应、帮助、继续
 
@@ -52,9 +56,9 @@ Read [data-schema.md](references/data-schema.md) before saving or changing recor
 - A final tail is a persistence opportunity, not just a greeting to acknowledge. Deduplicate cumulative transcript segments. Save only language-learning evidence, never incidental private or background conversation. Use partial-evidence notes when transcription is incomplete.
 - For a long session, checkpoint selected evidence when tools are available, with `end_status: in_progress`. On resumption inspect the pending record. An unfinished checkpoint must not be automatically declared ended.
 - After a successful write and `validate`, run `open_library.py --session <saved-id> --no-browser` and open its verified URL in the host browser. Then briefly say what was saved and the next thread to pick up. If saving failed, say so and keep the pending file. Never claim a save from an intention alone.
-- No background listener, automatic callback or cross-device synchronization is installed by this skill. Host-delivered end events and Agent tool execution are required. If the voice host provides no final callback, the next tool-enabled turn can recover only the evidence that actually exists.
+- The optional companion can observe a bound Voice log and drain translations after its close event; it does not save authoritative lesson/mastery records. Agent closeout still requires observable end evidence and tool execution. No permanent host hook or cross-device synchronization is installed. If the host provides no final callback, the next tool-enabled turn can recover only existing evidence.
 
-同一课次及结束重试复用 ID。观察到结束信号后，Agent 写入精选证据、校验并刷新；允许零新增表达。长课次可先存未完成检查点；未结束内容不能自动宣称完成。只保留学习所需转写，不保存旁人的背景谈话。工具实际成功后再告知已保存。Skill 没有安装后台监听或跨设备同步。
+同一课次及结束重试复用 ID。观察到结束信号后，Agent 写入精选证据、校验并刷新；允许零新增表达。长课次可先存未完成检查点；未结束内容不能自动宣称完成。正式档案只保留学习所需片段。启用伴随时，Agent 同时请求该绑定排空尾段并核实结束；伴随缓存不会自动变成正式学习证据，也没有永久宿主回调或跨设备同步。
 
 ## Local workspace and tools / 本地目录与命令
 

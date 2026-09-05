@@ -74,6 +74,7 @@ def backup_embedded_data(root):
     try:
         with zipfile.ZipFile(temp,'w',compression=zipfile.ZIP_DEFLATED) as archive:
             for file in root.rglob('*'):
+                if file.relative_to(root).parts[0] == 'Live':continue
                 if file.is_file() and file.name!='.write.lock':archive.write(file,file.relative_to(root))
         with zipfile.ZipFile(temp) as archive:
             if archive.testzip() is not None:raise ValueError('Recovery backup verification failed')

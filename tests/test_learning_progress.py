@@ -92,10 +92,13 @@ class WorkspaceTests(unittest.TestCase):
         self.assertFalse((self.base/'new').exists())
     def test_embedded_backup_outside_skill(self):
         root=self.skill/'data';store.initialize(root);store.rebuild(root)
+        (root/'Live').mkdir();(root/'Live'/'cache.txt').write_text('Synthetic transient transcript')
         with patch.object(config,'SKILL_ROOT',self.skill),patch.object(config,'CONFIG_PATH',self.cfg):
             result=config.backup_embedded_data(root)
         import zipfile
-        with zipfile.ZipFile(result) as z:self.assertIn('Archive/legacy-v1.md',z.namelist());self.assertIsNone(z.testzip())
+        with zipfile.ZipFile(result) as z:
+            self.assertIn('Archive/legacy-v1.md',z.namelist());self.assertIsNone(z.testzip())
+            self.assertFalse(any(name.startswith('Live/') for name in z.namelist()))
         self.assertNotIn(self.skill,Path(result).parents)
 
 if __name__=='__main__':unittest.main()

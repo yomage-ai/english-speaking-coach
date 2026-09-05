@@ -12,6 +12,7 @@ A Codex skill for natural English conversation, with a local learning journal, f
 - “I'm traveling abroad. Let's practice asking a hotel receptionist for information.”
 - “I have two minutes. Open the vocabulary cards and let me guess the meanings first.”
 - “Continue our last conversation. Help me in Chinese when I need it.”
+- “Open the bilingual companion. Let us speak English, with Chinese translations on the page.”
 
 Provide only the topic, goal, or review request. The agent handles installation checks, initialization, context recovery, saving, verification, and opening the viewer. No recurring questionnaire or mandatory webpage visit before speaking.
 
@@ -19,6 +20,7 @@ Provide only the topic, goal, or review request. The agent handles installation 
 
 | View | Purpose |
 | --- | --- |
+| Bilingual companion (optional) | Both Voice speakers’ English and Chinese, with on-demand Chinese and review |
 | Overview | Latest practice, topic notebooks, and quick review |
 | Conversations | Selected wording, suggested expressions, summaries, and next steps |
 | Words and expressions | Reversible cards: Chinese to English, English to Chinese, or bilingual reading |
@@ -41,13 +43,21 @@ Learner records, machine configuration, backups, recordings, and private screens
 
 ## Environment and boundaries
 
-Python 3.10+ and its standard library are required; no API key, database, or Node runtime dependency. The agent checks the environment.
+Python 3.10+ and its standard library are required, with no external database or Node runtime dependency. The optional bilingual companion needs Python 3.11+, a Codex CLI supporting app-server, and the existing ChatGPT login. It uses account quota without a new API key. The agent checks the environment.
 
 Fresh initialization, saving, recovery in a new process, local browsing, and the bundled launchd fallback have been verified on macOS without an additional service-manager skill. An existing host manager takes priority. The fallback lasts for the current login session and does not add login startup. Cross-platform CI checks storage and views on Linux and Windows; the agent uses the host's native supervisor for persistent serving there. Native desktop and Voice workflows on those platforms have not been tested on real devices.
 
 Skill instructions and usage documentation support Simplified Chinese and English and follow the user's language. Viewer navigation is currently primarily Chinese, with English learning content.
 
 Voice persistence requires transcripts, an observable end signal, and tool access from the host. Only learning-related excerpts are saved by default; there is no background recording. Reading judgments require actual accessible audio. Otherwise only observable meaning/use evidence is recorded. The skill cannot guarantee an automatic end callback in every Voice host.
+
+## Bilingual companion boundaries
+
+Speak through the existing Codex Voice interface. The fixed local page shows English first, then Chinese. The agent binds only the current practice task and Voice session; no per-sentence forwarding is required and idle time starts no model turns. The default translator is GPT-5.6 Luna with low reasoning, checked against the logged-in model list. It never silently switches models or purchases services.
+
+Temporary transcripts and translations are stored in `Live/` inside the learning folder, separately from selected lessons and mastery evidence. The page shows up to 40 utterances at a time and supports recent-session review. Starting a new companion removes caches older than seven days. Say “Stop using the bilingual companion” and the agent disables future automatic activation.
+
+Incremental reading and actual Codex translation requests have been verified. **Transcript flush delay during Voice, end-to-end latency and missing utterances still require an actual Voice trial**; completed logs do not establish those properties. Skill instructions cannot guarantee that a host always loads them or provides an end callback. The agent reports actual readiness, waiting, end and error states. See [bilingual companion implementation and recovery](references/live-companion.md).
 
 ## Maintenance and acknowledgement
 

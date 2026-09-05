@@ -127,14 +127,16 @@ async function render() {
   const section = path.split('/')[0];
   const navSection=section==='progress'?'stats':section;
   $('#term-dialog').close();
+  window.CoachLive?.unmount();
   main.setAttribute('aria-busy','true');
   document.querySelectorAll('[data-nav]').forEach(el => { el.classList.toggle('active',el.dataset.nav===navSection); if(el.dataset.nav===navSection) el.setAttribute('aria-current','page');else el.removeAttribute('aria-current'); });
-  const names = {overview:'概览',sessions:'对话记录',terms:'生词与表达',stats:'统计回顾',progress:'词句进展',storage:'档案与存储'};
+  const names = {live:'双语伴随',overview:'概览',sessions:'对话记录',terms:'生词与表达',stats:'统计回顾',progress:'词句进展',storage:'档案与存储'};
   $('#breadcrumb').textContent = '我的学习 / '+(names[section]||'档案');
   try {
     if(!overview) {overview=await api('/api/overview');$('#goal').textContent=overview.profile.goal;}
     let data, markup;
-    if(path==='overview'){data=await api('/api/overview');overview=data;markup=home(data);}
+    if(path==='live'){data=await api('/api/live',args);markup=window.CoachLive.shell();}
+    else if(path==='overview'){data=await api('/api/overview');overview=data;markup=home(data);}
     else if(path==='sessions'){data=await api('/api/sessions',{...args,limit:10});markup=sessionsPage(data,args);}
     else if(path.startsWith('sessions/')){data=await api('/api/'+path);markup=lessonPage(data);}
     else if(path==='terms'){data=await api('/api/terms',{...args,limit:12});markup=termsPage(data,args);}
@@ -144,7 +146,8 @@ async function render() {
     else if(path==='storage'){data=await api('/api/storage');markup=storagePage(data);}
     else throw new Error('这个页面不存在，请从左侧导航重新打开。');
     if(version!==renderVersion)return;
-    main.innerHTML=markup;updateMeta(data);
+    main.innerHTML=markup;
+    if(path==='live')window.CoachLive.mount(data,args);else updateMeta(data);
     document.title=(names[section]||'我的学习')+' · 英语学习档案';
     window.scrollTo({top:0,behavior:'instant'});
   } catch(error) {

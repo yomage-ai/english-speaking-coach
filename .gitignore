@@ -17,3 +17,7 @@ workspace.json
 /Archive/
 /state.json
 /profile.json
+/Live/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

@@ -13,7 +13,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--root',type=Path)
     p.add_argument('--session')
-    p.add_argument('--page',choices=['overview','terms','stats','progress','storage'],default='overview')
+    p.add_argument('--page',choices=['overview','terms','stats','progress','storage','live'],default='overview')
     p.add_argument('--service-url',help='Verified loopback URL from the existing host supervisor')
     p.add_argument('--port',type=int,default=8897)
     p.add_argument('--no-browser',action='store_true')

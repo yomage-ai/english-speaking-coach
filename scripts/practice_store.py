@@ -310,6 +310,8 @@ def validate_profile(profile):
     check_date(profile['updated'])
 
 def resume(root, today):
+    from live_companion import companion_preferences
+    companion = companion_preferences(root)
     state = build_state(root)
     latest = state['sessions'][-1] if state['sessions'] else None
     due = sorted([e for e in state['expressions'] if e['next_review'] <= today], key=lambda e:(e['next_review'], e['id']))
@@ -323,7 +325,9 @@ def resume(root, today):
     brief += 'Continue from: ' + (' / '.join(latest.get('next_focus', [])) if latest else 'a simple daily-life question') + '. Save selected evidence when an actual end signal is observed; never invent a host hook.'
     concepts = [{'id':c['id'],'term':c['term'],'meaning':c['meaning'],'level':c['level_label'],'next_step':c['next_step'],'last_observation':c['events'][-1]} for c in state.get('concepts',[]) if c['level']!='stable' or c['needs_revisit']][:profile['review_limit']]
     brief += ' Preserve stable concept IDs. If later speech shows changed understanding, reading or unprompted use, record the actual evidence separately; reading aloud is not proof of independent use.'
-    return {'profile':profile, 'latest_session':latest, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], 'voice_brief':brief}
+    if companion['enabled']:
+        brief += ' Bilingual companion is enabled: the tool-enabled Agent must bind this Voice task and verify the local #live page is ready. Speak English; Chinese help is on the companion page unless the learner explicitly asks you to say it. Do not forward each sentence through tools. Do not claim subtitles are live until actual transcript ingestion is observed.'
+    return {'profile':profile, 'latest_session':latest, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], 'voice_brief':brief, 'companion':companion}
 
 def validate(root):
     rebuilt = build_state(root)

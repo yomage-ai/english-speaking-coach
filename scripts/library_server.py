@@ -11,6 +11,8 @@ import os
 import re
 import sys
 import threading
+import signal
+import sqlite3
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 APP = SKILL_ROOT / 'assets/library'
@@ -88,6 +90,9 @@ class Archive:
             return self.data
 
     def query(self, path, args):
+        if path == '/api/live':
+            from live_companion import LiveStore
+            return LiveStore(self.root).view(args)
         data = self.load()
         meta = {'revision': data['revision'], 'source_updated_at': data['source_updated_at']}
         sessions, terms = data['sessions'], data['terms']
@@ -174,6 +179,8 @@ class Handler(BaseHTTPRequestHandler):
             if path in assets:
                 filename, mime = assets[path]
                 return self.send_bytes(200, (APP / filename).read_bytes(), mime)
+            if path in {'/live.js', '/live.css'}:
+                return self.send_bytes(200, (APP / path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
             if re.fullmatch(r'/records/SES-\d{8}-\d{3}\.md', path):
                 sid = Path(path).stem
                 if sid in self.server.archive.load()['details']:
@@ -185,7 +192,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_payload(400, {'error': str(exc)})
         except Exception as exc:
             self.log_error('Archive read failed: %s', exc)
-            self.send_payload(503, {'error': '暂时无法读取本机学习记录，请稍后刷新；若仍失败，请让 Agent 检查数据源。'})
+            self.send_payload(503, {'error': '双语缓存暂不可读，请让 Agent 检查；正式学习记录仍可查看。' if path == '/api/live' else '暂时无法读取本机学习记录，请稍后刷新；若仍失败，请让 Agent 检查数据源。'})
 
     def do_HEAD(self):
         self.do_GET()
@@ -216,8 +223,23 @@ def main():
     archive.load()
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
     server.archive = archive
+    from live_companion import LiveSupervisor
+    companion = None
+    try:
+        companion = LiveSupervisor(args.root)
+        companion.start()
+    except (sqlite3.Error, OSError) as exc:
+        print('Companion cache unavailable; ordinary archive remains available.', file=sys.stderr, flush=True)
+    def stop(signum, frame):
+        raise SystemExit(0)
+    signal.signal(signal.SIGTERM, stop)
     print(f'English learning archive: http://127.0.0.1:{args.port}', flush=True)
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        if companion:
+            companion.close()
+        server.server_close()
 
 
 if __name__ == '__main__':
