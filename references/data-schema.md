@@ -45,7 +45,7 @@
 }
 ```
 
-Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `expressions` (may be `[]`). IDs are safe stable names. Reuse an expression ID on later practice of the same phrase, rather than creating duplicates. One record per expression per session summarizes the observable attempt; do not count repeated ASR segments as separate attempts. `next_focus` has at most two items. Imports add `recovered_on` and `evidence_status: partial` when only selections are available; date remains the actual practice date, not import date.
+Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `expressions` (may be `[]`). IDs are safe stable names. Reuse an expression ID on later practice of the same phrase, rather than creating duplicates. One record per expression per session summarizes the observable attempt; do not count repeated ASR segments as separate attempts. `next_focus` has at most two items. Imports add `recovered_on` and `evidence_status: partial` when only selections are available; date remains the actual practice date, not import date. When verified, add `practiced_at`, an ISO timestamp with timezone on that local practice date (for example `2026-09-05T21:30:00+08:00`). Session continuation, attempts and concept histories use actual practice time, never the later import order. Old records without times stay valid; within a date they sort before timed records, with their ordering uncertainty reported to the Agent. Do not invent missing times or rewrite old lessons to add them.
 
 `original` is the learner's selected wording, `english` is the suggested form, `note` explains the observed support and limits. A scored attempt needs both `review_result` and `review_prompt`. `independent` requires `success / none`; `transfer` requires `transfer_success / changed_context`. Structural validation cannot verify that an utterance really happened; Agent must check the source. Do not promote historical mastery without actual evidence.
 
@@ -53,7 +53,7 @@ Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `e
 
 ## Preference update / 偏好更新
 
-`set-preferences --input <json>` merges known fields. Require `source_ids` for an actual user decision and set `updated` to its date.
+`set-preferences --input <json> --expected-profile-sha256 <fresh-hash>` merges known fields. Require `source_ids` for an actual user decision and set `updated` to its date. Read the current file immediately before preparing the patch; preserve unrelated fields and existing decision references. A hash conflict requires rereading and merging, not forcing an overwrite.
 
 | Field | Values |
 | --- | --- |
@@ -61,11 +61,15 @@ Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `e
 | `practice_language` | `english_first`, `bilingual` |
 | `help_language` | `zh-CN`, `en` |
 | `mode` | `conversation`, `roleplay`, `focused` |
-| `correction` | `light`, `detailed` |
-| `drills` | `on_request`, `guided` |
+| `correction` | `after_scene` (new-user default), `light`, `detailed` |
+| `drills` | `on_request`, `guided` (new-user default; guided work is in review) |
 | `review_limit` | 0–5; default 2 |
 
 Latest explicit preference supersedes old session-specific requests. Do not turn a temporary request for Chinese into a permanent language change.
+
+`after_scene` defers proactive language teaching until review while still allowing minimal explicit help and natural clarification. `mode: focused` starts in review; conversation/roleplay start in scene. `resume --phase review` changes only this invocation. Old profiles retain their existing `light`/`detailed` and drill choices. See [practice-phases.md](practice-phases.md).
+
+`after_scene` 表达“会中先交流，课后再教”；`guided` 允许复盘阶段引导练习，不要求每句跟读。旧配置继续兼容。临时阶段不改长期偏好，保存时用新读的文件哈希避免覆盖并发修改。补录使用实际带时区的练习时间排序，未知时间不编造。
 
 ## Writes and repairs / 写入与修复
 

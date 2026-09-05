@@ -8,8 +8,8 @@ Use this mode when the learner requests a local bilingual page alongside Codex V
 
 1. Run the normal `paths` and `resume` workflow first. Keep the same authoritative archive and current learning thread. The companion is optional for new users; a request to use it authorizes these bounded translation requests through their existing ChatGPT login. Successful non-demo binding remembers `enabled=true`. Respect a request to stop using it via `disable`; never silently purchase credits, consume a reset or fall back to an API key.
 2. Resolve the **actual Voice task ID**, using the current task identity or the explicit source task when handling a delegation. Do not bind the implementation task or a translator task. `start` can resolve an exact UUID filename under the local Codex sessions tree; it never chooses the newest arbitrary task. Verify the source header. A currently active Voice is continued; otherwise bind the **next** Voice in that task, without replaying closed sessions.
-3. Internally run `live_companion.py start --thread-id <voice-task-id>` (add `--source <verified-jsonl>` if necessary), then `open_library.py --page live --no-browser`. Reuse the host's existing manager. If it is serving an older installed implementation, inspect identity and perform an authorized precise restart; don't launch a competing service.
-4. Read `/api/live`: require matching `state.thread_id`, `ready=true`, and `stale=false`. Open and inspect the verified `/#live` URL through the host browser. `bound` only confirms the binding was saved; it does **not** mean the backend or page is ready. `probe` separately verifies CLI, login, model discovery and ephemeral thread creation without requesting a translation.
+3. Use `prepare_practice.py --thread-id <voice-task-id>` (add `--source <verified-jsonl>` when needed, `--companion` only for a new explicit enable request). This restores context, reads the project page, binds the exact source, reuses the existing service and checks its identity and live API. It waits finitely, preserves another task's active Voice, and returns the exact run URL. Do not stop at `paths`/`resume` and start an exercise before executing this entry. If an older installed implementation requires a restart, inspect identity and wait until no unrelated Voice is active; never launch a competing manager.
+4. `backend_ready` requires the matching run/task/Voice, `ready=true`, and `stale=false`. Agent must then open and inspect the returned `/#live?run=…` in the host browser; the command reports `page_display: not_verified` because an HTTP response cannot prove a visible preview. Check `transcript_observed` separately. `waiting_backend`, `other_voice_active`, `ended` and errors do not count as ready. If tools are available but these steps were skipped, report an execution omission; only report a host limitation when the required tools/callback actually were unavailable. `probe` remains a separate login/model check, not a page or speech check.
 5. When the host provides a context handoff, pass the normal `voice_brief` plus: “Keep spoken conversation in simple English. Chinese is available on the companion page unless the learner explicitly asks you to say it. Do not forward sentences with tools.” Generating a brief does not prove Voice received it. If no callable handoff exists, report that boundary; do not pretend a file update injected context. Continue the learner's topic. Don't recite setup in every Voice turn or require the learner to operate terminals or find files.
 
 Agent 先恢复学习，再绑定实际 Voice 所在任务。新用户主动提出伴随需求即可启用，已启用者不反复征询。Agent 完成依赖检查、服务复用与页面检查；用户只需说英语。`bound` 不等于已就绪；须核对任务 ID、后台心跳和 `ready=true`。网页仍为空时，不声称已看到实时转写。
@@ -52,6 +52,7 @@ Local tests cover incremental reading, deduplication, half UTF-8 lines, finite e
 ```bash
 # Agent-only commands; ordinary users simply request the feature.
 python3 <skill>/scripts/live_companion.py probe
+python3 <skill>/scripts/prepare_practice.py --thread-id <actual-voice-task-id>
 python3 <skill>/scripts/live_companion.py start --thread-id <actual-voice-task-id>
 python3 <skill>/scripts/open_library.py --page live --no-browser
 python3 <skill>/scripts/live_companion.py status
@@ -60,3 +61,5 @@ python3 <skill>/scripts/live_companion.py resume --run <binding-id>
 python3 <skill>/scripts/recover_voice.py --thread-id <verified-task-id> --voice-id <closed-voice-id> --source <verified-jsonl>
 python3 <skill>/scripts/live_companion.py disable
 ```
+
+正常新 Voice 用统一准备入口，底层 start/status/stop 保留给诊断与收尾。入口输出后台核验和页面地址，Agent 仍须实际打开并检查。没有可见预览就说“后台已就绪，页面尚未核验”；没有实际转写就说“等待转写”，不冒充字幕已同步。这个入口不主动开启用户麦克风，也不安装全局监控。

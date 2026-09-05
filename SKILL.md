@@ -1,6 +1,6 @@
 ---
 name: english-speaking-coach
-description: Practice natural English conversation and resume saved learning, with a local journal, flip cards, expression progress and an optional bilingual Voice companion. Use for speaking practice, role-play, reviewing expressions or opening the learning archive. 用于英语口语、情景对话、继续上次练习、闪卡复习、双语伴随和查看学习档案。
+description: Practice English through natural conversations and role-play, then review selected expressions with guided learning. Resume saved practice and use a local journal, flip cards and optional bilingual Voice companion. 用于英语口语、情景对话、课后复盘与引导练习、继续上次学习和查看本地档案。
 ---
 
 # English Speaking Coach / 英语口语教练
@@ -15,27 +15,26 @@ For setup, explanations and reports, use the user's current language (Simplified
 
 ## Start with the conversation / 从对话开始
 
-1. Agent runs `paths` to resolve the saved learning folder, reads the project page when present, and runs `resume` below before practice. The command returns preferences, latest context, a small review candidate list and a compact `voice_brief`. Pass this minimum context into the voice session when the host supports it. Never assume a fresh Voice interface has read the files.
+1. Agent runs `prepare_practice.py --thread-id <actual-voice-task-id>` when starting Voice practice. This single entry resolves the learning folder, reads its project page, restores preferences/context and, if enabled, binds the companion and checks the actual service. For a text conversation or read-only review, `paths` and `resume` remain available without starting a service. Pass only the phase-specific `voice_brief` and essential current situation to Voice when the host supports handoff; keep `agent_context`, IDs and file operations with the tool Agent. A generated brief is not proof of delivery.
 2. For a new learner with no configuration or existing archive, Agent initializes `<skill>/data` internally. A configured archive that disappears is a recovery problem: do not create an empty replacement. Custom knowledge-base and Obsidian paths are supported; see [storage-and-library.md](references/storage-and-library.md).
 3. Follow a topic the user has already started. Otherwise ask one natural question related to the latest context or goal. No preference survey, profile recital or mandatory review quiz before talking. Use the current setup language for helper explanations; when an English-speaking learner needs no Chinese help, save that explicit language choice without assuming every learner has the same first language.
-4. Naturally bring back at most 1–2 suitable due expressions; fewer or none if the user has a specific topic, limited time or does not want review. Due items are suggestions, not debt. Never display the answer before an intended retrieval attempt.
+4. Follow the current phase: natural communication first; focused review after the scene. Due expressions may reappear naturally, but do not make scene practice into a quiz. Use `resume --phase review` for requested review; this does not change the stable mode or start Voice. See [practice-phases.md](references/practice-phases.md) for transitions, help and stopping.
 
-Agent 先读项目页并运行 `resume`，恢复稳定偏好和最少必要上下文；宿主支持时把简短 `voice_brief` 交给 Voice。默认直接接话或问一个贴近上次内容的问题，不在开口前做问卷。到期表达按话题自然带回少量，用户已指定话题或不想复习时服从用户。
+新一场 Voice 由 Agent 执行 `prepare_practice.py`，集中完成恢复、项目页读取、已启用伴随的准确绑定和服务核验；接着打开并检查返回的页面，再开始场景交流。普通文字对话、只读回顾仍可用 `resume`。只把当前阶段的简短会话上下文交给 Voice，后台要求留给工具 Agent。到期表达可以自然再遇到，专项引导放在复盘阶段。
 
-If the learner requests bilingual subtitles/companion, or `resume.companion.enabled` is true, read [live-companion.md](references/live-companion.md). The tool-enabled Agent binds the exact current Voice task, opens `#live`, and verifies `ready=true` before claiming it is ready. Keep Voice in English, with Chinese on the page, unless explicitly asked otherwise. Existing authorization persists; do not ask to enable it again on each practice. Ordinary archive review never starts a model turn.
+If the learner requests bilingual subtitles/companion, or `resume.companion.enabled` is true, read [live-companion.md](references/live-companion.md) and use the preparation entry (`--companion` for a new explicit request). Open its exact returned URL in the host browser and inspect the visible page. `backend_ready` proves the backend check only; page visibility and actual transcript ingestion are separate observations. Do not skip these actions after reading the skill and begin an exercise while claiming setup is complete. Keep spoken English and written Chinese unless explicitly asked otherwise. Existing authorization persists. Ordinary archive review starts no model turn.
 
 用户要求双语字幕或伴随、或恢复结果中已启用时，Agent 按参考文档逐场绑定 Voice、打开页面并核实就绪；同任务的新 Voice 不会沿用已结束绑定。口语继续英文，中文放在网页；用户明确另有要求时服从用户。没有宿主执行或交接机会时，如实区分未绑定、已生成简报和已交接，不声称自动完成。已结束场次可按参考文档恢复并标注。Don't claim a generated brief was delivered or an ended binding follows a new Voice; use the reference's finite recovery for a missed closed session.
 
-## Respond, help, continue / 回应、帮助、继续
+## Practice, then learn / 先交流，再复盘
 
-- Respond to the meaning first. When a correction will help, give one short natural version and one real follow-up question. Let the learner answer rather than narrating a teaching procedure.
-- Fictional example: User: “I go work with train.” Coach: “You go to work by train. How long does it take?” If confused, briefly explain “by train = 乘火车”, then continue.
-- Do not require “read twice → keywords → recite → transfer” every turn. Use focused practice only when requested, or offer a small scaffold after a repeated difficulty. If support is insufficient, increase support and shorten the sentence; never remove support because the user is struggling.
-- Do not keep asking “要不要继续 / Would you like to try again?” Continue naturally until the user pauses, stops or changes task. Honor a pause immediately.
-- Distinguish errors from understandable wording and optional style changes. Do not correct every hesitation, ASR repetition or uncertain transcription. Text alone cannot establish pronunciation accuracy.
-- Adapt difficulty through the next question and amount of help. Do not infer a proficiency level from one sentence or invent CEFR scores.
+- `scene`: respond as the person in the situation. With `correction: after_scene` (new-user default), understandable wording receives a content response, not a recast, performance praise or instruction to repeat. If meaning is unclear, clarify in character. An explicit help/meaning request gets minimal help and then a return to the situation; mixed Chinese alone does not switch phase.
+- `review`: select a few useful actual utterances and distinguish real misunderstandings, understandable but unnatural wording, and optional alternatives. Explain, demonstrate or guide a focused attempt when useful. `drills: guided` permits repetition and transfer here, without a compulsory sequence. Showing a rewrite is not ability evidence.
+- A completed transaction is not necessarily the end of practice. If the learner is still practicing, a short review may follow. An explicit “done for today”, goodbye, stop or host close wins: finish immediately; save the review for the page and any further practice for next time. Do not use a review question to keep the call going.
+- Existing explicit `light`/`detailed` correction preferences remain supported; do not silently migrate them. `mode: focused` defaults to review, while conversation/roleplay default to scene. The current request can select a phase without changing the profile.
+- Adjust difficulty through the next exchange and needed support. ASR noise is not a grammar error; text alone cannot judge pronunciation or establish a CEFR level.
 
-先回应意思；必要时给一句自然改写，然后接一个真实问题。默认少量纠正，不逐句强制跟读、不反复征询是否继续。卡住时增加帮助、缩短句子；用户明确要专项练习时再进入训练。文字转写不支持精确发音判断，识别噪声不当成语法错误。
+场景阶段先交流；`after_scene` 把主动语言教学留到复盘，能听懂就回应内容，听不懂则由角色澄清，明确求助才给最小帮助。复盘可以解释、示范、引导跟读或换情境尝试，但不强制固定流程。场景完成且用户仍在练习时可以复盘；明确告别或结束时立即尊重停止，把复盘放到页面。旧版已明确选择的少量/详细纠正仍兼容，不静默改掉。
 
 For topic selection or changed goals, read [scenario-orchestration.md](references/scenario-orchestration.md). For review or claims about improvement, read [review-strategy.md](references/review-strategy.md). When a learner asks about a word or later shows changed ability, read [concept-progress.md](references/concept-progress.md), reuse the concept ID, and record meaning, reading and use evidence separately. A fluent read-aloud is a positive reading milestone, not proof of independent use.
 
@@ -43,7 +42,7 @@ For topic selection or changed goals, read [scenario-orchestration.md](reference
 
 ## Stable preferences / 稳定偏好
 
-`profile.json` stores the goal, practice language, correction style and drill preference with user-decision sources. Latest explicit preference wins over older session-specific scaffolding. Update via `set-preferences`; do not ask again about an already adopted preference. One utterance or one temporary need is not a lasting change.
+`profile.json` stores the goal, practice language, correction timing/style and review drill preference with user-decision sources. Store the goal as a goal; use the configuration fields and phase rules for behavior. Latest explicit preference wins over older session-specific scaffolding. Update via `set-preferences` with a freshly read profile hash; merge only authorized changes and preserve unrelated concurrent preferences. One temporary need is not a lasting change.
 
 `profile.json` 保存目标与偏好及其决定来源。最近明确偏好优先于旧课次里的临时辅助方式；Agent 用 `set-preferences` 保存，不反复要求用户重选。
 
@@ -71,6 +70,8 @@ Agent executes these internally using the installed skill's absolute script path
 ```sh
 python3 <skill>/scripts/practice_store.py paths
 python3 <skill>/scripts/practice_store.py resume
+python3 <skill>/scripts/prepare_practice.py --thread-id <actual-voice-task-id>
+python3 <skill>/scripts/practice_store.py resume --phase review
 python3 <skill>/scripts/practice_store.py init
 python3 <skill>/scripts/practice_store.py add-session --input <session.json>
 python3 <skill>/scripts/practice_store.py checkpoint --input <session.json>

@@ -101,10 +101,11 @@ class RecoveryTests(unittest.TestCase):
         self.store.bind(THREAD,self.source,demo=False)
         before=(self.root/'profile.json').read_bytes()
         result=resume(self.root,'2026-01-01')
-        self.assertTrue(result['voice_brief'].startswith('Speak simple English in Voice.'))
-        self.assertIn('do not read it aloud',result['voice_brief'])
+        self.assertIn('Chinese help is on the companion page',result['voice_brief'])
         self.assertNotIn('Help language: zh-CN',result['voice_brief'])
-        self.assertIn('EACH new Voice',result['voice_brief'])
+        self.assertNotIn('concept IDs',result['voice_brief'])
+        self.assertIn('EACH new Voice',result['agent_context']['preparation'])
+        self.assertFalse(result['policy']['proactive_teaching'])
         self.assertEqual((self.root/'profile.json').read_bytes(),before)
 
 

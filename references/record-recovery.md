@@ -25,3 +25,7 @@ Agent 应尽可能从已有文件与可访问对话恢复，不要求用户维�
 ## Historical import / 历史补录
 
 Use real source task IDs; read the source, select only useful learning utterances, and mark partial coverage. Immediate model repetition remains supported practice. Do not raise mastery or add attempts from an assistant's praise. Historical originals may contain ASR uncertainty; label that limitation. Compare IDs and source IDs with existing sessions before import to avoid double-counting the same practice.
+
+When the source has a verified time, preserve it in `practiced_at` with its local timezone. `recovered_on` is only the import date. A later import ID must not replace the latest real practice as the continuation context. Pure setup or preference discussion can yield zero new sessions and expressions; record its operational finding or explicit preference separately. A short scene can still contain useful spontaneous language: select that evidence without padding it to a quota.
+
+有可核对时间时保存 `practiced_at`；补录日期不当作练习时间。先对真实来源去重，晚补的旧场不能挤掉较新练习。纯环境设置/偏好讨论允许零新课次，语言证据与产品问题分开沉淀。

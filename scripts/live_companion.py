@@ -138,11 +138,6 @@ class LiveStore:
         if source_identity(source) != thread_id:
             raise ValueError('源文件身份与指定任务不一致；未绑定。')
         voice_id, complete = scan_lifecycle(source)
-        existing = self.active()
-        if existing and existing['desired'] != 'stopped' and existing['status'] not in TERMINAL:
-            if existing['source'] == str(source) and existing['voice_id'] in {None, voice_id} and existing['model'] == model:
-                return existing
-            raise ValueError('另一场双语伴随尚未结束。先由 Agent 对该绑定执行 stop，再绑定新练习。')
         state = {'id': str(uuid.uuid4()), 'thread_id': thread_id, 'source': str(source),
             'voice_id': voice_id, 'cursor': 0 if voice_id else complete,
             'file_identity': [source.stat().st_dev, source.stat().st_ino], 'demo': demo,
@@ -151,6 +146,13 @@ class LiveStore:
             'last_activity_epoch': time.time(), 'close_epoch': None, 'error': None,
             'invalid_lines': 0, 'rewinds': 0, 'has_partial_line': False, 'ready': False}
         with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute("SELECT runs.* FROM runs JOIN meta ON meta.value=runs.id WHERE meta.key='active'").fetchone()
+            existing = {**json.loads(row['state']), 'desired':row['desired']} if row else None
+            if existing and existing['desired'] != 'stopped' and existing['status'] not in TERMINAL:
+                if existing['source'] == str(source) and existing['voice_id'] in {None, voice_id} and existing['model'] == model:
+                    return existing
+                raise ValueError('另一场双语伴随尚未结束；保留当前绑定，不能为新练习停止其他任务。')
             db.execute('INSERT INTO runs VALUES (?,?,?)', (state['id'], 'running', json.dumps(state)))
             db.execute("INSERT OR REPLACE INTO meta VALUES ('active',?)", (state['id'],))
             if not demo:

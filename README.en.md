@@ -4,7 +4,7 @@ Once installed, try “Continue our last speaking practice,” “Open my flashc
 
 # English Speaking Coach
 
-A Codex skill for natural English conversation, with a local learning journal, flip cards, and progress tracking. Practice usable expression: asking, explaining, clarifying, describing, and responding. Vocabulary and grammar support communication.
+Practice natural English conversation first, then review useful things you actually said. The AI is your conversation partner during the scene and a coach for explanations, models or focused speaking practice afterward. A local journal, flip cards and progress records support continued practice; vocabulary and grammar serve communication.
 
 ## Use it in your own words
 
@@ -13,8 +13,12 @@ A Codex skill for natural English conversation, with a local learning journal, f
 - “I have two minutes. Open the vocabulary cards and let me guess the meanings first.”
 - “Continue our last conversation. Help me in Chinese when I need it.”
 - “Open the bilingual companion. Let us speak English, with Chinese translations on the page.”
+- “Be the shop assistant. Talk naturally with me first, then review after the scene.”
+- “Review what I just said, explain it in Chinese, then guide me through another attempt.”
 
 Provide only the topic, goal, or review request. The agent handles installation checks, initialization, context recovery, saving, verification, and opening the viewer. No recurring questionnaire or mandatory webpage visit before speaking.
+
+New learners default to content responses during scenes, natural clarification when meaning is unclear, and minimal help when explicitly requested. Understandable sentences do not trigger routine rewrites or repetition. Review can include a few useful explanations, demonstrations and guided attempts, separating misunderstandings, unnatural wording and optional alternatives. If you say you are done for today or say goodbye, the AI ends promptly, leaves review in the journal, and saves further practice for another time. Existing explicit correction preferences remain supported.
 
 ## Your learning archive
 
@@ -58,6 +62,8 @@ Speak through the existing Codex Voice interface. The fixed local page shows Eng
 Temporary transcripts and translations are stored in `Live/` inside the learning folder, separately from selected lessons and mastery evidence. The page shows up to 40 utterances at a time and supports recent-session review. Starting a new companion removes caches older than seven days. Say “Stop using the bilingual companion” and the agent disables future automatic activation.
 
 Each Voice needs a fresh agent binding, including consecutive Voices in one task. If the host provides no execution opportunity, live captions may be missed. Say “Recover the bilingual conversation that just ended” and the agent verifies and translates the closed session; the page labels it as after-Voice recovery. This leaves another active run alone and does not count as live coverage. English examples quoted inside Chinese teaching text receive their own Chinese meaning.
+
+The agent uses one preparation entry for context recovery, binding and backend checks, then opens and inspects the actual page. Backend readiness, page visibility and observed transcripts are separate results; generating a brief does not prove Voice received it. Skipping available preparation tools is an execution omission, not a missing host callback.
 
 Incremental reading and actual Codex translation requests have been verified. **Transcript flush delay during Voice, end-to-end latency and missing utterances still require an actual Voice trial**; completed logs do not establish those properties. Skill instructions cannot guarantee that a host always loads them or provides an end callback. The agent reports actual readiness, waiting, end and error states. See [bilingual companion implementation and recovery](references/live-companion.md).
 

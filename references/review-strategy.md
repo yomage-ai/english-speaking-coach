@@ -16,7 +16,9 @@ These are observations, not permanent badges or CEFR levels. Repeating a supplie
 
 这些是有日期的观察，不是永久掌握证明。跟读不等于脱稿，曾脱稿不等于一直会。判断有无独立使用时写清提示和延时情况。
 
-Agent selects at most the saved `review_limit` of relevant due items. Default to 1–2 and weave them into the conversation. Do not read the whole overdue queue or force a quiz at the start. Respect the user's chosen topic. Offer a short model only when needed; if the learner struggles, add support and simplify. No mandatory repetition count.
+Agent selects at most the saved `review_limit` of relevant due items. Default to 1–2. In the scene, let the situation create a natural chance to use them; with `after_scene`, do not supply a model or turn the reply into a drill. In review, explain, model or guide a focused attempt when useful, adapting support rather than requiring a fixed sequence. Respect the user's chosen topic and clear ending; unfinished review belongs in the page or a later requested session. See [practice-phases.md](practice-phases.md).
+
+场景里自然重访词句，不插入逐句教学。复盘可以示范、跟读、针对性尝试或迁移；先分清实际误解、不自然表达与可选改写，控制在少量有价值内容。明确结束优先于复盘，不强留用户。
 
 Suggested initial intervals: collected/full text → next session (around 1 day); keywords → around 3 days; independent → around 7 days; transfer → around 14 days. These are practical defaults, not a validated personalized algorithm. Failure brings the item closer; repeated success in the same minute does not lengthen it. A conversation may close without new scored attempts.
 

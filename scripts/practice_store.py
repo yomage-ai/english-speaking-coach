@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+from practice_context import practice_time, session_order, speaking_context, transition
 
 PROJECT_ID = 'PRJ-ENGLISH-SPEAKING'
 MASTERY_ZH = {'not_tested':'尚未尝试', 'source_text':'看原句说出', 'keywords':'借关键词说出', 'independent':'曾独立说出', 'transfer':'曾换场景使用'}
@@ -82,7 +83,7 @@ def baseline():
 def default_profile():
     return {'schema_version':1, 'goal':'清楚、自然地表达自己的想法 / Express ideas clearly and naturally',
             'practice_language':'english_first', 'help_language':'zh-CN',
-            'mode':'conversation', 'correction':'light', 'drills':'on_request',
+            'mode':'conversation', 'correction':'after_scene', 'drills':'guided',
             'review_limit':2, 'source_ids':[], 'updated':str(date.today())}
 
 def initialize(root):
@@ -122,6 +123,9 @@ def validate_payload(data, allow_in_progress=False):
     if not isinstance(data['id'], str) or not ID.fullmatch(data['id']):
         raise ValueError('Session id must be SES-YYYYMMDD-NNN')
     check_date(data['date'])
+    if data.get('practiced_at') is not None:
+        if not isinstance(data['practiced_at'], str) or practice_time(data['practiced_at']).date().isoformat() != data['date']:
+            raise ValueError('practiced_at must be a zoned practice timestamp on the recorded local date')
     record_frontmatter(data)
     if data['id'][4:12] != data['date'].replace('-', ''):
         raise ValueError('Session id date differs from practice date')
@@ -204,6 +208,8 @@ def session_markdown(data):
     text += data.get('evidence_note', '只保留学习所需的精选转写，不代表完整对话；文字不能证明发音准确。') + '\n\n'
     if data.get('recovered_on'):
         text += '补录日期：' + data['recovered_on'] + '；掌握状态仅按当时可见证据记录。\n\n'
+    if data.get('practiced_at'):
+        text += '实际练习时间：' + data['practiced_at'] + '。\n\n'
     text += block(MARKER, data) + '\n## 我的补充\n\n可在这里自由补充学习笔记；Agent 重建页面时保留本文件。\n'
     return text
 
@@ -230,7 +236,8 @@ def build_state(root):
         if not (root / 'Sessions' / (sid + '.md')).is_file():
             raise ValueError('Legacy source missing: ' + sid)
     expressions = {e['id']:e for e in state['expressions']}
-    for record in sorted(records, key=lambda r:(r['date'], r['id'])):
+    sessions_by_id = {s['id']:s for s in [*state['sessions'], *records]}
+    for record in sorted(records, key=session_order):
         summary = {k:deepcopy(v) for k,v in record.items() if k != 'expressions'}
         summary['expression_ids'] = [e['id'] for e in record['expressions']]
         state['sessions'].append(summary)
@@ -240,14 +247,16 @@ def build_state(root):
             if item.get('review_result'):
                 attempts.append({'date':record['date'], 'session':record['id'], 'result':item['review_result'], 'prompt':item['review_prompt'], 'original':item['original'], 'note':item['note']})
             # Older imports add evidence without regressing a newer observation.
-            newer = prior.get('updated', '') > record['date']
+            prior_sessions = [sessions_by_id[sid] for sid in prior.get('seen_in_sessions', [prior.get('source_session')]) if sid in sessions_by_id]
+            newer = (max((session_order(s) for s in prior_sessions), default=('', '', '')) > session_order(record))
+            newer = newer or prior.get('updated', '') > record['date']
             merged = deepcopy(prior if newer else item)
             merged['source_session'] = prior.get('source_session', record['id'])
             merged['seen_in_sessions'] = sorted(set(prior.get('seen_in_sessions', []) + [record['id']]))
-            merged['attempts'] = sorted(attempts, key=lambda a:(a['date'], a['session']))
+            merged['attempts'] = sorted(attempts, key=lambda a:session_order(sessions_by_id.get(a['session'], a)))
             merged['updated'] = max(prior.get('updated', ''), record['date'])
             expressions[item['id']] = merged
-    state['sessions'].sort(key=lambda s:(s['date'], s['id']))
+    state['sessions'].sort(key=session_order)
     state['expressions'] = sorted(expressions.values(), key=lambda e:e['id'])
     state['updated'] = max([s['date'] for s in state['sessions']] + [state.get('updated', '')])
     state['profile'] = read_json(root / 'profile.json')
@@ -300,7 +309,7 @@ def commit(root, data):
 def validate_profile(profile):
     if not isinstance(profile.get('goal'), str) or not profile['goal'].strip():
         raise ValueError('goal must be nonempty')
-    allowed = {'practice_language':{'english_first', 'bilingual'}, 'help_language':{'zh-CN', 'en'}, 'mode':{'conversation', 'roleplay', 'focused'}, 'correction':{'light', 'detailed'}, 'drills':{'on_request', 'guided'}}
+    allowed = {'practice_language':{'english_first', 'bilingual'}, 'help_language':{'zh-CN', 'en'}, 'mode':{'conversation', 'roleplay', 'focused'}, 'correction':{'light', 'detailed', 'after_scene'}, 'drills':{'on_request', 'guided'}}
     for key, choices in allowed.items():
         if profile.get(key) not in choices:
             raise ValueError('Invalid preference: ' + key)
@@ -309,29 +318,31 @@ def validate_profile(profile):
     strings(profile.get('source_ids'), 'source_ids')
     check_date(profile['updated'])
 
-def resume(root, today):
+def resume(root, today, phase=None, event=None):
     from live_companion import companion_preferences
     companion = companion_preferences(root)
     state = build_state(root)
     latest = state['sessions'][-1] if state['sessions'] else None
     due = sorted([e for e in state['expressions'] if e['next_review'] <= today], key=lambda e:(e['next_review'], e['id']))
     profile = state['profile']
-    if companion['enabled'] and profile['practice_language'] == 'english_first':
-        brief = 'Speak simple English in Voice. Put Chinese help on the companion page; do not read it aloud unless the learner explicitly asks for spoken Chinese. '
-    else:
-        brief = ('Use simple English first. ' if profile['practice_language'] == 'english_first' else 'Use bilingual scaffolding at the learner’s pace. ')
-        brief += 'Help language: ' + profile['help_language'] + '. '
-    brief += 'Respond to meaning and continue with a natural follow-up. '
-    brief += ('Give at most one short recast per turn. ' if profile['correction'] == 'light' else 'Give the requested detailed feedback without losing the conversation. ')
-    brief += ('No compulsory repetition. ' if profile['drills'] == 'on_request' else 'Use guided practice where useful. ')
-    brief += 'Do not repeatedly ask whether to continue. '
-    brief += 'Goal: ' + profile['goal'] + '. Mode: ' + profile['mode'] + '; corrections: ' + profile['correction'] + '; drills: ' + profile['drills'] + '. '
-    brief += 'Continue from: ' + (' / '.join(latest.get('next_focus', [])) if latest else 'a simple daily-life question') + '. Save selected evidence when an actual end signal is observed; never invent a host hook.'
+    context = speaking_context(profile, companion['enabled'], latest, phase)
+    if event:
+        move = transition(context['phase'], event)
+        if move['action'] == 'end':
+            context = {'phase': None, 'voice_brief': 'The learner has finished. Give only a brief goodbye if Voice is still open; no new question, review or exercise.', 'policy': {'proactive_teaching': False, 'guided_drills': False}}
+        elif move['action'] == 'pause':
+            context['voice_brief'] = 'The learner paused. Acknowledge briefly and wait; do not start review or another exercise.'
+        elif move['phase'] != context['phase']:
+            context = speaking_context(profile, companion['enabled'], latest, move['phase'])
+        context['transition'] = move
     concepts = [{'id':c['id'],'term':c['term'],'meaning':c['meaning'],'level':c['level_label'],'next_step':c['next_step'],'last_observation':c['events'][-1]} for c in state.get('concepts',[]) if c['level']!='stable' or c['needs_revisit']][:profile['review_limit']]
-    brief += ' Preserve stable concept IDs. If later speech shows changed understanding, reading or unprompted use, record the actual evidence separately; reading aloud is not proof of independent use.'
-    if companion['enabled']:
-        brief += ' Bilingual companion is enabled: the tool-enabled Agent must bind EACH new Voice in this task and verify its local #live page. An ended binding does not follow the next Voice. Do not forward each sentence through tools. Do not claim the voice host received this brief or live subtitles without observation.'
-    return {'profile':profile, 'latest_session':latest, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], 'voice_brief':brief, 'companion':companion}
+    same_day_unknown = [s['id'] for s in state['sessions'] if latest and s['date'] == latest['date'] and not s.get('practiced_at')]
+    return {'profile':profile, 'latest_session':latest, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], **context, 'companion':companion,
+            'agent_context': {'preparation': 'Run prepare_practice for EACH new Voice when the companion is enabled; open and inspect its returned URL before claiming it is shown.',
+                              'handoff': 'voice_brief_generated_only; host delivery is not verified by this command',
+                              'records': 'Reuse concept/session IDs. Save selected actual evidence at an observed end; viewing a rewrite is not mastery.',
+                              'chronology': 'Actual practice time when available; dates and IDs only for undated legacy records. Import time is never practice time.',
+                              'same_day_without_time': same_day_unknown}}
 
 def validate(root):
     rebuilt = build_state(root)
@@ -353,6 +364,9 @@ def main():
     parser.add_argument('--input', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--today', default=str(date.today()))
+    parser.add_argument('--phase', choices=['scene', 'review'], help='This invocation only; does not change preferences')
+    parser.add_argument('--event', choices=['continue', 'help_requested', 'meaning_unclear', 'review_requested', 'scene_complete_and_continuing', 'pause', 'user_end', 'host_closed'], help='Agent-classified observed intent; does not start or end Voice')
+    parser.add_argument('--expected-profile-sha256', help='Reject a preference update if the profile changed since Agent read it')
     args = parser.parse_args()
     from workspace_config import resolve_workspace, CONFIG_PATH
     workspace=resolve_workspace(root=args.root, vault=args.vault)
@@ -361,7 +375,7 @@ def main():
         print(encoded(workspace),end='');return 0
     check_date(args.today)
     if args.command in {'resume', 'validate'}:
-        result = resume(root, args.today) if args.command == 'resume' else validate(root)
+        result = resume(root, args.today, args.phase, args.event) if args.command == 'resume' else validate(root)
         print(encoded({**result,'workspace':workspace}), end='')
         return 1 if result.get('ok') is False else 0
     with writer(root):
@@ -399,6 +413,8 @@ def main():
             changes = read_json(args.input)
             if not changes.get('source_ids'): raise ValueError('Preference change requires user decision source_ids')
             prior = read_json(root / 'profile.json')
+            if args.expected_profile_sha256 and hashlib.sha256((root / 'profile.json').read_bytes()).hexdigest() != args.expected_profile_sha256:
+                raise ValueError('Preferences changed since they were read; reread and merge the current user decision')
             if set(changes) - set(prior): raise ValueError('Unknown preference fields')
             profile = {**prior, **changes}; validate_profile(profile)
             write_json(root / 'profile.json', profile); rebuild(root); result = {'status':'preferences_saved'}

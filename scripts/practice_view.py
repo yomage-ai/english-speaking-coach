@@ -56,7 +56,7 @@ def render(state, root, snapshot=False):
         recovered = '<span class="badge">历史补录 · 精选转写</span>' if record.get('recovered_on') else ''
         facts = ''
         for item in record.get('expressions', []):
-            facts += '<div class="utterance"><p class="small-label">我当时说</p><p class="original">' + e(item.get('original') or '未记录原话；仅收集表达，尚未测试。') + '</p><p class="small-label">可以这样表达</p><p class="model" lang="en">' + e(item['english']) + '</p><p>' + e(item['chinese']) + '</p><p class="evidence">' + e(item['note']) + '</p></div>'
+            facts += '<div class="utterance"><p class="small-label">我当时说</p><p class="original">' + e(item.get('original') or '未记录原话；仅收集表达，尚未测试。') + '</p><p class="small-label">表达参考</p><p class="model" lang="en">' + e(item['english']) + '</p><p>' + e(item['chinese']) + '</p><p class="evidence">' + e(item['note']) + '</p></div>'
         if not record.get('expressions'):
             facts = '<p class="muted">本页未列出逐句证据。' + ('旧记录的表达表格保留在原始 Markdown 中。' if not record.get('source_ids') else '本次未新增表达。') + '</p>'
         raw = '<details class="raw-source"><summary>查看原始 Markdown 文本</summary><pre>' + e((root / 'Sessions' / (session['id'] + '.md')).read_text(encoding='utf-8')) + '</pre></details>'

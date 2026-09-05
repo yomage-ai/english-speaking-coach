@@ -49,6 +49,8 @@ def collect_progress(root, state, extra=None):
         for raw in observations:
             if any(x not in expression_ids for x in raw.get('expression_ids',[])):raise ValueError('Unknown expression reference in concept evidence')
             event={**raw,'date':record['date'],'session':record['session'],'source_ids':record['source_ids'],'session_title':sessions[record['session']]['title']}
+            if sessions[record['session']].get('practiced_at'):
+                event['practiced_at'] = sessions[record['session']]['practiced_at']
             if event['id'] in seen:
                 if seen[event['id']]!=event:raise ValueError('Conflicting observation ID')
                 continue
@@ -62,7 +64,8 @@ def collect_progress(root, state, extra=None):
 
 def summarize_concept(concept):
     """Derive a state using only the supplied chronological evidence."""
-    concept['events'].sort(key=lambda o:(o['date'],o['session'],o['id']))
+    from practice_context import session_order
+    concept['events'].sort(key=lambda o:(session_order({**o, 'id':o['session']}),o['id']))
     dimensions={}
     for key,label in DIMENSIONS.items():
         events=[e for e in concept['events'] if e['dimension']==key]

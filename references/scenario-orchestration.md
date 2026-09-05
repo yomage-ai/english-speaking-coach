@@ -17,4 +17,4 @@ Goals change the conversation context; ability changes the support. Do not confu
 
 目标决定场景，能力决定难度，两者分开调整。初学者也可能面向外企，高水平学习者也可能只想旅行。通过实际表达调整短句、追问和帮助程度，不从目的推断等级。
 
-Use at most one new difficulty at a time: longer answer, another tense, a clarification, or an unexpected change. Natural conversation is the default; role-play and focused drills are modes chosen by the user's intent. Do not build an exam curriculum, pronunciation scorer, word-count achievement system or all-purpose life assistant unless requested.
+Use at most one new difficulty at a time: longer answer, another tense, a clarification, or an unexpected change. Natural conversation and role-play use a scene phase; focused learning uses review. With deferred correction, raise difficulty through the situation, not a “next, ask…” teaching command. On natural scene completion, review only while the learner is still practicing; explicit goodbye or a stop request ends immediately. Do not build an exam curriculum, pronunciation scorer, word-count achievement system or all-purpose life assistant unless requested.
