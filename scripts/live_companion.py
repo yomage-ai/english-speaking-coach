@@ -178,6 +178,17 @@ class LiveStore:
             db.execute('UPDATE runs SET desired=? WHERE id=?', (desired, run_id))
             return desired
 
+    def finish(self, state):
+        if state['status'] not in TERMINAL:
+            raise ValueError('Only a terminal binding can be finished')
+        state['ready'] = False
+        clean = {k:v for k,v in state.items() if k != 'desired'}
+        with self.db() as db:
+            result = db.execute("UPDATE runs SET desired='stopped',state=? WHERE id=?",
+                                (json.dumps(clean, ensure_ascii=False), state['id']))
+            if result.rowcount != 1:
+                raise ValueError('Unknown binding; nothing was stopped')
+
     def resume(self, run_id):
         active = self.active()
         if not active or active['id'] != run_id:
@@ -384,18 +395,17 @@ class LiveSupervisor:
                             current['status'] = 'ended'
                         elif time.time() - current['created_epoch'] > 6 * 3600 or quiet > 30 * 60:
                             current['status'] = 'expired'; current['error'] = '长时间未收到新转写，已停止伴随。继续练习时由 Agent 重新绑定。'
-                        self.store.save(current)
                         if current['status'] in TERMINAL:
-                            current['ready'] = False
+                            self.store.finish(current)
+                        else:
                             self.store.save(current)
-                            self.store.stop(current['id'], immediate=True)
                     self.shutdown.wait(.35)
                 except Exception as exc:
                     if current:
                         current['status'] = 'error'
                         current['ready'] = False
                         current['error'] = str(exc) if isinstance(exc, (ValueError, FileNotFoundError)) else '读取伴随数据失败；请让 Agent 检查源日志和本地缓存。'
-                        self.store.save(current); self.store.stop(current['id'], immediate=True)
+                        self.store.finish(current)
                     if self.client:
                         self.client.close()
                     self.shutdown.wait(1)

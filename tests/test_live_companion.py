@@ -165,6 +165,19 @@ class LiveTests(unittest.TestCase):
         self.assertEqual(self.store.active()['desired'],'running')
         self.store.stop(state['id']);self.assertEqual(self.store.active()['desired'],'drain')
 
+    def test_terminal_state_and_stop_request_are_one_atomic_transition(self):
+        state=self.bind()
+        # An observer must never see a terminal status paired with a running request.
+        with self.store.db() as db:
+            db.execute("""CREATE TRIGGER terminal_consistency AFTER UPDATE ON runs
+                WHEN json_extract(NEW.state,'$.status') IN ('ended','error','expired') AND NEW.desired!='stopped'
+                BEGIN SELECT RAISE(ABORT,'Terminal binding is still requested'); END""")
+        state.update(status='error',ready=True,error='Synthetic failure')
+        self.store.finish(state)
+        result=self.store.active()
+        self.assertEqual(result['status'],'error');self.assertEqual(result['desired'],'stopped')
+        self.assertFalse(result['ready'])
+
     def test_explicit_start_can_reuse_waiting_binding_without_model_call(self):
         first=self.bind();second=self.bind()
         self.assertEqual(first['id'],second['id']);self.assertEqual(FakeTranslator.calls,0)
