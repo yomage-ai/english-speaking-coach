@@ -43,7 +43,7 @@ If the actual spoken reply departs from an otherwise compliant backend response,
 
 The intended result is the correct local page visible to the learner, not a submitted request. Keep backend readiness, open request, visible route and actual transcript/lesson content as separate facts in the current task context.
 
-1. Open the exact prepared live/review URL through an allowed visible host surface.
+1. At every new practice, automatically open the local learning page through an allowed visible host surface: the exact prepared live URL when the companion is enabled, otherwise the overview URL. Text practice also opens the overview. At closeout, open the matching review URL. Opening the archive does not enable translation or bind Voice.
 2. Inspect that surface after the open. A screen capture taken before opening, HTTP 200, promoted tool item or `queued` response is insufficient.
 3. If queued or wrong, use one available permitted recovery path: navigate/reuse a visible browser tab, or the host's required delegated browser executor. Follow its actual routing rules; do not declare the browser unavailable before checking the permitted route. Recheck the exact route and relevant live run or saved lesson.
 4. After this bounded attempt, if the surface is still unavailable, mark display unresolved and place the usable link plus the specific display issue on the written surface. Do not repeat the same queued request indefinitely, ask the learner to run commands, or claim the page was opened.

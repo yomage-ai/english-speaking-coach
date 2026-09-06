@@ -16,7 +16,7 @@ from practice_context import compact_context, review_route
 
 
 def open_service(root, service_url=None):
-    command = [sys.executable, str(SKILL_ROOT/'scripts/open_library.py'), '--root', str(root), '--page', 'live', '--no-browser']
+    command = [sys.executable, str(SKILL_ROOT/'scripts/open_library.py'), '--root', str(root), '--page', 'overview', '--no-browser']
     if service_url:
         command += ['--service-url', service_url]
     result = subprocess.run(command, capture_output=True, text=True, timeout=45)
@@ -27,6 +27,13 @@ def open_service(root, service_url=None):
     parsed = urlsplit(opened['url'])
     check_service(parsed.scheme + '://' + parsed.netloc, root)
     return opened
+
+
+def service_base(service):
+    parsed = urlsplit(service['url'])
+    if parsed.scheme != 'http' or parsed.hostname not in {'127.0.0.1','localhost'} or parsed.username:
+        raise ValueError('Service must return a loopback URL')
+    return parsed.scheme + '://' + parsed.netloc
 
 
 def read_live(base):
@@ -75,7 +82,14 @@ def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion
         return {**result, 'status':'needs_scene', 'url':None,
                 'next_action':context['startup']['next_action']}
     if not (enable_companion or context['companion']['enabled']):
-        return {**result, 'status':'conversation_only', 'url':None}
+        try:
+            service = opener(root, service_url)
+            return {**result, 'status':'conversation_only',
+                    'url':service_base(service) + '/#overview', 'service':service.get('service', {}),
+                    'next_action':'Agent: automatically open this learning page and verify it is visible before introducing the scene. Captions remain disabled; do not bind Voice or enable translation. At the end, save and show the matching written review.'}
+        except (ValueError, OSError, KeyError, subprocess.SubprocessError) as exc:
+            return {**result, 'status':'preparation_error', 'url':None, 'error':str(exc),
+                    'next_action':'Agent: inspect the archive service error. No page display has been verified.'}
     if not thread_id:
         return {**result, 'status':'needs_voice_task', 'url':None,
                 'next_action':'Agent must resolve the actual Voice task ID; do not bind the implementation task.'}
@@ -93,10 +107,7 @@ def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion
     result['context'] = resume(root, str(date.today()), phase, scene=scene)
     try:
         service = opener(root, service_url)
-        parsed = urlsplit(service['url'])
-        if parsed.scheme != 'http' or parsed.hostname not in {'127.0.0.1','localhost'} or parsed.username:
-            raise ValueError('Service must return a loopback URL')
-        base = parsed.scheme + '://' + parsed.netloc
+        base = service_base(service)
         result['service'] = service.get('service', {})
         result['url'] = base + '/#live?run=' + binding['id']
         deadline = time.monotonic() + timeout

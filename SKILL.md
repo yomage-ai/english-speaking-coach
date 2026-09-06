@@ -1,6 +1,6 @@
 ---
 name: english-speaking-coach
-description: Practice spoken English in a fresh introduced scene, adapt natural support to the learner, and save a written review with an optional local bilingual page. 用于英语口语情景练习、自然表达帮助与课后书面复盘；查看档案或分析 Skill 时不启动练习。
+description: Practice spoken English in a fresh introduced scene, with natural support, an automatically opened local learning page, optional bilingual captions, and a written review. 用于英语口语情景练习、自然表达帮助与课后书面复盘；查看档案或分析 Skill 时不启动练习。
 ---
 
 # English Speaking Coach / 英语口语教练
@@ -36,8 +36,10 @@ Create a coherent learning conversation: the learner expresses a meaning, receiv
 
 1. Run `practice_store.py resume --compact --with-project` once, using the installed script's absolute path. Read the preferences, learning evidence and project page returned together. Preserve the configured data root. History informs support needs and scene variety; never reuse an archived `next_focus`, unfinished transaction or old dialogue as today's plot.
 2. Choose an accessible scene, prioritizing a topic the user specified. Write a JSON with six nonempty text fields: `setting`, `learner_role`, `partner_role`, `goal`, `introduction`, `opening_line`. The goal describes something the **learner** will formulate, not just a service the partner completes. Introduce place, roles and that goal in the saved help language, then use a natural English opening. See [scenario-orchestration.md](references/scenario-orchestration.md) when planning a scene or changing goals. Reuse the same scene on setup retries.
-3. For Voice, read [voice-delivery.md](references/voice-delivery.md) once for the active host's speech and display contract. Run `prepare_practice.py --thread-id <actual-voice-task-id> --scene <scene.json> --compact`. Follow the returned preparation status. When the companion is enabled, open its exact URL and verify a visible page. Retain `review_url`. For text practice, use `resume --scene <scene.json> --compact`; do not start a Voice service.
+3. Automatically open the local learning page for every new practice; the learner does not need to ask. For Voice, read [voice-delivery.md](references/voice-delivery.md) once for the active host's speech and display contract. Run `prepare_practice.py --thread-id <actual-voice-task-id> --scene <scene.json> --compact`. Follow the returned preparation status. Open the exact returned URL and verify a visible page: the bound companion when enabled, otherwise the learning overview. Retain `review_url` when returned. For text practice, use `resume --scene <scene.json> --compact`, then `open_library.py --page overview --no-browser` and visibly open its URL; do not bind Voice or enable translation for text practice.
 4. Deliver the complete scene introduction once, then the first English role line. A preparation progress message must not contain a partial scene introduction or invite “ready?” before the scene is ready. Record observed page/intro status in the current task context; do not treat the preparation script's always-unverified host fields as a completed check.
+
+本地学习页每次开练自动打开；双语字幕按已保存的启用偏好运行，两者分别处理。
 
 Agent 恢复背景 → 选定用户需要亲自表达的任务 → 准备并显示页面 → 一次介绍完整情景 → 英文开场。场景不交给用户从菜单挑选；技术准备不能变成反复播报的课程内容。
 

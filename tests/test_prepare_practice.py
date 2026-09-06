@@ -32,10 +32,32 @@ class PrepareTests(unittest.TestCase):
         self.source.write_text(json.dumps({'type':'session_meta','payload':{'id':THREAD}})+'\n')
         self.store=LiveStore(self.root)
 
-    def test_no_companion_does_not_start_service_or_model(self):
-        def forbidden(*args):self.fail('No service should be started')
-        result=prepare(self.root,opener=forbidden,scene=SCENE)
-        self.assertEqual(result['status'],'conversation_only');self.assertIsNone(self.store.active())
+    def test_no_companion_opens_archive_without_binding_or_translation(self):
+        from unittest.mock import patch
+        from urllib.request import urlopen
+        server=ThreadingHTTPServer(('127.0.0.1',0),QuietHandler)
+        server.archive=Archive(self.root,Path(__file__).resolve().parents[1])
+        threading.Thread(target=server.serve_forever,daemon=True).start()
+        self.addCleanup(server.server_close);self.addCleanup(server.shutdown)
+        base=f'http://127.0.0.1:{server.server_port}'
+        profile=(self.root/'profile.json').read_bytes()
+        def forbidden(*args):self.fail('Captions must remain inactive')
+        with patch('prepare_practice.LiveStore', side_effect=forbidden):
+            result=prepare(self.root,service_url=base,reader=forbidden,scene=SCENE)
+        self.assertEqual(result['status'],'conversation_only')
+        self.assertEqual(result['url'],base+'/#overview')
+        with urlopen(result['url']) as response:self.assertEqual(response.status,200)
+        self.assertIsNone(self.store.active())
+        self.assertEqual((self.root/'profile.json').read_bytes(),profile)
+        self.assertEqual(result['checks']['page_display'],'not_verified')
+        self.assertFalse(result['startup_complete'])
+
+    def test_archive_only_failure_or_external_url_does_not_claim_prepared(self):
+        def broken(*args):raise OSError('Synthetic archive failure')
+        for opener in (broken, lambda *args:{'url':'https://example.com/#overview'}):
+            result=prepare(self.root,opener=opener,scene=SCENE)
+            self.assertEqual(result['status'],'preparation_error')
+            self.assertIsNone(result['url']);self.assertIsNone(self.store.active())
 
     def test_actual_http_preparation_reuses_binding_but_does_not_claim_ui_or_handoff(self):
         server=ThreadingHTTPServer(('127.0.0.1',0),QuietHandler)

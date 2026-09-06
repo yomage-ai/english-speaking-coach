@@ -12,24 +12,15 @@ Practice English in travel, restaurant, interview and other everyday situations.
 
 After installation, send this as your next message:
 
-> Use $english-speaking-coach to practice English with me for ten minutes. Choose a fresh scene, briefly introduce it in my preferred language, then speak English with me.
+> Help me practice English. Choose a scene, introduce it in Chinese, then speak English with me.
 
 To speak aloud, open Voice in a compatible Codex app and say “Let's practice English.” Text practice works too.
 
 Each practice introduces the setting, both roles and your goal before the dialogue begins. The AI responds to what you say and gives you opportunities to explain needs, give reasons and ask questions. New practices use your learning history to choose a fresh scene.
 
-## Things you can say
-
-- **Choose a topic:** “I'm traveling abroad. Help me practice checking into a hotel.”
-- **Get help when stuck:** “When I use Chinese or get stuck, offer natural English through a brief meaning check, then wait for my reply.”
-- **Adjust the difficulty:** “Speak more slowly and give me a few more hints.”
-- **Show captions:** “Open the bilingual companion. Let's speak English, with Chinese translations on the page.”
-- **Finish practice:** “That's all for today. Leave the written review on the page.”
-- **Review what you learned:** “Open my learning archive” or “Use flashcards to review expressions from last time.”
-
 ## Pages you can use
 
-Codex opens local pages as needed:
+Codex automatically opens the local learning page at the start of every practice and shows your session review afterward. The page includes:
 
 | Page | What you can do |
 | --- | --- |
@@ -38,7 +29,7 @@ Codex opens local pages as needed:
 | Learning archive | Browse past sessions, useful phrases and learning progress |
 | Flashcards | Try to recall an answer before flipping the card |
 
-Page navigation is currently mainly in Chinese. You do not need Obsidian or your own website.
+Page navigation is currently mainly in Chinese. You do not need your own website.
 
 ## Before you use it
 
