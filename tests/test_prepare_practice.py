@@ -6,13 +6,14 @@ from pathlib import Path
 import sys
 import tempfile
 import threading
+import time
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 from practice_store import initialize,rebuild
 from live_companion import LiveStore,LiveSupervisor
 from library_server import Archive,Handler
 from prepare_practice import prepare,readiness
-from test_live_companion import FakeTranslator
+from test_live_companion import FakeTranslator, event
 
 THREAD='00000000-0000-0000-0000-000000000051'
 SCENE={'setting':'A fictional hotel','learner_role':'Guest','partner_role':'Receptionist',
@@ -31,10 +32,12 @@ class PrepareTests(unittest.TestCase):
         self.source=self.root/'voice.jsonl'
         self.source.write_text(json.dumps({'type':'session_meta','payload':{'id':THREAD}})+'\n')
         self.store=LiveStore(self.root)
+        FakeTranslator.calls=FakeTranslator.connections=0;FakeTranslator.fail=False
 
-    def test_no_companion_opens_archive_without_binding_or_translation(self):
+    def test_explicit_disable_opens_archive_without_binding_or_translation(self):
         from unittest.mock import patch
         from urllib.request import urlopen
+        self.store.disable()
         server=ThreadingHTTPServer(('127.0.0.1',0),QuietHandler)
         server.archive=Archive(self.root,Path(__file__).resolve().parents[1])
         threading.Thread(target=server.serve_forever,daemon=True).start()
@@ -53,13 +56,14 @@ class PrepareTests(unittest.TestCase):
         self.assertFalse(result['startup_complete'])
 
     def test_archive_only_failure_or_external_url_does_not_claim_prepared(self):
+        self.store.disable()
         def broken(*args):raise OSError('Synthetic archive failure')
         for opener in (broken, lambda *args:{'url':'https://example.com/#overview'}):
             result=prepare(self.root,opener=opener,scene=SCENE)
             self.assertEqual(result['status'],'preparation_error')
             self.assertIsNone(result['url']);self.assertIsNone(self.store.active())
 
-    def test_actual_http_preparation_reuses_binding_but_does_not_claim_ui_or_handoff(self):
+    def test_new_user_automatically_gets_bound_page_and_translation(self):
         server=ThreadingHTTPServer(('127.0.0.1',0),QuietHandler)
         server.archive=Archive(self.root,Path(__file__).resolve().parents[1])
         threading.Thread(target=server.serve_forever,daemon=True).start()
@@ -68,7 +72,7 @@ class PrepareTests(unittest.TestCase):
         FakeTranslator.calls=0
         base=f'http://127.0.0.1:{server.server_port}'
         def opener(*args):return {'url':base+'/#live','service':{'manager':'isolated-test'}}
-        first=prepare(self.root,THREAD,self.source,enable_companion=True,opener=opener,timeout=3,scene=SCENE)
+        first=prepare(self.root,THREAD,self.source,opener=opener,timeout=3,scene=SCENE)
         second=prepare(self.root,THREAD,self.source,opener=opener,timeout=3,scene=SCENE)
         self.assertEqual(first['status'],'backend_ready');self.assertEqual(first['binding'],second['binding'])
         self.assertFalse(first['checks']['transcript_observed'])
@@ -76,6 +80,26 @@ class PrepareTests(unittest.TestCase):
         self.assertEqual(first['checks']['voice_handoff'],'not_verified')
         self.assertFalse(first['startup_complete']);self.assertEqual(first['context']['scene'],SCENE)
         self.assertIn(first['binding']['id'],first['url']);self.assertEqual(FakeTranslator.calls,0)
+        # The ordinary startup needs no opt-in; only this bound Voice supplies captions.
+        with self.source.open('a',encoding='utf-8') as stream:
+            for row in (event('realtime_session_started'),event()):
+                stream.write(json.dumps(row)+'\n')
+        deadline=time.monotonic()+3
+        while time.monotonic()<deadline and not self.store.view()['counts'].get('translated'):
+            time.sleep(.03)
+        view=self.store.view()
+        self.assertEqual(view['counts'].get('translated'),1)
+        self.assertEqual(view['items'][0]['chinese'],'虚构测试译文')
+        self.assertEqual(FakeTranslator.calls,1)
+
+    def test_explicit_request_can_restore_previously_disabled_companion(self):
+        self.store.disable()
+        result=prepare(self.root,THREAD,self.source,enable_companion=True,
+                       opener=lambda *args:{'url':'http://127.0.0.1:12345/#live'},
+                       reader=lambda base:self.store.view(),timeout=0,scene=SCENE)
+        self.assertTrue(self.store.enabled())
+        self.assertEqual(result['binding']['thread_id'],THREAD)
+        self.assertIn('/#live?run=',result['url'])
 
     def test_competing_task_and_wrong_source_cannot_replace_binding(self):
         current=self.store.bind(THREAD,self.source)

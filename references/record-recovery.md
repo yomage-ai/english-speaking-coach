@@ -2,7 +2,7 @@
 
 ## What the Agent can observe / Agent 能观察到什么
 
-A user stop request, a host-labelled final transcript tail, or a visible ended session can justify committing a record. A cumulative transcript chunk is not automatically the end. The skill has no continuous audio access or guaranteed host callback. The optional bilingual companion reads only a bound text log; formal learning records still require Agent selection and tool execution. See [live-companion.md](live-companion.md) for subtitle tail recovery.
+A user stop request, a host-labelled final transcript tail, or a visible ended session can justify committing a record. A cumulative transcript chunk is not automatically the end. The skill has no continuous audio access or guaranteed host callback. The built-in bilingual companion reads only a bound text log; formal learning records still require Agent selection and tool execution. See [live-companion.md](live-companion.md) for subtitle tail recovery.
 
 用户说结束、宿主明确标注最终转写尾段、可见的会话结束，才能支持课次收尾。累计转写片段不自动等于结束。可选双语伴随只监听绑定文字日志，不保证宿主每次提供回调；正式课次仍须 Agent 精选并执行保存。
 

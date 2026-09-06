@@ -58,6 +58,7 @@ class LiveTests(unittest.TestCase):
         self.fail('Timed out waiting for synthetic worker')
 
     def test_next_voice_skips_old_and_foreign_records(self):
+        self.store.disable()
         self.append(event('realtime_session_started'),event(),event('realtime_session_closed'))
         state=self.bind(); self.assertIsNone(state['voice_id'])
         self.append({'type':'response_item','payload':{'type':'message','text':'Do not translate this tool text'}},
@@ -188,7 +189,19 @@ class LiveTests(unittest.TestCase):
         state=self.bind();self.append(event('realtime_session_started'),event());self.store.read_tail(state)
         self.assertEqual(sentinel.read_text(),'Synthetic learning fact')
 
-    def test_optional_cache_failure_does_not_prevent_learning_recovery(self):
+    def test_defaults_do_not_create_a_cache_bind_voice_or_override_a_saved_disable(self):
+        fresh=self.root/'new-learner'
+        self.assertTrue(companion_preferences(fresh)['enabled'])
+        self.assertFalse(fresh.exists())
+        self.assertTrue(self.store.enabled())
+        self.assertTrue(companion_preferences(self.root)['enabled'])
+        self.assertIsNone(self.store.active())
+        self.store.disable()
+        self.assertFalse(LiveStore(self.root).enabled())
+        self.assertFalse(companion_preferences(self.root)['enabled'])
+        self.assertEqual(FakeTranslator.connections,0)
+
+    def test_cache_failure_does_not_prevent_learning_recovery(self):
         self.store.path.write_bytes(b'broken cache')
         self.assertFalse(companion_preferences(self.root)['enabled'])
         self.assertIn('error',companion_preferences(self.root))

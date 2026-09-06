@@ -43,7 +43,7 @@ If the actual spoken reply departs from an otherwise compliant backend response,
 
 The intended result is the correct local page visible to the learner, not a submitted request. Keep backend readiness, open request, visible route and actual transcript/lesson content as separate facts in the current task context.
 
-1. At every new practice, automatically open the local learning page through an allowed visible host surface: the exact prepared live URL when the companion is enabled, otherwise the overview URL. Text practice also opens the overview. At closeout, open the matching review URL. Opening the archive does not enable translation or bind Voice.
+1. At every new practice, automatically open the local learning page through an allowed visible host surface. Voice practice includes the companion by default: open the exact prepared live URL. Only an explicit saved disable uses the overview instead. Text practice also opens the overview. At closeout, open the matching review URL. Browsing the archive alone does not bind Voice or start translation.
 2. Inspect that surface after the open. A screen capture taken before opening, HTTP 200, promoted tool item or `queued` response is insufficient.
 3. If queued or wrong, use one available permitted recovery path: navigate/reuse a visible browser tab, or the host's required delegated browser executor. Follow its actual routing rules; do not declare the browser unavailable before checking the permitted route. Recheck the exact route and relevant live run or saved lesson.
 4. After this bounded attempt, if the surface is still unavailable, mark display unresolved and place the usable link plus the specific display issue on the written surface. Do not repeat the same queued request indefinitely, ask the learner to run commands, or claim the page was opened.
@@ -52,4 +52,4 @@ The intended result is the correct local page visible to the learner, not a subm
 
 At closeout, show this Voice's waiting route early; the page polls local saved records about once per second while visible, for at most five minutes. After a successful save, verify it displays the matching lesson. If the learner navigated elsewhere, do not repeatedly pull them back. Page failure does not justify discarding the review; saving failure does not become success because the waiting page exists.
 
-For initial enablement, backend errors, drain and recovery, use [live-companion.md](live-companion.md). The page does not start the microphone, save mastery, or force Voice instruction adoption.
+For companion preparation, backend errors, drain and recovery, use [live-companion.md](live-companion.md). The page does not start the microphone, save mastery, or force Voice instruction adoption.

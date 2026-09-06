@@ -142,7 +142,7 @@ def main():
     parser.add_argument('--root', type=Path); parser.add_argument('--thread-id')
     parser.add_argument('--source', type=Path); parser.add_argument('--phase', choices=['scene','review'])
     parser.add_argument('--scene', type=Path, help='Agent-authored fresh scene JSON; required for roleplay startup')
-    parser.add_argument('--companion', action='store_true', help='Use only for an actual user request to enable the companion')
+    parser.add_argument('--companion', action='store_true', help='Restore captions after an explicit user request to undo a saved disable; normal Voice practice needs no flag')
     parser.add_argument('--service-url'); parser.add_argument('--timeout', type=float, default=12)
     parser.add_argument('--compact', action='store_true', help='After resume --with-project, omit repeated history and project text')
     args = parser.parse_args()

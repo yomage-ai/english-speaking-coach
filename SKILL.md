@@ -1,6 +1,6 @@
 ---
 name: english-speaking-coach
-description: Practice spoken English in a fresh introduced scene, with natural support, an automatically opened local learning page, optional bilingual captions, and a written review. 用于英语口语情景练习、自然表达帮助与课后书面复盘；查看档案或分析 Skill 时不启动练习。
+description: Practice spoken English in a fresh introduced scene, with natural support, an automatically opened local learning page, built-in bilingual Voice captions, and a written review. 用于英语口语情景练习、自然表达帮助、自带双语字幕与课后书面复盘；查看档案或分析 Skill 时不启动练习。
 ---
 
 # English Speaking Coach / 英语口语教练
@@ -36,16 +36,16 @@ Create a coherent learning conversation: the learner expresses a meaning, receiv
 
 1. Run `practice_store.py resume --compact --with-project` once, using the installed script's absolute path. Read the preferences, learning evidence and project page returned together. Preserve the configured data root. History informs support needs and scene variety; never reuse an archived `next_focus`, unfinished transaction or old dialogue as today's plot.
 2. Choose an accessible scene, prioritizing a topic the user specified. Write a JSON with six nonempty text fields: `setting`, `learner_role`, `partner_role`, `goal`, `introduction`, `opening_line`. The goal describes something the **learner** will formulate, not just a service the partner completes. Introduce place, roles and that goal in the saved help language, then use a natural English opening. See [scenario-orchestration.md](references/scenario-orchestration.md) when planning a scene or changing goals. Reuse the same scene on setup retries.
-3. Automatically open the local learning page for every new practice; the learner does not need to ask. For Voice, read [voice-delivery.md](references/voice-delivery.md) once for the active host's speech and display contract. Run `prepare_practice.py --thread-id <actual-voice-task-id> --scene <scene.json> --compact`. Follow the returned preparation status. Open the exact returned URL and verify a visible page: the bound companion when enabled, otherwise the learning overview. Retain `review_url` when returned. For text practice, use `resume --scene <scene.json> --compact`, then `open_library.py --page overview --no-browser` and visibly open its URL; do not bind Voice or enable translation for text practice.
+3. Automatically open the local learning page for every new practice; the learner does not need to ask. For Voice, read [voice-delivery.md](references/voice-delivery.md) once for the active host's speech and display contract. Run `prepare_practice.py --thread-id <actual-voice-task-id> --scene <scene.json> --compact`. Follow the returned preparation status. The built-in companion runs automatically, including on first use; no enable request or extra flag is needed. Open the exact returned URL and verify the bound companion is visible. If the learner explicitly disabled captions, respect that choice and open the learning overview. Retain `review_url` when returned. For text practice, use `resume --scene <scene.json> --compact`, then `open_library.py --page overview --no-browser` and visibly open its URL; do not bind Voice or start its transcript translator for text practice.
 4. Deliver the complete scene introduction once, then the first English role line. A preparation progress message must not contain a partial scene introduction or invite “ready?” before the scene is ready. Record observed page/intro status in the current task context; do not treat the preparation script's always-unverified host fields as a completed check.
 
-本地学习页每次开练自动打开；双语字幕按已保存的启用偏好运行，两者分别处理。
+语音练习自带双语伴随页，首次使用也自动准备，无需用户额外启用；用户明确关闭字幕时才保留其关闭选择。文字练习自动打开学习概览。
 
 Agent 恢复背景 → 选定用户需要亲自表达的任务 → 准备并显示页面 → 一次介绍完整情景 → 英文开场。场景不交给用户从菜单挑选；技术准备不能变成反复播报的课程内容。
 
 A returned URL or queued open is not a visible page. Perform the bounded recovery in [voice-delivery.md](references/voice-delivery.md#page-delivery); do not repeatedly issue the same queued request. Backend readiness, page visibility, introduction and later role behavior require different evidence. If a step remains unavailable after actual recovery, disclose that specific step on the written surface and keep its status unresolved; do not call the full startup verified.
 
-New learners are initialized internally; a missing configured archive must be recovered instead of replaced with an empty one. Existing companion authorization persists; `--companion` is only for a new explicit request. First setup, unavailable storage and updates use [storage-and-library.md](references/storage-and-library.md); companion errors and recovery use [live-companion.md](references/live-companion.md). Do not load all operational references during every normal start.
+New learners are initialized internally; a missing configured archive must be recovered instead of replaced with an empty one. `--companion` only restores a previously disabled companion when the learner asks to use it again. First setup, unavailable storage and updates use [storage-and-library.md](references/storage-and-library.md); companion errors and recovery use [live-companion.md](references/live-companion.md). Do not load all operational references during every normal start.
 
 ## Respond one turn at a time / 每一轮怎么接
 

@@ -345,7 +345,7 @@ def resume(root, today, phase=None, event=None, scene=None):
     latest_context = latest if context['phase'] == 'review' or not latest else {
         key:latest[key] for key in ('id','date','practiced_at','scenarios','topics','progress','evidence_status') if key in latest}
     return {'profile':profile, 'latest_session':latest_context, 'recent_scenarios':recent_scenes, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], **context, 'companion':companion,
-            'agent_context': {'preparation': 'Run prepare_practice for EACH new Voice when the companion is enabled; open and inspect its returned URL before claiming it is shown.',
+            'agent_context': {'preparation': 'Run prepare_practice for EACH new Voice; the built-in companion is automatic unless the learner explicitly disabled it. Open and inspect the returned URL before claiming it is shown.',
                               'handoff': 'voice_brief is local guidance only; instruction delivery requires a documented host-permitted API. Ordinary backend replies may report verified facts under the host protocol; they must not carry prohibited frontend instructions. No delivery or Voice behavior is verified by this command.',
                               'records': 'Reuse concept/session IDs. Save selected actual evidence at an observed end; viewing a rewrite is not mastery.',
                               'history': 'All past lessons, unfinished plots and next_focus are learning evidence only. Never continue an old plot. Choose and introduce a fresh scene for each new practice.',

@@ -71,15 +71,21 @@ def find_source(thread_id):
     return matches[0]
 
 
+def _companion_enabled(db):
+    row = db.execute("SELECT value FROM meta WHERE key='enabled'").fetchone()
+    # The built-in companion is automatic unless the learner explicitly disabled it.
+    return row is None or row[0] == 'true'
+
+
 def companion_preferences(root):
     """Read-only discovery for resume; never initialize runtime data during learning recovery."""
     path = Path(root) / 'Live' / 'companion.sqlite3'
     if not path.exists():
-        return {'enabled': False}
+        return {'enabled': True}
     try:
         db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)
         try:
-            return {'enabled': db.execute("SELECT 1 FROM meta WHERE key='enabled' AND value='true'").fetchone() is not None}
+            return {'enabled': _companion_enabled(db)}
         finally:
             db.close()
     except (sqlite3.Error, OSError):
@@ -167,7 +173,7 @@ class LiveStore:
 
     def enabled(self):
         with self.db() as db:
-            return db.execute("SELECT 1 FROM meta WHERE key='enabled' AND value='true'").fetchone() is not None
+            return _companion_enabled(db)
 
     def stop(self, run_id, immediate=False):
         with self.db() as db:
