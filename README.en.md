@@ -14,6 +14,7 @@ Start one independent scene from the beginning, with a short introduction of the
 - “Use my learning history to choose a different scene and start from the beginning. Help me in Chinese when I need it.”
 - “Open the bilingual companion. Let us speak English, with Chinese translations on the page.”
 - “Be the shop assistant. Talk naturally with me first, then review after the scene.”
+- “When I use Chinese or get stuck, offer natural English through an in-character check, then give me room to explain my needs instead of constantly choosing A or B.”
 - “Review what I just said, explain it in Chinese, then guide me through another attempt.”
 
 Provide only the topic, goal, or review request. The agent handles installation checks, initialization, context recovery, saving, verification, and opening the viewer. You do not fill out a questionnaire, choose a scene menu or open the page manually; when the companion is enabled, the Agent opens and inspects it before dialogue.
@@ -24,7 +25,9 @@ If you want English wording during the scene, ask for natural in-character suppo
 
 Routine startup reads preferences and the project page together, then returns only the context needed for preparation instead of repeatedly loading the whole archive. At the end, the agent opens this Voice's review page first; it automatically displays the actual quotes, suggestions and observations after the review is saved. It matches the exact Voice, never a previous lesson. The page checks local save status without extra model calls; the agent still selects evidence and validates the review.
 
-These are the skill's practice behavior targets. A separate Voice model also depends on the host's permitted instruction interface; loading the skill, saving preferences or delivering the opening does not establish that Voice adopted its rules. If the host prohibits relaying model instructions, the agent reports that limitation instead of asking you to repeatedly test the same unavailable route. See [the handoff boundary](references/live-companion.md#handoff-boundary).
+The entrypoint now follows the whole learning experience: introduce once, understand and respond each turn, offer natural help and wait when needed, leave room for the learner's own content, honor the ending, and save and display a written review. Once the learner has expressed enough, the partner continues naturally instead of commenting on repaired grammar or stretching every short answer.
+
+Every message that could be heard during the scene follows the practice language, including backend status messages; page translations and written observations have their own delivery surface. The responding Agent uses ordinary callbacks to supply suitable content and follows an available display-recovery route when a page is queued. See [Voice and page delivery](references/voice-delivery.md). A separate Voice model may still paraphrase, so [experience validation](references/experience-validation.md) distinguishes program checks, rehearsal replies and actual speech rather than declaring the entire experience passed from file checks.
 
 ## Your learning archive
 

@@ -100,7 +100,8 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
     deferred = profile['correction'] == 'after_scene'
     in_character = profile['correction'] == 'in_character'
     if profile['practice_language'] == 'english_first':
-        language = 'During the role dialogue, speak simple, natural English without adding a Chinese translation. '
+        language = ('During the scene, use simple natural English in every speech-facing output, including '
+                    'ordinary progress/status messages, transitions and the final role reply; do not add Chinese translations. ')
         language += ('During the role dialogue, Chinese help is on the companion page; speak Chinese only when the learner explicitly asks. The initial scene introduction uses the saved help language. '
                      if companion else 'Give brief help in ' + profile['help_language'] + ' when explicitly requested. ')
     else:
@@ -116,7 +117,8 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
                          'Do not answer your own meaning check in the same turn. '
                          'Offer a short usable phrase or first-person example inside the check when useful, without announcing a lesson. '
                          'Do not pretend a clear answer is still incomprehensible or loop until exact repetition. '
-                         'For understandable English, selectively recast a useful wording error; accept correct natural phrasing and ordinary hesitations. '
+                         'For understandable English, selectively recast a useful wording error; accept correct natural phrasing, '
+                         'already self-corrected wording and ordinary hesitations. '
                          'Use contextual follow-ups that invite a preference with a reason, a description, a fuller request or clarification. '
                          'Leave learner-owned questions and details for them to express; do not fill them in or reduce the exchange to menus and yes/no answers. '
                          'Ask one manageable main question at a time and wait. A short answer can be sufficient; expand only where the situation supports it. '
@@ -156,7 +158,9 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
                    + '\nThen say this English opening as your character: ' + scene['opening_line']
                    + '\nSetting: ' + scene['setting'] + '. Learner: ' + scene['learner_role']
                    + '. Learner goal: ' + scene['goal'] + '. Do not repeat this introduction during ordinary turns or a brief pause.\n')
-    brief = 'Instructions to Voice (apply silently; do not read these rules aloud):\n' + language + role + behavior + ending
+    brief = ('Local practice guidance for the responding Agent; follow SKILL.md and references/voice-delivery.md '
+             'for the active host. This summary is not an instruction update for another model.\n'
+             + language + role + behavior + ending)
     if opening:
         brief += '\nScene opening to deliver after preparation:\n' + opening
     if roleplay and scene is None:

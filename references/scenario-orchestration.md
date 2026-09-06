@@ -38,8 +38,14 @@ Goals change the conversation context; ability changes the support. Do not confu
 
 目标决定场景，能力决定难度，两者分开调整。初学者也可能面向外企，高水平学习者也可能只想旅行。通过实际表达调整短句、追问和帮助程度，不从目的推断等级。
 
-With `correction: in_character`, choose situations with a reason for the learner to formulate something: ask for a recommendation, describe a need, explain a preference or clarify a detail. The partner makes space for those actions and adapts to actual replies; do not script every next turn or take over the learner's question. A transaction finishing quickly is not itself evidence of speaking progress.
+## Plan opportunities, not a script / 设计表达机会
 
-选择适合当前水平、需要用户自己组织话语的情境；在对方能接住时再追问理由或细节，不只给菜单，也不提前替用户问完、答完。根据真实回应调整，不预写固定问答链；流程走完不等于表达能力提升。
+Before choosing the first line, identify a small real purpose, what the learner can formulate themselves, and which relevant information belongs to the partner. Keep these in the current task context. The existing `goal` field names the learner's communicative action; do not add a new required form for the user.
+
+For example, “borrow an umbrella and decide where to walk” can let the learner ask to borrow, describe what they enjoy and ask how to get there. The partner answers actual questions and creates a suitable gap for the next one. It does not preemptively supply the request, preference, route and closing all at once.
+
+选情景时明确：用户为什么开口、哪些内容需要他自己组织、角色手里有哪些信息。这样才会有真实请求、描述与追问，而不是流程顺利走完却大部分话由 AI 说掉。
+
+Adapt the route to the actual response. A visitor who prefers walking can stay in the tourist-center scene even if the initial goal mentioned an indoor activity. Follow the new meaning without switching the whole scene or insisting on the original plan. Helpful follow-ups depend on what remains unresolved, not a predetermined quota. Support and examples follow [practice-phases.md](practice-phases.md).
 
 Use at most one new difficulty at a time: longer answer, another tense, a clarification, or an unexpected change. With deferred correction, adjust difficulty through the situation. Keep one scene per practice. Written review is the new-user default; spoken review requires an explicit request or saved preference. Goodbye or a stop request ends promptly. Do not build an exam curriculum or a pronunciation scorer unless requested.

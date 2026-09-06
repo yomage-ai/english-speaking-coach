@@ -1,6 +1,6 @@
 # Bilingual Voice companion / 双语 Voice 伴随
 
-Use this mode when the learner requests a local bilingual page alongside Codex Voice, or has already enabled it. The learner talks with the existing Voice interface; the page never captures audio. The existing archive server runs an ordinary background tailer and a tool-disabled, ephemeral Codex app-server connection. Only a new bound transcript segment starts a translation turn. No AI busy polling or per-sentence forwarding by the Voice agent.
+Use this mode when the learner requests a local bilingual page alongside Codex Voice, or has already enabled it. The learner talks with the existing Voice interface; the page never captures audio. The existing archive server runs an ordinary background tailer and a tool-disabled, ephemeral Codex app-server connection. Only a new bound transcript segment starts a translation turn. Caption transport needs no AI busy polling or per-sentence forwarding; ordinary coaching callbacks remain separate.
 
 用户用原有 Voice 说英语，网页显示双方原话与中文。后台普通程序等日志追加，有新片段才请求翻译。原话不纠错、不被译文替换；需要教学时仍由口语教练回应。
 
@@ -10,28 +10,18 @@ Use this mode when the learner requests a local bilingual page alongside Codex V
 2. Resolve the **actual Voice task ID**, using the current task identity or the explicit source task when handling a delegation. Do not bind the implementation task or a translator task. `start` can resolve an exact UUID filename under the local Codex sessions tree; it never chooses the newest arbitrary task. Verify the source header. A currently active Voice is continued; otherwise bind the **next** Voice in that task, without replaying closed sessions.
 3. Choose the fresh scene using [scenario-orchestration.md](scenario-orchestration.md), then use `prepare_practice.py --thread-id <voice-task-id> --scene <scene.json>` (add `--source <verified-jsonl>` when needed, `--companion` only for a new explicit enable request). This restores context, reads the project page, binds the exact source, reuses the existing service and checks its identity and live API. It waits finitely, preserves another task's active Voice, and returns the exact run URL. Do not stop at `paths`/`resume` and start an exercise before executing this entry. If an older installed implementation requires a restart, inspect identity and wait until no unrelated Voice is active; never launch a competing manager.
 4. `backend_ready` requires the matching run/task/Voice, `ready=true`, and `stale=false`. Agent must then open and inspect the returned `/#live?run=…` in the host browser; the command reports `page_display: not_verified` because an HTTP response cannot prove a visible preview. Check `transcript_observed` separately. `waiting_backend`, `other_voice_active`, `ended` and errors do not count as ready. If tools are available but these steps were skipped, report an execution omission; only report a host limitation when the required tools/callback actually were unavailable. `probe` remains a separate login/model check, not a page or speech check.
-5. Follow the host's actual handoff contract, using the distinction below. Preserve the chosen scene and restored preferences, but do not equate an ordinary response with an instruction-update API. Reading files is not a completed startup, and generating a brief does not prove Voice received or followed it. Keep IDs and file operations with the tool Agent; learners do not operate terminals or forward sentences.
+5. Complete speech and visible-page delivery through [voice-delivery.md](voice-delivery.md). Keep source IDs and file operations with the Agent. The learner does not operate terminals, forward sentences or supervise setup.
 
 <a id="handoff-boundary"></a>
-## Handoff boundary / 交接边界
+## Delivery responsibility / 交付职责
 
-The tool Agent and the frontend Voice model may receive different instructions. `voice_brief` is guidance for practice, not a host configuration change. For text practice the current Agent can use that guidance directly. For Voice, inspect the active host contract and callable capabilities:
+Speech-facing output and visible page recovery are defined in [voice-delivery.md](voice-delivery.md), read once for the active host. The responding Agent handles each available learner turn through ordinary permitted replies; a separate instruction-update API is not a prerequisite for doing that well. The companion handles transcript display and translation only.
 
-- A documented instruction-update API may receive practice guidance within its allowed scope. Verify its response; report observed conversation behavior separately.
-- An ordinary backend reply may carry concise, speech-safe facts about the selected scene, saved preferences and readiness. It does not establish that Voice adopted those preferences. A host rule prohibiting instructions addressed to the frontend takes precedence over this Skill. Do not paste raw guidance, add “apply silently,” encode it, or reword commands as facts to bypass that rule.
-- Without a permitted instruction interface, report the limitation. Do not label the scene's correction or speaking-opportunity behavior as configured or verified, and do not send recurring background messages to simulate control of Voice.
+Backend readiness, a visible page and an observed spoken reply are separate outcomes. Use [experience-validation.md](experience-validation.md) for a real-session audit; do not count a passed file test or generated brief as evidence that the Voice followed the coaching rules.
 
-后台 Agent 与语音模型可能使用不同上下文。普通后台回复可以依宿主协议简述已核实的场景、用户偏好和准备结果，但不等于更新语音规则。禁止给前端模型发送指令的宿主中，不转发提示词、不伪装或绕过限制；没有允许的接口就如实报告。中文介绍、英文角色对话、网页双语是分别保存的偏好，不因传递受限而改写用户选择。
+语音输出与网页显示各有具体交付步骤；主规范负责完整学习流程，本文件只负责伴随程序的启用、绑定和恢复。每个可用回调都按当前偏好认真回应，不把缺少配置接口当成普通回应无法改进的理由。
 
-For a real-session audit, check loaded preferences, permitted delivery and unique observed turns separately. Inspect a Chinese/stalled-expression opportunity and a learner-owned question opportunity when present. Deduplicate cumulative transcripts, treat unclear ASR as uncertain, and do not require every short answer to become a drill. A passing file test or correct opening cannot substitute for those observations.
-
-真实验收分别检查偏好读取、允许的传递方式和去重后的实际回合；有中文/卡词、主动提问目标时，再判断是否给出英语确认和表达空间。不要把测试通过、保存成功或开场正确算作会中练习效果通过。
-
-Agent 先恢复学习，再绑定实际 Voice 所在任务。新用户主动提出伴随需求即可启用，已启用者不反复征询。Agent 完成依赖检查、服务复用与页面检查；用户只需说英语。`bound` 不等于已就绪；须核对任务 ID、后台心跳和 `ready=true`。网页仍为空时，不声称已看到实时转写。
-
-Each binding covers one Voice. A second Voice in the same task needs a fresh `start` and readiness check. If the host gives the Agent no execution opportunity, that Voice may be missed live. Do not use an earlier run's counts as coverage for the new Voice. Before maintenance or rebinding, inspect the current binding; leave another task's active Voice alone.
-
-先介绍新场景，再开始英文角色对话。同一任务连续开两场 Voice，也必须逐场绑定。宿主没有执行回调时，Agent 不能自动接上；要如实说明会中漏绑定，不能沿用上一场完成数。`voice_brief` 已生成不等于已交给 Voice；没有可用交接接口时，不声称已注入。维护前核对当前绑定，不打断其他任务正在用的 Voice。
+Each binding covers one actual Voice, including consecutive Voices in the same task. If the host provides no execution opportunity, live binding may be missed. An earlier run's counts are not coverage for a new Voice. Inspect the current binding before maintenance and leave another task's active Voice alone.
 
 ## End and recovery / 结束与恢复
 
