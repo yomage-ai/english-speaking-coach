@@ -331,7 +331,12 @@ def resume(root, today, phase=None, event=None, scene=None):
     if event:
         move = transition(context['phase'], event, profile.get('review_delivery', 'spoken'))
         if move['action'] in {'end', 'written_review'}:
-            context = {'phase': None, 'voice_brief': 'The learner has finished. Give only a brief goodbye if Voice is still open; no new question, review or exercise.', 'policy': {'proactive_teaching': False, 'guided_drills': False}}
+            context = {'phase': None,
+                       'voice_brief': 'Stop spoken practice. A brief goodbye is enough if Voice is open. The Agent still completes selected saving and visible written review; stopping speech does not cancel closeout.',
+                       'policy': {'proactive_teaching': False, 'guided_drills': False},
+                       'closeout': {'required': True, 'record_status': 'not_checked',
+                                    'next_action': 'review-context', 'match': 'thread_and_voice',
+                                    'spoken_review': False, 'written_review': True}}
         elif move['action'] == 'pause':
             context['voice_brief'] = 'The learner paused. Acknowledge briefly and wait; do not start review or another exercise.'
         elif move['phase'] != context['phase']:
@@ -364,7 +369,7 @@ def validate(root):
     return {'ok':not problems, 'problems':problems, 'sessions':len(rebuilt['sessions']), 'expressions':len(rebuilt['expressions']), 'legacy_notes_changed':changed, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))]}
 
 
-def review_context(root, today, thread_id, voice_id, query=''):
+def review_context(root, today, thread_id, voice_id, query='', with_transcript=False, source=None):
     """Read-only closeout lookup; Agent still selects and judges actual utterances."""
     sources = voice_sources(thread_id, voice_id)
     state = build_state(root)
@@ -384,7 +389,18 @@ def review_context(root, today, thread_id, voice_id, query=''):
         candidates = [e for e in candidates if query.casefold() in
                       ' '.join(str(e.get(k, '')) for k in ('english', 'chinese', 'original')).casefold()]
     from practice_view import read_record
-    return {'date': today, 'source_ids': sources, 'archive_route': review_route(thread_id, voice_id),
+    evidence = {}
+    if with_transcript:
+        from recover_voice import snapshot_voice
+        from live_companion import find_source
+        try:
+            snapshot = snapshot_voice(source or find_source(thread_id), thread_id, voice_id)
+            evidence['transcript'] = {'status': 'observed_closed', 'coverage': 'available_unique_segments',
+                                      **snapshot}
+        except (ValueError, OSError, KeyError) as exc:
+            evidence['transcript'] = {'status': 'unavailable', 'coverage': 'none', 'error': str(exc),
+                                      'next_action': 'Use already supplied source evidence if available; do not infer missing speech or a closed Voice from this lookup.'}
+    return {**evidence, 'date': today, 'source_ids': sources, 'archive_route': review_route(thread_id, voice_id),
             'existing_records': [read_record(root, s, state)[0] for s in existing],
             'pending_records': pending,
             'suggested_session_id': existing[-1]['id'] if existing else pending[-1]['id'] if pending else next_id,
@@ -404,12 +420,14 @@ def main():
     parser.add_argument('--today', default=str(date.today()))
     parser.add_argument('--phase', choices=['scene', 'review'], help='This invocation only; does not change preferences')
     parser.add_argument('--scene', type=Path, help='Agent-authored fresh scene JSON; never a past lesson')
-    parser.add_argument('--event', choices=['continue', 'help_requested', 'meaning_unclear', 'review_requested', 'scene_complete_and_continuing', 'pause', 'user_end', 'host_closed'], help='Agent-classified observed intent; does not start or end Voice')
+    parser.add_argument('--event', choices=['continue', 'help_requested', 'word_help_requested', 'meaning_unclear', 'meaning_confirmed', 'content_clear', 'coaching_feedback', 'review_requested', 'scene_complete_and_continuing', 'pause', 'user_end', 'host_closed'], help='Agent-classified observed intent; does not start or end Voice')
     parser.add_argument('--expected-profile-sha256', help='Reject a preference update if the profile changed since Agent read it')
     parser.add_argument('--compact', action='store_true', help='Compact resume output; learning evidence and preferences remain available')
     parser.add_argument('--with-project', action='store_true', help='Include the configured project page in the same read-only response')
     parser.add_argument('--thread-id'); parser.add_argument('--voice-id')
     parser.add_argument('--query', default='', help='Filter the closeout expression catalog')
+    parser.add_argument('--with-transcript', action='store_true', help='Read only this closed Voice’s available unique segments for review')
+    parser.add_argument('--source', type=Path, help='Explicit source log for review-context --with-transcript')
     parser.add_argument('--check', action='store_true', help='Validate after add-session in the same invocation')
     args = parser.parse_args()
     from workspace_config import resolve_workspace, CONFIG_PATH
@@ -418,6 +436,10 @@ def main():
     if args.command=='paths':
         print(encoded(workspace),end='');return 0
     check_date(args.today)
+    if (args.with_transcript or args.source) and args.command != 'review-context':
+        parser.error('--with-transcript and --source are only for review-context')
+    if args.source and not args.with_transcript:
+        parser.error('--source requires --with-transcript')
     if args.check and args.command != 'add-session':
         parser.error('--check is only for add-session')
     if args.command in {'resume', 'validate', 'review-context'}:
@@ -425,7 +447,7 @@ def main():
             result = resume(root, args.today, args.phase, args.event, read_json(args.scene) if args.scene else None)
             if args.compact: result = compact_context(result)
         elif args.command == 'review-context':
-            result = review_context(root, args.today, args.thread_id, args.voice_id, args.query)
+            result = review_context(root, args.today, args.thread_id, args.voice_id, args.query, args.with_transcript, args.source)
         else: result = validate(root)
         if args.with_project:
             page = workspace.get('project_page')

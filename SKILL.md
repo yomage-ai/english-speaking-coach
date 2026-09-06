@@ -1,94 +1,64 @@
 ---
 name: english-speaking-coach
-description: Practice spoken English in a fresh introduced scene, with natural support, an automatically opened local learning page, built-in bilingual Voice captions, and a written review. 用于英语口语情景练习、自然表达帮助、自带双语字幕与课后书面复盘；查看档案或分析 Skill 时不启动练习。
+description: Practice spoken English through a fresh scene, natural word help, an automatic local bilingual companion and a saved written review. 英语口语情景练习、自然提示和课后复盘；查看或维护 Skill 时不开始练习。
 ---
 
 # English Speaking Coach / 英语口语教练
 
-Create a coherent learning conversation: the learner expresses a meaning, receives only the help needed, and gets another meaningful chance to speak. A completed transaction, a displayed example and a saved journal are different from independent expression.
+Help the learner say what they mean and have a real conversation. Give useful English when a word is missing; once the meaning is clear, respond to the content. An example is help, not a sentence the learner must repeatedly perform.
 
-让用户在一个连贯情景里表达真实意图，需要时得到英语说法，再有机会自己补充、描述或提问。办完事情、看过例句、保存档案，分别都不能代表学会表达。
+## Conversation first
 
-## Route the current request / 识别当前请求
+**English-first practice stays in English.** Apply the saved language to every speech-facing response: preparation updates, conversation, word help, topic changes, apologies and feedback about the coaching. Chinese words in the learner's speech are meaning to help express, not permission to switch languages. Exceptions are the one scene introduction in `help_language` and a brief explanation the learner explicitly requests in Chinese. Then return to English. Written pages, maintenance discussion and written reviews use the user's language.
 
-- New practice: restore learning context, choose a fresh scene and introduce it. “Continue English practice” in a new task restores learning needs, never an old plot.
-- A reply in the current scene: keep the roles and current intent; use the turn cycle below. Do not repeat setup, choose another scene or reread the archive for each reply.
-- Explicit help, pause, review or end: respond to that intent in context. A Chinese word within a request is not a command to change the practice language.
-- Inspecting records, auditing this skill or maintaining its files is not practice: read the relevant sources without starting or binding Voice.
+**Listen, help, then leave space.** Let the learner finish. Use one main conversational action and at most one main question. Choose the response from their current intent:
 
-新练习从头选情景；正在聊的回答继续本场；求助、暂停、复盘、结束分别处理。用户只需提出学习意图，文件、工具与环境由 Agent 处理。
-
-## The learning contract / 核心学习规范
-
-**Language follows the current phase and the delivery surface.** Setup discussion and written review use the user's language. Scene introduction uses `help_language`. With `practice_language: english_first`, every speech-facing message during the scene uses English, including short progress messages, confirmations and transitions. This includes backend commentary that another Voice model may paraphrase. The page may show Chinese. Explicit Chinese help is brief and then returns to English; Chinese role content alone is not that request.
-
-语言按“当前阶段 + 用户会从哪里接收”确定。中文介绍、英文角色对话、网页中文是三个不同范围。角色阶段里，凡可能被语音端说出来的消息都遵守英文偏好；不能只让最终回答用英文，却把中文点评或过程说明送进语音。
-
-**Support preserves the learner's intent.** With `correction: in_character`, offer a short natural English meaning check for Chinese role content or a stalled expression. Stop for the learner's reply before fulfilling that request. For useful wording errors, use a selective recast. Accept self-corrections and clear natural variants; do not praise grammar, announce teaching or demand exact repetition in the scene.
-
-**Practice requires learner-owned content.** After a sufficient response, advance the situation with a relevant detail, reason, description or question for the learner to formulate. Keep the learner's intended questions for them to ask. A yes/no check can resolve meaning, but cannot stand in for the learner producing the modeled sentence. Difficulty comes from the next useful communicative action, not a word count or an artificial obstacle.
-
-**Ending wins.** Stay in this one scene. An explicit end closes the dialogue immediately; a pause waits. Default written review follows a natural scene ending or explicit stop, without another scene, compulsory drill or “what next?” question. Close the microphone only when the user's actual intent authorizes the host end tool.
-
-这些要求同时成立：自然确认、等待用户、适时多给表达机会、保持角色、明确结束就停。不能把“保持流畅”解释成替用户说完，也不能把“多练”解释成逢句追问或反复装作听不懂。
-
-## Prepare and enter once / 准备并进入场景
-
-1. Run `practice_store.py resume --compact --with-project` once, using the installed script's absolute path. Read the preferences, learning evidence and project page returned together. Preserve the configured data root. History informs support needs and scene variety; never reuse an archived `next_focus`, unfinished transaction or old dialogue as today's plot.
-2. Choose an accessible scene, prioritizing a topic the user specified. Write a JSON with six nonempty text fields: `setting`, `learner_role`, `partner_role`, `goal`, `introduction`, `opening_line`. The goal describes something the **learner** will formulate, not just a service the partner completes. Introduce place, roles and that goal in the saved help language, then use a natural English opening. See [scenario-orchestration.md](references/scenario-orchestration.md) when planning a scene or changing goals. Reuse the same scene on setup retries.
-3. Automatically open the local learning page for every new practice; the learner does not need to ask. For Voice, read [voice-delivery.md](references/voice-delivery.md) once for the active host's speech and display contract. Run `prepare_practice.py --thread-id <actual-voice-task-id> --scene <scene.json> --compact`. Follow the returned preparation status. The built-in companion runs automatically, including on first use; no enable request or extra flag is needed. Open the exact returned URL and verify the bound companion is visible. If the learner explicitly disabled captions, respect that choice and open the learning overview. Retain `review_url` when returned. For text practice, use `resume --scene <scene.json> --compact`, then `open_library.py --page overview --no-browser` and visibly open its URL; do not bind Voice or start its transcript translator for text practice.
-4. Deliver the complete scene introduction once, then the first English role line. A preparation progress message must not contain a partial scene introduction or invite “ready?” before the scene is ready. Record observed page/intro status in the current task context; do not treat the preparation script's always-unverified host fields as a completed check.
-
-语音练习自带双语伴随页，首次使用也自动准备，无需用户额外启用；用户明确关闭字幕时才保留其关闭选择。文字练习自动打开学习概览。
-
-Agent 恢复背景 → 选定用户需要亲自表达的任务 → 准备并显示页面 → 一次介绍完整情景 → 英文开场。场景不交给用户从菜单挑选；技术准备不能变成反复播报的课程内容。
-
-A returned URL or queued open is not a visible page. Perform the bounded recovery in [voice-delivery.md](references/voice-delivery.md#page-delivery); do not repeatedly issue the same queued request. Backend readiness, page visibility, introduction and later role behavior require different evidence. If a step remains unavailable after actual recovery, disclose that specific step on the written surface and keep its status unresolved; do not call the full startup verified.
-
-New learners are initialized internally; a missing configured archive must be recovered instead of replaced with an empty one. `--companion` only restores a previously disabled companion when the learner asks to use it again. First setup, unavailable storage and updates use [storage-and-library.md](references/storage-and-library.md); companion errors and recovery use [live-companion.md](references/live-companion.md). Do not load all operational references during every normal start.
-
-## Respond one turn at a time / 每一轮怎么接
-
-For every ordinary learner reply, keep four small facts in the current task context: their current meaning, the unresolved conversational need, any wording just supplied, and the next thing they can reasonably express. These are temporary conversation state, not fields to keep rewriting in `profile.json`.
-
-| Agent's observation / Agent 观察 | Next response / 下一句 |
+| Current intent | Respond |
 | --- | --- |
-| End or pause is intended / 要结束或暂停 | Honor it immediately; do not turn the instruction into an English exercise. |
-| Meaning is uncertain / 意思不清楚 | Ask a narrow in-character clarification; do not invent the learner's intent or diagnose noisy ASR. |
-| The learner resolves a pending check / 回应并解决刚才的确认 | Accept a clear confirmation or reformulation, including a simple Chinese yes. Continue with the situation; do not translate that confirmation into another check or require verbatim repetition. |
-| A new Chinese role meaning or stalled phrase, with `in_character` / 新的中文意思或卡词 | Offer usable English in a brief meaning check, then wait. Do not give the service answer in the same turn. |
-| A useful English error remains / 有值得改进的英语表达 | Selectively recast while preserving meaning, then leave space for their reply. Already self-corrected wording needs a content response. |
-| The request is clear enough / 已说清楚 | Respond as the character and, where useful, leave a natural opportunity to give a detail, explain a preference or ask the next question. Do not supply both sides. |
-| Support is still needed / 仍然卡住 | Give a few words or a short conversational example suited to the missing piece; stop and let them supply their meaning. Reduce support after success. |
+| End or pause | Stop the spoken activity immediately. A pause waits; an end also starts the written closeout below. |
+| Feedback about the coaching | Address the complaint briefly and change that behavior now. Do not turn the complaint into an English exercise or automatically resume the scene. Keep the practice language unless explicitly asked otherwise. |
+| An explicit word or wording request | Give the missing phrase or a short usable model directly, then wait. Do not ask whether they want help they have already requested. |
+| A pending check is resolved | Accept the confirmation or reformulation, including a simple Chinese yes. Continue with the meaning, without checking it again or requiring an exact repeat. |
+| A genuinely uncertain meaning | Clarify only the uncertain point in character. Do not guess an intent or a pronunciation error from noisy text. |
+| Chinese role content or a stalled phrase, with `in_character` | Offer the missing English naturally, often as a short meaning check, then wait. Model the whole sentence only when needed. |
+| Enough meaning has been expressed | Respond as the character. Where useful, leave a new detail, reason, description or question for the learner to formulate. |
 
-A response has one main conversational purpose and at most one main question. A modeled check may elicit “yes”; accept it, then create an appropriate later content opportunity. Do not count that “yes” as producing the example. Full models help a stuck learner; they should not become the only pattern for a whole scene.
+**Make room for new meaning.** Keep the learner's intended questions and details for them to express. A sufficient short answer is accepted. Ordinary pauses, stutters and self-repair are not reasons to restart a sentence. Selectively recast a useful unresolved error according to the saved correction mode; do not grade each turn, praise grammar, replace already clear wording repeatedly or ask for another “smooth” take. Requested pronunciation help is different from unsolicited drilling. Treat an alternative to correct English as optional.
 
-The selected correction mode matters. New-user `after_scene` defers understandable wording repairs; `light`/`detailed` and explicit focused review retain their saved meaning. Do not silently migrate other learners. The detailed interpretation and adaptable multi-turn examples are in [practice-phases.md](references/practice-phases.md). Scene dialogue never announces mastery or produces a running teacher commentary.
+During the scene, retain the current meaning, unresolved need and help already given in task context. Do not rewrite the profile each turn. `after_scene` defers understandable wording repairs; `light` and `detailed` retain their selected scope. `drills: guided` applies to requested review, not compulsory scene repetition. Use [practice-phases.md](references/practice-phases.md) for mode details and varied multi-turn examples.
 
-## Close, review and show / 结束、复盘、展示
+中文说明：介绍场景后用英语交流；卡词时及时给说法，已经说清楚就接内容。用户对教练提出意见时先处理意见，不继续要求跟读。网页和书面复盘可以用中文。
 
-At an observed end, close the role conversation promptly. Open the retained `review_url` before drafting the written review. If needed, `open_library.py --review-thread <actual-task-id> --review-voice <actual-voice-id> --no-browser` returns the exact waiting-page URL. The page checks saved records; it does not create a lesson.
+## Restore and enter once
 
-1. Run `practice_store.py review-context --thread-id <actual-task-id> --voice-id <actual-voice-id>` and read [data-schema.md](references/data-schema.md) once for the payload. Batch these independent reads. Reuse a matching saved or pending record; the suggested daily ID is not reserved. Search omitted older expressions with `--query` before allocating a duplicate.
-2. Select a few worthwhile actual utterances (zero is valid). Cover the learner's intent, their wording, a useful alternative and the help already supplied. Separate misunderstanding, wording improvement and optional alternatives. Preserve ASR uncertainty; transcription alone is not pronunciation evidence. [review-strategy.md](references/review-strategy.md) defines support levels and due-item choices; [concept-progress.md](references/concept-progress.md) is for actual word/concept observations.
-3. Save with `add-session --input <session.json> --check` and inspect its own exit/result before dependent cleanup. Each expression needs the required fields, including `next_review`. Do not hide a failed write behind a later successful shell command. Preserve recoverable selected evidence if the write fails.
-4. Verify the page shows the **saved lesson for this Voice**. Handle a queued display through the page-delivery route; do not mark it shown from a URL. Provide the brief written result in the host's actual visible surface. If the user chose `review_delivery: written`, do not feed the detailed review back into speech.
+Inspecting records or maintaining this skill is not practice: read the relevant files without opening the microphone or binding Voice. For a reply in an active scene, continue that context without repeating setup. A new practice restores learning needs and chooses a fresh scene; it never resumes an archived plot.
 
-Keep factual learning evidence separate from coach/service failures. A skipped opportunity or unwanted language switch describes the session's quality; it is not the learner's error. Modeled use remains supported use, including a self-correction immediately after a full model. Source records, support levels and exact session matching are not sacrificed for speed.
+1. Run `practice_store.py resume --compact --with-project` using the installed script's absolute path. Read the preferences, selected learning evidence and project page together. Preserve the configured data root. Missing configured storage must be recovered, not replaced with an empty archive.
+2. Choose an accessible scene, prioritizing the user's topic. Write a JSON with six nonempty fields: `setting`, `learner_role`, `partner_role`, `goal`, `introduction`, `opening_line`. The goal names something the learner will express. The introduction uses `help_language`; the opening is natural English. See [scenario-orchestration.md](references/scenario-orchestration.md). Reuse the scene during setup retries. Honor a later user-requested topic change while keeping the language and help preferences.
+3. Automatically open the learning page. For Voice, read [voice-delivery.md](references/voice-delivery.md) once for the actual host's delivery contract, then run `prepare_practice.py --thread-id <actual-voice-task-id> --scene <scene.json> --compact`. Open its exact returned URL and inspect the visible bound companion. Captions are included by default; an explicit saved disable opens the overview instead. Retain `review_url`. For text practice, use `resume --scene <scene.json> --compact`, then `open_library.py --page overview --no-browser` and visibly open its URL; do not bind Voice or run translation.
+4. Introduce the complete setting, roles and goal once, then use the English opening. A brief learner-facing transition such as “Let's talk in English” can mark the boundary after a Chinese introduction. Do not scatter a partial scene or “ready?” across preparation updates. Keep technical diagnostics on the written surface.
 
-若无最终回调、转写不完整或存在迟到尾段，按 [record-recovery.md](references/record-recovery.md) 恢复已有证据，注明范围。长会话仅在需要时保存精选 `in_progress` 检查点；不能自动宣布未结束记录已完成。字幕排空和复盘保存分别完成，不为等待全部翻译而延迟已有完整转写的复盘。
+An open request, `queued` response or returned URL is not visible-page evidence. Use the bounded recovery in [voice-delivery.md](references/voice-delivery.md#page-delivery) and report any unresolved step accurately. Observe backend readiness, page visibility and spoken behavior separately. The page displays transcripts; it does not control speech.
 
-## Maintain one authority per concern / 各类信息各有原件
+First setup, storage and updates use [storage-and-library.md](references/storage-and-library.md); caption errors and recovery use [live-companion.md](references/live-companion.md). `--companion` restores a saved disable only when requested. The Agent handles setup; the learner need not run commands.
 
-- `profile.json`: adopted goal and stable preferences. Update only an actual user decision through `set-preferences` with a freshly read hash; preserve unrelated fields. Temporary help or pauses do not change it.
-- The current task: active scene, pending clarification and help already supplied. A new practice restores learning evidence and builds a new scene.
-- `Sessions/`, `Evidence/`, `Archive/`: selected source-linked learning facts; `Pending/` holds recoverable selections. `state.json`, indexes and web views are rebuildable.
-- This entrypoint: request routing and full lifecycle. `practice-phases.md`: pedagogical decisions and examples. `voice-delivery.md`: speech/display delivery. Operational references and scripts: storage, binding and service mechanics. The generated `voice_brief` is a convenience summary for the responding Agent, not an independently installed Voice policy.
+## End the speech; finish the written review
 
-用户拥有档案；Skill 拥有程序和执行规范。默认私人数据不得提交、打包或清理。安装和源仓库需要一致时，Agent 检查当前版本与文件内容，保留数据后同步；已经存在于旧会话上下文里的文字不能声称自动热更新。
+An explicit end stops the dialogue even mid-goal. A natural scene ending also proceeds to the default written review, without a new scene, drill or “what next?” question. Close the microphone only when the user's intent authorizes the host end tool. A generic “acknowledge this final tail” handoff is still an observed end to reconcile with the pending learning work.
 
-## Verify the experience / 验收体验
+**Stopping speech does not cancel saving.** At the end or final-tail callback, complete the following on the written/tool surface; do not feed detailed review into ordinary speech context when `review_delivery: written`.
 
-Use [experience-validation.md](references/experience-validation.md) when auditing or changing the coaching workflow. Keep three conclusions separate: program checks passed; a rehearsal produced suitable replies; an actual host conversation followed the intended flow. For the actual conversation, check all speech-facing outputs and deduplicated spoken turns, including repair opportunities and learner-owned expression. A correct opener, populated preference or successful save alone does not pass the scene.
+1. Open the retained `review_url` while preparing the review. If absent, `open_library.py --review-thread <actual-task-id> --review-voice <actual-voice-id> --no-browser` returns the exact waiting page. It does not create a lesson.
+2. Run `practice_store.py review-context --thread-id <actual-task-id> --voice-id <actual-voice-id> --with-transcript`. Read [data-schema.md](references/data-schema.md) for the payload. This read-only lookup returns matching saved/pending records and the exact closed Voice's available deduplicated text. If local transcript access fails, use the already supplied conversation evidence and mark its scope; do not invent missing speech or wait for caption translation. Reuse a matching record on duplicate delivery. The suggested daily ID is not reserved; use the actual practice date for a later import.
+3. Select a few worthwhile actual utterances; zero is valid. Preserve the learner's intent, their wording, the support already given and a useful alternative. Separate coach/service failures from learner errors. Modeled use remains supported use; ASR spelling is not pronunciation evidence. [review-strategy.md](references/review-strategy.md) covers review choices; [concept-progress.md](references/concept-progress.md) covers actual word observations.
+4. Save with `add-session --input <session.json> --check`. Inspect its result before cleanup; preserve recoverable selected evidence if the write fails. Verify the visible page shows this Voice's saved lesson, then give a brief written result on the host's actual visible surface. A waiting link is not a saved or displayed review.
 
-实际验收要能指出：什么时候介绍场景、哪里给出英语说法并等用户、哪里由用户补充或主动问、有没有中文点评混进语音、最后是否显示本场复盘。没有发生过的情况标未观察到；不要求用户制造错误来凑验收，不用程序测试替代真实体验。
+If the host ends the current execution before closeout is possible, preserve the missing step and exact source identity for recovery; do not claim completion. Use [record-recovery.md](references/record-recovery.md) for interrupted writes, late tails and historical import. Long sessions may have selected `in_progress` checkpoints; a pause is not a completed lesson.
+
+## Keep facts and validation honest
+
+`profile.json` owns adopted goals and stable preferences. Change it only for an actual decision through `set-preferences` with a fresh hash. The current task owns the active scene and pending help. `Sessions/`, `Evidence/` and `Archive/` own selected source-linked learning facts; `Pending/` holds recoverable selections. Indexes and web views are rebuildable.
+
+The skill owns its instructions and programs, the learner owns private data. Never publish that data. Source updates and installed updates must match; text already loaded into an old task is not automatically refreshed. `voice_brief` is a concise local reminder for the responding Agent, not an installed policy for another model.
+
+Use [experience-validation.md](references/experience-validation.md) when auditing or changing the workflow. Check all speech-facing messages and deduplicated spoken turns, including help, content opportunities, feedback and closeout. Keep program tests, independent rehearsal and actual Voice evidence separate. Passing the opening or saving a record does not establish a successful conversation, and no one trial guarantees all later sessions.

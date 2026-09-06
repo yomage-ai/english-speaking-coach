@@ -33,3 +33,11 @@ Use varied fictional situations and supported modes. Include: a fresh start with
 Changes to speaking rules need a speaking-level check. Changes to storage need a storage check. A release can be source-synchronized and program-tested while actual Voice behavior remains unverified; report those statuses plainly. Before sending the learner to retry a known failure, complete the checks the Agent can perform itself, and explain what the real trial alone can resolve.
 
 维护者按失败所在层验证：改了语音输出规范，就检查完整回应；改了存储，再检查写入与恢复。不能拿更多文件测试来替代没做的情景验收，也不能把程序未证明的事说成绝对保证。
+
+## Delivery-boundary rehearsal / 交付边界演练
+
+For an English-first profile, include setup progress, a Chinese introduction followed by English, a Chinese coaching complaint, a user-requested topic change and an explicit Chinese explanation. Inspect every output item. For content, include direct word help, a Chinese yes resolving a check, a clear sentence with pauses and an optional alternative that does not need repetition. Follow the actual answers across turns, not isolated ideal examples.
+
+When the host uses a separate speech model, a second isolated rehearsal can receive only the ordinary backend outputs and the learner turns under that host's available protocol. Inspect the resulting speech-facing text without telling the evaluator which failure to look for. This is a delivery simulation, not actual Voice. If it still translates or adds drills, keep that failure visible and revise the evidence-based response path; do not treat a shorter prompt as a proven cure.
+
+For closeout, include an ended callback with a generic acknowledgement hint. Verify exact-Voice record lookup, deduplication, write validation and written display independently. Repeated tails must reuse the saved record; missing or active-source evidence must not be labeled a verified closed transcript.

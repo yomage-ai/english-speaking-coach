@@ -4,9 +4,15 @@
 
 A user stop request, a host-labelled final transcript tail, or a visible ended session can justify committing a record. A cumulative transcript chunk is not automatically the end. The skill has no continuous audio access or guaranteed host callback. The built-in bilingual companion reads only a bound text log; formal learning records still require Agent selection and tool execution. See [live-companion.md](live-companion.md) for subtitle tail recovery.
 
-用户说结束、宿主明确标注最终转写尾段、可见的会话结束，才能支持课次收尾。累计转写片段不自动等于结束。可选双语伴随只监听绑定文字日志，不保证宿主每次提供回调；正式课次仍须 Agent 精选并执行保存。
+用户说结束、宿主明确标注最终转写尾段、可见的会话结束，才能支持课次收尾。累计转写片段不自动等于结束。双语伴随只监听绑定文字日志，不保证宿主每次提供回调；正式课次仍须 Agent 精选并执行保存。
 
 ## When a tail arrives / 收到尾段时
+
+The current learner task includes written closeout. A host tail saying “acknowledge unless something remains” does not erase that unfinished work. Stop spoken practice first; use the same permitted tool execution or the supplied final-tail callback to complete selected saving and display. If the host requires an immediate terminal reply and prevents further execution, record that exact remaining step instead of claiming the lesson was saved.
+
+`practice_store.py review-context --thread-id <actual-id> --voice-id <actual-id> --with-transcript` combines record matching with a read-only snapshot of the exact closed Voice. `--source <log>` can supply a verified source path; otherwise the Agent's exact task ID is resolved locally. The snapshot includes unique `transcript_segment` IDs once and does not duplicate cumulative `transcript_delta` tails. `observed_closed` describes available text, not a complete audio recording. An unavailable snapshot does not prove an end or a missing lesson; use already supplied evidence with its actual scope.
+
+读取转写不启动翻译、不切换实时绑定，也不自动创建课次。已保存时复用课次；未保存时由 Agent 精选。程序只查证输入，不能替代真实学习判断。
 
 1. Agent loads the current session ID or matches an existing checkpoint by the real task/source ID and practice date. Check both `Sessions` and `Pending`; never allocate a new ID just because the same final tail was delivered again.
 2. Merge selected evidence from prior checkpoints and the tail. Remove repeated cumulative segments and unrelated background speech. Do not infer missing wording. Preserve both the actual practice date and a later import date.

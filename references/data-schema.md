@@ -80,6 +80,10 @@ Latest explicit preference supersedes old session-specific requests. Do not turn
 
 ## Writes and repairs / 写入与修复
 
+At an observed end, `review-context --with-transcript` returns the matched records and available unique text for the exact Voice. It is read-only and does not mark anything saved. Without that flag, catalog queries remain compact. Supply `--today` with the actual practice date for a historical import; the snapshot's start time is source evidence, not a replacement for the lesson date. A source lookup failure is returned explicitly and must not become invented speech.
+
+`resume --event user_end` or `host_closed` returns a separate `closeout` requirement even in compact output: spoken activity stops, record checking/saving remains. Pause and ordinary help do not create that requirement. The Agent still verifies the real end and sources before committing.
+
 Agent stages an ended payload, writes the Markdown atomically, rebuilds the index and HTML, then removes the matching pending file. Same ID plus same payload is idempotent; a different payload with that ID fails without overwriting the existing journal. Writes are serialized. Run `recover` for ended pending files; `rebuild` repairs views. Neither procedure invents missing speech. Read-only validation reports missing/stale state and changed legacy notes.
 
 Normal skill operation does not retroactively rewrite completed sessions. If a factual correction is needed, inspect the source and preserve a backup before changing the canonical JSON and its prose together, then rebuild and validate. Never edit the hidden block alone while leaving contradictory visible text.

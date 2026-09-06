@@ -42,7 +42,7 @@ python3 <skill>/scripts/open_library.py --session <saved-session-id> --no-browse
 python3 <skill>/scripts/open_library.py --page stats --no-browser
 ```
 
-The opener resolves the root, validates the requested saved session and uses the existing local-service-manager when installed. Agent loads that manager's instructions before service operations, verifies the returned URL and opens it in the host UI. Without `--no-browser`, the script requests the system browser. It never claims the browser visibly opened merely from that request.
+The opener resolves the root, validates the requested saved session and first reuses a healthy matching archive at the requested port. The existing supervisor keeps ownership; a matching but unhealthy service is reported for repair, not replaced by another instance. Agent follows the host's service lifecycle rules and supplies `--service-url` when the verified service uses a different port. Otherwise the bundled supervisor handles first startup on macOS; other hosts receive the exact command for their native supervisor. Without `--no-browser`, the script requests the system browser. It never claims the browser visibly opened merely from that request.
 
 On macOS without this manager, `open_library.py` uses the bundled `library_service.py` launchd manager for the current login session. It checks job identity, PID, loopback socket ownership and the archive API, preserves occupied ports and reuses healthy instances. It does not install login startup or compete with an existing manager. Its `status|stop --root <data-root>` operations identify this exact archive.
 

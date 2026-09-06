@@ -1,55 +1,56 @@
 # Voice and page delivery / 语音与页面交付
 
-Read this once when handling an active Voice practice. Inspect the actual host protocol; tool names, routing permissions and output channels vary. Follow host requirements rather than assuming a universal Voice API.
+Read this once for the active Voice host. The responding Agent owns every message it produces. A separate speech model may speak or paraphrase those messages and may handle turns without delegating. The companion reads transcripts for display; it does not generate or control dialogue audio.
 
-The responding Agent is responsible for every message it produces, including commentary. A separate Voice model may paraphrase those messages. The companion page reads transcripts and adds translations; it does not control the spoken dialogue.
+## Keep the spoken language stable
 
-Agent 对自己输出的全部内容负责。语音模型可能转述过程消息，也可能自行组织语言；字幕页只显示原话和翻译，不负责控制语音。不能把网页双语、帮助语言或后台报告语言当作角色对话语言。
+Use the conversation rules at the top of `SKILL.md` for all speech-facing messages. With English-first practice, preparation updates and coaching feedback are English too. Only the complete scene introduction uses the saved help language; an explicit Chinese explanation is brief. Chinese wording in the learner's turn does not change the response language. Technical diagnostics and the written review belong on the host's actual visible text surface.
 
-## Speech-facing messages / 可能被说出来的内容
+For the initial preparation, a brief result can describe the restored preference naturally: “Your practice is set to English conversation, with a written review afterward.” Do not read out files, tool names or a setup checklist. After the complete Chinese scene introduction, a learner-facing “Let's talk in English” and the English role line establish the conversation boundary. These are ordinary words addressed to the learner, not commands to another model.
 
-During the scene, the saved practice language applies to **every ordinary output item**, not only the final reply. With English-first practice, an English final answer accompanied by Chinese progress commentary is an invalid delivery. No item contains a running grade, grammar appraisal, storage status or narration about what another assistant is doing.
+For a host requiring a `[STATUS]` item for each delegation, use a short English fact grounded in the current meaning. The `[COMPLETE]` item supplies the useful response. Neither should grade the learner, announce a lesson or add a second main question. Do not emit these tags on a host that does not require them.
 
-If the host requires a `[STATUS]` item for each delegation, keep it a short grounded statement of the understood in-scene meaning, in English. Do not omit a required channel, fake progress, address instructions to Voice, or fill it with “I am checking.” The `[COMPLETE]` item supplies one useful conversational response. Both items should remain suitable if closely paraphrased together; do not put a second main question in STATUS.
+| Situation | Required STATUS, when applicable | Completed response example |
+| --- | --- | --- |
+| A missing word in a request | “You're asking about the return time.” | “You can ask, ‘When should I return it?’” Then wait. |
+| An already clear preference | “You prefer a quiet place.” | “There's a small garden nearby. What would you like to know about it?” |
+| A complaint about repetition | “Your meaning was clear already.” | “You're right. I kept asking you to repeat.” Stop assigning practice in that turn. |
 
-Fictional example after the learner asks in Chinese to borrow an umbrella:
+If no interim item is required, an ordinary short turn needs no progress narration. Adapt the examples to the actual intent and saved correction mode.
 
-- Required status content: “You're asking to borrow an umbrella.”
-- Completed response content: “Do you mean, ‘Can I borrow an umbrella?’”
+## Reply and configuration are separate
 
-After the learner has already repaired “I want to walk around”:
+`context.voice_brief` is a short local reminder for the responding Agent. Read and act on it; do not paste it into an ordinary reply as instructions to another model. A host may have a documented, permitted instruction interface, but ordinary backend messages are not that interface. Never simulate roles or disguise prompts to bypass host rules.
 
-- Required status content: “You just want to walk around.”
-- Completed response content: “There's a covered street nearby. What kind of places do you like exploring?”
+Before completing a prepared reply, check the latest learner input. If they interrupted with a pause, refusal or coaching feedback, drop the pending exercise and address that intent. Do not append an older full model after a newer correction.
 
-These are ordinary scene content, not instructions for another model. Adapt them; do not emit protocol tags on a host that does not require them. When no interim message is required, a short conversation turn needs no separate progress narration.
+Use the permitted conversational path when a learner turn is delegated. A missing configuration interface does not prevent a helpful reply. If the actual spoken reply departs from the compliant backend reply, record both with the exact utterance and time. Correct the next delegated response naturally; do not repeatedly lecture the learner about host limitations. Assess turns handled without a backend call separately. No callback, exact repetition or language guarantee is implied by a correct local reminder.
 
-宿主要求状态消息时仍须发，但内容用英文表达已理解的现场意思，不评价“用户已经学会了”“刚才补上了 to”。最终回复给出一句自然回应。所有可能进入听觉的内容一起审查，不能把 STATUS 当成用户听不到的日志。
-
-For setup, the help language can report a necessary readiness fact briefly. Deliver the full scene introduction only once at the opening; do not scatter it across preparation updates. During explicit Chinese help, answer the requested point minimally and then return to the English scene. Written review belongs to the host's visible text/artifact surface, not ordinary speech context. Use its documented inline directive when required; do not guess a directive or claim an ordinary backend reply is visible text.
-
-## Replying is distinct from configuring / 回应与设置分开
-
-`context.voice_brief` is local guidance for the responding Agent. A documented callable instruction-update interface may accept it if the host permits that use. A normal backend reply is not such an interface. Never paste raw prompts, simulate role messages, encode instructions or disguise commands as facts to bypass a prohibition.
-
-A missing instruction-update interface does **not** remove the ordinary conversational path. When the host sends a learner turn, use the restored preferences and the turn cycle to supply appropriate natural content through that permitted reply. Do not send a limitations lecture during each scene turn or declare improvement impossible merely because there is no instruction API.
-
-没有设置接口，不等于不能接好眼前这一句。宿主把用户话语交给 Agent 时，Agent 可以按已读规范提供自然回应；也必须把自己的状态消息写对。是否每轮都回调、语音端是否原样采用，仍要从实际语音检查，不能仅从后台正确回答推定成功。
-
-If the actual spoken reply departs from an otherwise compliant backend response, record that specific observation separately from backend mistakes. Do not claim control you do not have or keep inventing global prompts. The next diagnosis targets the demonstrated delivery boundary, with exact utterance evidence. No new product, automatic model change or permanent background control is implied.
+语音端可能改述后台文字，也可能自行接话。Agent 先把自己的全部回复写对，再按实际转写核对交付；字幕就绪、后台英文和真正说出的英文分别取证。
 
 <a id="page-delivery"></a>
-## Page delivery / 网页显示
+## Show the correct page
 
-The intended result is the correct local page visible to the learner, not a submitted request. Keep backend readiness, open request, visible route and actual transcript/lesson content as separate facts in the current task context.
+1. Automatically open the prepared exact live URL for each new Voice. An explicit caption disable opens the overview instead; text practice also opens the overview. At closeout, open the exact matching review route.
+2. Inspect after opening. A capture before opening, HTTP 200, promoted tool item or `queued` response is not visible-page evidence.
+3. If queued or wrong, use one available permitted recovery route: reuse/navigate a visible tab or the host's required browser executor. Follow its routing rules and recheck the exact run or saved lesson. Do not repeatedly submit the same queued open.
+4. If still unavailable, retain the unresolved display status and provide the usable link plus the specific issue on the written surface. Preserve the review even if the page cannot be shown.
 
-1. At every new practice, automatically open the local learning page through an allowed visible host surface. Voice practice includes the companion by default: open the exact prepared live URL. Only an explicit saved disable uses the overview instead. Text practice also opens the overview. At closeout, open the matching review URL. Browsing the archive alone does not bind Voice or start translation.
-2. Inspect that surface after the open. A screen capture taken before opening, HTTP 200, promoted tool item or `queued` response is insufficient.
-3. If queued or wrong, use one available permitted recovery path: navigate/reuse a visible browser tab, or the host's required delegated browser executor. Follow its actual routing rules; do not declare the browser unavailable before checking the permitted route. Recheck the exact route and relevant live run or saved lesson.
-4. After this bounded attempt, if the surface is still unavailable, mark display unresolved and place the usable link plus the specific display issue on the written surface. Do not repeat the same queued request indefinitely, ask the learner to run commands, or claim the page was opened.
+The waiting review page checks saved records about once per second while visible, for at most five minutes. It does not create a lesson. After saving, verify this Voice's lesson is visible. If the learner navigated elsewhere, do not repeatedly pull them back.
 
-初次打开后必须接着验证。排队就走已有的可见浏览器恢复路径；需要委派浏览器的宿主由 Agent 按规则委派。正常对话不反复重开页面。实在无法显示才单独报告那一步，不能用“后台已就绪”代替。
+## After the microphone closes
 
-At closeout, show this Voice's waiting route early; the page polls local saved records about once per second while visible, for at most five minutes. After a successful save, verify it displays the matching lesson. If the learner navigated elsewhere, do not repeatedly pull them back. Page failure does not justify discarding the review; saving failure does not become success because the waiting page exists.
+Honor the end tool's timing and response contract. Do not delay hanging up to write a review. Where the host supplies an end/tail callback, reconcile the ended Voice immediately through `review-context --with-transcript`, then save and show the selected review on the written/tool surface. Ending audio does not finish those actions. Reuse matching saved or pending selections; do not create a second lesson from a repeated tail.
 
-For companion preparation, backend errors, drain and recovery, use [live-companion.md](live-companion.md). The page does not start the microphone, save mastery, or force Voice instruction adoption.
+If the host forbids further work in that execution, mark the exact unfinished closeout for [record-recovery.md](record-recovery.md). Do not call an acknowledgement a saved review. Use the host's documented inline display mechanism when written content is required; ordinary backend output may be spoken and does not prove text was shown.
+
+For a Codex host that specifies the bare inline Markdown directive, the exact output form is:
+
+```text
+::codex-realtime-inline{}
+The written review goes here as ordinary Markdown.
+```
+
+The directive starts at byte zero. Put the content after the newline, never inside a guessed `content` attribute, and do not prefix it with STATUS or COMPLETE. This example applies only when that documented host contract is present. If the host contract is unavailable, report the display step as unresolved instead of inventing syntax.
+
+For caption preparation and drain errors, use [live-companion.md](live-companion.md). Caption translation and learning-record selection finish independently.

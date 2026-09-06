@@ -19,9 +19,25 @@ This reference explains the turn cycle in `SKILL.md`. It is for the Agent respon
 
 形式、阶段和帮助程度分开处理。`in_character` 是当前用户明确选择的自然帮助方式，不能反过来覆盖所有使用者；脚本里的 `proactive_teaching: false` 表示不公开讲课，不表示禁止角色内帮助。
 
+## Identify help and feedback before role content / 先识别求助与反馈
+
+An explicit “how do I say…?” already requests help. Give one useful phrase or short model and wait, without an extra meaning check or a new content question. For a missing word, a full sentence is optional; do not turn its ordinary hesitant use into another take. Chinese help is spoken only when explicitly requested; Chinese words alone do not change the saved practice language.
+
+Learner: “I want to go… 怎么说，徒步旅行?”
+
+Partner: “Go hiking. ‘I'd like to go hiking.’”
+
+Learner: “I'd like to go hiking with my friend.”
+
+Partner: “What kind of trail are you looking for?”
+
+If the learner instead says “Why do you keep asking me to repeat?”, address the coaching feedback itself. “You're right. Your meaning was clear already.” is enough. Do not require a corrected complaint, announce another drill or resume before the user indicates they want to continue. Keep the practice language through this repair, including when the complaint is Chinese. An explicit request to explain in Chinese is a scoped exception.
+
+用户明确求词时直接给词；用户反馈教学方式时先处理反馈。语言选择、是否继续练习和是否已表达清楚是三件事，不能因为中文反馈就改为中文授课。
+
 ## Preserve the whole interaction / 让帮助成为一段完整交流
 
-For an in-character meaning check, the useful unit is **learner intent → natural English → learner reply → a relevant opportunity to express content**. Sending the model sentence alone completes only the support step. A sufficient short reply is accepted; the next opportunity comes from the situation, not a demand to repeat.
+For an in-character meaning check, the useful unit is **learner intent → natural English → learner reply → a relevant opportunity to express content**. Sending the model sentence alone completes only the support step. A sufficient short reply is accepted; the next opportunity comes from the situation, not a demand to repeat. Resolve a pending check before treating the next Chinese yes as a new meaning.
 
 用完整交流判断帮助是否有效：用户想表达 → 给出英语说法 → 等用户回应 → 顺着意思留下下一次表达机会。用户只说 Yes 时不能当作已会说，但也不能罚他一直复述。把表达机会放在接下来合理的请求、理由、描述或追问中。
 
@@ -83,6 +99,8 @@ After a clear reply, the partner can ask what the learner is looking for or answ
 
 The next opportunity should use what the learner actually said. If they borrowed an umbrella and want to wander, ask what kinds of places they enjoy, respond to that preference, and leave room to ask the way. Do not insist on an earlier indoor-activity plan; this is still the same visitor-center scene.
 
+Once the learner has expressed a clear plan, continue with that plan; do not replace it with an optional synonym and request another full take. “I like walking around the city” already gives content to answer. Ordinary repeated words while thinking are not evidence of failed pronunciation.
+
 When a goal involves the learner asking a price, time, condition or direction, leave a natural information gap. The partner can invite “What would you like to know before you decide?” rather than announcing every detail. Once the learner asks, answer normally. A short transaction may be enough, especially if the learner is tired or wants to end.
 
 情景里的目标是给用户可发挥的空间，不能成为僵硬剧本。用户改了具体需求，就在同一地点和角色里跟着需求走；别为了完成原定目标，忽略他刚说的话。没有问价机会与“用户不会问价”是两回事。
@@ -91,4 +109,4 @@ When a goal involves the learner asking a price, time, condition or direction, l
 
 Review distinguishes: a misunderstanding affecting intent; a useful wording improvement; an optional alternative to already correct English. Only a few actual utterances belong in the written review. Requested spoken review may explain, model and guide another attempt, adapting to the learner rather than imposing a recitation sequence.
 
-A pause keeps the same scene and waits. A clear end stops the dialogue immediately, even mid-goal. “Thanks” during an unfinished exchange is not automatically an end. A new practice starts a new scene using the learning history only; it does not resume this plot.
+A pause keeps the same scene and waits. A clear end stops the dialogue immediately, even mid-goal. “Thanks” during an unfinished exchange is not automatically an end. A user-requested change of topic is followed without resetting language or help preferences. A new practice starts a new scene using the learning history only; it does not resume this plot. After an observed end, stopping speech and completing selected written saving are separate obligations.

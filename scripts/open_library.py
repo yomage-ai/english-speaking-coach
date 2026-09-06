@@ -2,13 +2,33 @@
 from pathlib import Path
 import argparse
 import json
-import os
 import re
-import subprocess
 import sys
 import webbrowser
+from urllib.error import URLError
+from urllib.request import urlopen
 from workspace_config import resolve_workspace,SKILL_ROOT
 from practice_context import review_route
+
+def existing_service(root, port):
+    """Reuse a matching healthy listener without replacing its supervisor."""
+    base = f'http://127.0.0.1:{port}'
+    try:
+        with urlopen(base + '/api/identity', timeout=2) as response:
+            info = json.load(response)
+    except (OSError, URLError, ValueError):
+        return None
+    if (not isinstance(info, dict) or info.get('application') != 'english-speaking-coach'
+            or not isinstance(info.get('data_root'), str) or not isinstance(info.get('skill_root'), str)):
+        return None
+    if (Path(info.get('data_root', '')).resolve() != Path(root).resolve()
+            or Path(info.get('skill_root', '')).resolve() != SKILL_ROOT.resolve()):
+        return None
+    # A known matching service with failed health must be repaired by its owner,
+    # not replaced with a second supervisor on another port.
+    from library_service import check_service
+    verified = check_service(base, root, info.get('pid'))
+    return {'state': 'running', 'url': base, 'pid': verified['pid'], 'manager': 'existing'}
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
@@ -31,7 +51,6 @@ def main():
     from practice_store import build_state
     state=build_state(root)
     if args.session and args.session not in {s['id'] for s in state['sessions']}:p.error('Session has not been saved')
-    manager=Path(os.environ.get('CODEX_HOME',Path.home()/'.codex'))/'skills/local-service-manager/scripts/services.py'
     if not 1024<=args.port<=65535:p.error('Port must be between 1024 and 65535')
     if args.service_url:
         from urllib.parse import urlsplit
@@ -42,16 +61,13 @@ def main():
         base=args.service_url.rstrip('/')
         identity=check_service(base,root)
         service={'state':'running','url':base,'pid':identity['pid'],'manager':'host-provided'}
-    elif manager.is_file():
-        command=[sys.executable,str(manager),'start','--project',str(root),'--role','learning-library','--environment','local','--name','英语学习档案','--port',str(args.port),'--health','/','--health','/api/overview','--','python3',str(SKILL_ROOT/'scripts/library_server.py'),'--root',str(root),'--port','{port}']
-        result=subprocess.run(command,capture_output=True,text=True)
-        if result.returncode:print(result.stdout+result.stderr,file=sys.stderr);return result.returncode
-        service=json.loads(result.stdout)
     else:
-        from library_service import start
-        service=start(root,args.port)
-        if service.get('status')=='needs_host_supervisor':
-            print(json.dumps(service,ensure_ascii=False,indent=2));return 2
+        service = existing_service(root, args.port)
+        if service is None:
+            from library_service import start
+            service = start(root, args.port)
+            if service.get('status') == 'needs_host_supervisor':
+                print(json.dumps(service, ensure_ascii=False, indent=2)); return 2
     if service.get('state')!='running' or not service.get('url'):raise ValueError('Archive service is not ready')
     url=service['url']+'/' + (waiting_route or '#'+('sessions/'+args.session if args.session else args.page))
     if not args.no_browser:webbrowser.open(url)
