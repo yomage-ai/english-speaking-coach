@@ -23,7 +23,7 @@ def review_route(thread_id, voice_id):
 
 def compact_context(context, prepared=False):
     """Reduce repeated metadata, preserving preferences, evidence and live guidance."""
-    keys = ('profile', 'phase', 'scene', 'startup', 'policy', 'voice_brief', 'companion', 'transition', 'closeout')
+    keys = ('profile', 'phase', 'scene', 'startup', 'policy', 'voice_brief', 'companion', 'transition', 'closeout', 'learning_context')
     if not prepared:
         keys += ('latest_session', 'recent_scenarios', 'due_candidates', 'concept_review_candidates', 'pending')
     result = {key: context[key] for key in keys if key in context}
@@ -87,12 +87,28 @@ SCENE_FIELDS = ('setting', 'learner_role', 'partner_role', 'goal', 'introduction
 
 
 def validate_scene(scene):
-    if not isinstance(scene, dict) or set(scene) != set(SCENE_FIELDS):
-        raise ValueError('Scene must contain exactly: ' + ', '.join(SCENE_FIELDS))
+    if not isinstance(scene, dict) or not set(SCENE_FIELDS) <= set(scene) or set(scene) - set(SCENE_FIELDS) - {'key_terms'}:
+        raise ValueError('Scene requires: ' + ', '.join(SCENE_FIELDS) + '; optional key_terms')
     for key in SCENE_FIELDS:
         if not isinstance(scene[key], str) or not scene[key].strip() or len(scene[key]) > 1000:
             raise ValueError('Scene ' + key + ' must be nonempty text of at most 1000 characters')
-    return {key: scene[key].strip() for key in SCENE_FIELDS}
+    result = {key: scene[key].strip() for key in SCENE_FIELDS}
+    if 'key_terms' in scene:
+        terms = scene['key_terms']
+        if not isinstance(terms, list) or len(terms) > 3:
+            raise ValueError('key_terms must be a list of at most three preparation candidates')
+        result['key_terms'] = []
+        seen = set()
+        for term in terms:
+            if not isinstance(term, dict) or set(term) != {'term', 'meaning', 'example'}:
+                raise ValueError('Each key term needs term, meaning and example')
+            if any(not isinstance(v, str) or not v.strip() or len(v) > 160 for v in term.values()):
+                raise ValueError('Key term fields must be short nonempty text')
+            clean = {k: v.strip() for k, v in term.items()}
+            if clean['term'].casefold() in seen:
+                raise ValueError('Duplicate preparation term')
+            seen.add(clean['term'].casefold()); result['key_terms'].append(clean)
+    return result
 
 
 def speaking_context(profile, companion, latest, phase=None, scene=None):
@@ -113,8 +129,12 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
         language = 'Use short English with brief ' + profile['help_language'] + ' support at the learner’s pace. '
     if phase == 'scene':
         role = ('Be ' + scene['partner_role'] + '. ' if scene else '') if roleplay else 'Be a natural conversation partner. '
-        shared = ('Listen to the whole meaning. Explicit word help: give the phrase directly, then wait. '
+        shared = ('Read learning_context before choosing difficulty. For a learner needing support, start with '
+                  'one or two short sentences, about 10–20 words total, one useful point and at most one likely-new term. '
+                  'These are adjustable starting targets, not a language level or an audio limiter. '
+                  'Listen to the whole meaning. Explicit word help: explain the whole requested phrase in easier words, then wait. '
                   'Coaching feedback: address it and change that behavior, without turning it into practice. '
+                  'For overload, acknowledge in one short sentence and stop; do not append a simplified lesson or a new question. '
                   'Accept resolved checks, self-repair and normal hesitations. Once meaning is clear, '
                   'respond to the content; leave useful new details or questions for the learner. '
                   'One main action and at most one main question. No running grades or compulsory retakes. ')
@@ -127,6 +147,9 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
         else:
             correction = ('Use a brief selective recast when useful. ' if profile['correction'] == 'light' else
                           'Give the detailed correction the learner selected, without forcing repetition. ')
+        if profile.get('input_support') == 'short_turns':
+            shared = ('The learner chose short turns with gradual vocabulary support; retain meaningful adult topics. '
+                      'At a new scene, briefly offer one or two useful phrases before the role opening unless declined or unnecessary from evidence. ') + shared
         behavior = shared + correction + 'Follow user-requested topic changes; never start another scene on your own. '
         behavior += ('At a natural ending, stop the scene and prepare the written review. ' if written_review else
                      'A short spoken review may follow natural completion while the learner is still practicing. ')
@@ -142,6 +165,9 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
     if roleplay and scene:
         brief += ('\nIntroduce this fresh scene once in ' + profile['help_language'] + ': ' + scene['introduction']
                   + '\nThen mark the English conversation boundary and open: ' + scene['opening_line'] + '\n')
+        if scene.get('key_terms'):
+            brief += ('Use scene.key_terms as preparation candidates: briefly preview only one or two useful items '
+                      'before the role opening, then let the learner respond. Do not read the whole plan or assume the terms are unknown.\n')
     if roleplay and scene is None:
         brief = None
     return {'phase': phase, 'voice_brief': brief,
@@ -152,6 +178,7 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
             'policy': {'role': 'coach' if phase == 'review' else 'character' if profile['mode'] == 'roleplay' else 'partner',
                        'correction_timing': profile['correction'],
                        'review_delivery': profile.get('review_delivery', 'spoken'),
+                       'input_support': profile.get('input_support', 'adaptive'),
                        'history_continuation': False,
                        'proactive_teaching': phase == 'review' or not (deferred or in_character),
                        'embedded_recasts': phase == 'scene' and in_character,

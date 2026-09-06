@@ -10,6 +10,10 @@ Agent writes this JSON in the task's temporary work directory. All six fields ar
 
 Agent 在任务临时目录生成以下结构；六项必填。介绍使用已保存的帮助语言，英文第一句来自角色身份。程序只校验结构，场景合适程度和语言由 Agent 检查；无需用户制作文件。
 
+Optional `key_terms` is a list of at most three objects with `term`, `meaning`, `example` (short nonempty strings). It keeps predicted language visible across preparation retries, without requiring an extra user form or creating cards. Read [listening-and-vocabulary.md](listening-and-vocabulary.md) to select and briefly preview only what this learner needs. Legacy six-field scenes remain valid. The learner's actual response changes the plan.
+
+可选 `key_terms` 保存最多三个备用词组及意思、短例句；开场只铺垫一两个。它们是场景计划，不是已发生的学习证据。原有六字段场景继续可用。
+
 ```json
 {
   "setting": "A hotel reception desk in the evening",

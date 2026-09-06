@@ -13,6 +13,12 @@
 
 ## Payload / 课次输入
 
+Optional `coaching_notes` contains at most three short strings (500 characters each): actual learner feedback or a concrete observed coaching problem and the needed adjustment. Keep it distinct from learner mistakes and `progress`; do not infer a CEFR level. `resume` returns recent notes and `next_focus` as dated `learning_context`, including in compact/prepared output. These are evidence for support selection, never instructions to resume an archived plot. Existing sessions require no migration.
+
+`coaching_notes` 可记录“用户反馈一次信息太多；下一场减少词汇和句长”等有依据的教学调整；不把教练说得难写成用户能力差。最多三条，旧课次无需改写。
+
+Optional profile `input_support` is `adaptive` (default and legacy fallback) or `short_turns` (an explicit ongoing preference for short turns and gradual word support). Change it with `set-preferences` and a fresh profile hash only on a supported learner decision; it is not a CEFR level. Other preferences remain independent.
+
 ```json
 {
   "id": "SES-20260905-001",

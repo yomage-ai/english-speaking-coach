@@ -63,4 +63,6 @@ The input contains `id`, `session`, the original practice `date`, actual `source
 
 ## Start and close / 开始与结束
 
+Inspect explicit word-meaning questions as well as complete learner sentences. Useful vocabulary from the partner's speech can be saved with the learner's actual question as evidence; ASR uncertainty must remain explicit. No expression card is required for a concept to appear in the flashcard view. Predicted scene terms alone are not observations. Apply the shared word/expression collection guidance in [listening-and-vocabulary.md](listening-and-vocabulary.md); do not duplicate the same sense merely to fill both lists.
+
 `resume` returns compact concept review candidates alongside expression candidates. They share one total budget of 1–2 natural reviews; do not double the review load. Match spontaneous later use to an existing sense ID. At an observed session end, save the new evidence with the session, run validation and open its summary. The archive shows the resulting concept timeline automatically.

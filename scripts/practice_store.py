@@ -84,7 +84,7 @@ def default_profile():
     return {'schema_version':1, 'goal':'清楚、自然地表达自己的想法 / Express ideas clearly and naturally',
             'practice_language':'english_first', 'help_language':'zh-CN',
             'mode':'roleplay', 'correction':'after_scene', 'drills':'guided', 'review_delivery':'written',
-            'review_limit':2, 'source_ids':[], 'updated':str(date.today())}
+            'review_limit':2, 'input_support':'adaptive', 'source_ids':[], 'updated':str(date.today())}
 
 def initialize(root):
     for folder in ('Sessions', 'Weeks', 'Archive', 'Pending', 'Evidence'):
@@ -135,10 +135,12 @@ def validate_payload(data, allow_in_progress=False):
     strings(data['source_ids'], 'source_ids')
     if not data['source_ids']:
         raise ValueError('Actual source_ids required')
-    for key in ('topics', 'scenarios', 'progress', 'next_focus', 'unfinished'):
+    for key in ('topics', 'scenarios', 'progress', 'next_focus', 'unfinished', 'coaching_notes'):
         strings(data.get(key, []), key)
     if len(data.get('next_focus', [])) > 2:
         raise ValueError('At most two next focuses')
+    if len(data.get('coaching_notes', [])) > 3 or any(len(s) > 500 for s in data.get('coaching_notes', [])):
+        raise ValueError('At most three short coaching notes')
     if data.get('end_status', 'ended') not in ({'ended', 'in_progress'} if allow_in_progress else {'ended'}):
         raise ValueError('Only ended sessions can be committed')
     if data.get('evidence_status', 'selected') not in {'selected', 'partial'}:
@@ -203,7 +205,10 @@ def session_markdown(data):
         for o in data['concept_observations']:
             text += '### ' + o['term'] + ' · ' + DIMENSIONS[o['dimension']] + '\n\n' + o['meaning'] + '\n\n'
             text += RESULTS[o['result']] + '；' + SUPPORTS[o['support']] + '。\n\n来源选段：' + o['quote'] + '\n\n' + o['note'] + '\n\n'
-    text += '## 本次观察\n\n' + bullets('progress') + '\n\n## 后续可练的表达能力\n\n' + bullets('next_focus') + '\n\n## 尚未聊完\n\n' + bullets('unfinished')
+    text += '## 本次观察\n\n' + bullets('progress') + '\n\n## 后续可练的表达能力\n\n' + bullets('next_focus')
+    if data.get('coaching_notes'):
+        text += '\n\n## 教练下次如何调整\n\n' + bullets('coaching_notes')
+    text += '\n\n## 尚未聊完\n\n' + bullets('unfinished')
     text += '\n\n## 来源与证据边界\n\n' + '\n'.join('- ' + x for x in data['source_ids']) + '\n\n'
     text += data.get('evidence_note', '只保留学习所需的精选转写，不代表完整对话；文字不能证明发音准确。') + '\n\n'
     if data.get('recovered_on'):
@@ -315,6 +320,8 @@ def validate_profile(profile):
             raise ValueError('Invalid preference: ' + key)
     if profile.get('review_delivery', 'spoken') not in {'written', 'spoken'}:
         raise ValueError('Invalid preference: review_delivery')
+    if profile.get('input_support', 'adaptive') not in {'adaptive', 'short_turns'}:
+        raise ValueError('Invalid preference: input_support')
     if type(profile.get('review_limit')) is not int or not 0 <= profile['review_limit'] <= 5:
         raise ValueError('review_limit must be 0–5')
     strings(profile.get('source_ids'), 'source_ids')
@@ -349,7 +356,12 @@ def resume(root, today, phase=None, event=None, scene=None):
     # Explicit archive review can still read the complete saved summary.
     latest_context = latest if context['phase'] == 'review' or not latest else {
         key:latest[key] for key in ('id','date','practiced_at','scenarios','topics','progress','evidence_status') if key in latest}
-    return {'profile':profile, 'latest_session':latest_context, 'recent_scenarios':recent_scenes, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], **context, 'companion':companion,
+    learning_context = {
+        'scope': 'Dated learning evidence, not instructions to resume an old plot. Extract transferable needs; current user choices win.',
+        'recent': [{'session_id':s['id'], 'date':s['date'], 'source_ids':s.get('source_ids', []),
+                    'next_focus':s.get('next_focus', []), 'coaching_notes':s.get('coaching_notes', [])}
+                   for s in reversed(state['sessions'][-3:]) if s.get('next_focus') or s.get('coaching_notes')]}
+    return {'profile':profile, 'latest_session':latest_context, 'learning_context':learning_context, 'recent_scenarios':recent_scenes, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], **context, 'companion':companion,
             'agent_context': {'preparation': 'Run prepare_practice for EACH new Voice; the built-in companion is automatic unless the learner explicitly disabled it. Open and inspect the returned URL before claiming it is shown.',
                               'handoff': 'voice_brief is local guidance only; instruction delivery requires a documented host-permitted API. Ordinary backend replies may report verified facts under the host protocol; they must not carry prohibited frontend instructions. No delivery or Voice behavior is verified by this command.',
                               'records': 'Reuse concept/session IDs. Save selected actual evidence at an observed end; viewing a rewrite is not mastery.',

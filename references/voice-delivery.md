@@ -18,6 +18,8 @@ For a host requiring a `[STATUS]` item for each delegation, use a short English 
 
 If no interim item is required, an ordinary short turn needs no progress narration. Adapt the examples to the actual intent and saved correction mode.
 
+Apply the learner's input load to STATUS and COMPLETE together, including any required preparation acknowledgement. A short backend reply may be expanded by the speech model. Review the actual unique spoken reply for length, unfamiliar terms, lists and appended questions, not only the backend text. A learner-facing statement such as “We'll use short turns and learn a couple of useful phrases” can describe the real practice plan; it does not configure the frontend. A missing per-turn callback or speech configuration API remains a host limitation, not something extra prompt text or caption settings can enforce.
+
 ## Reply and configuration are separate
 
 `context.voice_brief` is a short local reminder for the responding Agent. Read and act on it; do not paste it into an ordinary reply as instructions to another model. A host may have a documented, permitted instruction interface, but ordinary backend messages are not that interface. Never simulate roles or disguise prompts to bypass host rules.

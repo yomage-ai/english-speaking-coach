@@ -32,6 +32,8 @@ Use varied fictional situations and supported modes. Include: a fresh start with
 
 Changes to speaking rules need a speaking-level check. Changes to storage need a storage check. A release can be source-synchronized and program-tested while actual Voice behavior remains unverified; report those statuses plainly. Before sending the learner to retry a known failure, complete the checks the Agent can perform itself, and explain what the real trial alone can resolve.
 
+For listening and vocabulary changes, include supported short speech on a worthwhile adult topic, an unfamiliar multiword phrase, a request for two details, an explicit overload complaint, a later continuation and an independently chosen question. Inspect the total spoken turn, number of information points, predicted versus actually queried words, simpler explanations, and the saved word evidence. Check that recent coaching needs survive compact preparation while the old plot stays archived. Test both legacy scenes and scenes with a few preparation terms. Do not infer listening ability from pauses, subtitle use or ASR alone.
+
 维护者按失败所在层验证：改了语音输出规范，就检查完整回应；改了存储，再检查写入与恢复。不能拿更多文件测试来替代没做的情景验收，也不能把程序未证明的事说成绝对保证。
 
 ## Delivery-boundary rehearsal / 交付边界演练
