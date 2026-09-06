@@ -4,7 +4,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const main = $('#content');
 const labels = {not_tested:'尚未尝试',source_text:'看原句说出',keywords:'借关键词说出',independent:'曾独立说出',transfer:'曾换场景使用'};
 const bookEnglish = {'旅行出行':'Out & about','宠物咨询':'Care & ask','日常聊天':'Everyday life'};
-let overview, renderVersion = 0, toastTimer;
+let overview, overviewLoading, renderVersion = 0, toastTimer, reviewTimer;
 const href = (path, args = {}) => '#' + path + (Object.keys(args).length ? '?' + new URLSearchParams(args) : '');
 const route = () => { const [path, query = ''] = location.hash.slice(1).split('?'); return {path:path || 'overview', args:Object.fromEntries(new URLSearchParams(query))}; };
 const shortDate = d => d ? d.slice(5).replace('-', '.') : '';
@@ -31,13 +31,19 @@ function updateMeta(data) {
   $('#sync').textContent = '记录更新于 ' + shortDate(data.source_updated_at.slice(0,10)) + ' ' + data.source_updated_at.slice(11,16);
   $('#revision').textContent = data.revision.slice(0,6);
 }
+function loadGoalInBackground() {
+  if(overviewLoading)return;
+  overviewLoading=api('/api/overview').then(data=>{
+    overview=data;$('#goal').textContent=data.profile.goal;
+  }).catch(()=>{}).finally(()=>{overviewLoading=null;});
+}
 function home(data) {
   const {counts, latest, books} = data;
   const feature = latest?.excerpts?.[0];
   return heading('MY SPEAKING JOURNAL', '我的学习档案', '把练习留下来，让下一次表达更自然。') +
     `<div class="numbers">${metric(counts.sessions,'已保存对话','按已保存的课次去重计数，不是所有聊天窗口数。点击对话记录核对课次；缺少的练习不会被估算进去。')}${metric(counts.terms,'词句卡片','表达和从整句抽取的知识点各有一张卡片，不等于背会的单词数。去生词与表达查看原话、用法和提示情况。')}${metric(counts.days,'练习天数','按课次的实际练习日期去重。同一天的多次对话算一天，补录日期不算新练习。')}${metric(counts.books,'主题生词本','按现有课次主题自动分组，方便查找。它们共用同一份表达记录，不额外复制内容。')}</div>` +
     (latest ? `<section class="hero" aria-label="最近一次练习"><div class="hero-quote"><span class="eyebrow">A PHRASE FROM YOUR PRACTICE · ${esc(shortDate(latest.date))}</span><blockquote lang="en">${esc(feature?.english || latest.title)}</blockquote><p>${esc(feature?.chinese || '')}</p></div><div class="hero-summary">${tag('最近一次 · ' + latest.book)}<h2>${esc(latest.title)}</h2><p>${esc(latest.summary)}</p><a class="button primary" href="${esc(href('sessions/' + latest.id))}">查看这次总结 <span aria-hidden="true">↗</span></a></div></section>` : empty('第一段练习，还在等你','对 Agent 说「练英语」，保存后这里就会出现你的第一篇记录。')) +
-    `<div class="home-grid"><section><div class="section-head"><h2>最近聊过什么</h2><a class="text-link" href="#sessions">全部记录 ↗</a></div><div class="panel">${data.recent.map(s => `<a class="session-link" href="${esc(href('sessions/' + s.id))}">${sourceDate(s)}<div><h3>${esc(s.title)}</h3><p>${esc(s.book)} · ${s.expression_count} 条表达</p></div><span class="arrow">↗</span></a>`).join('') || '<p class="muted">还没有课次记录。</p>'}</div><div class="practice-note"><strong>下次接着聊</strong><p>${esc(latest?.next_focus?.[0] || '从今天想说的一件小事开始。')}</p></div></section><section><div class="section-head"><h2>我的生词本</h2><a class="text-link" href="#terms">全部表达 ↗</a></div><div class="books">${books.map(b => `<a class="book" href="${esc(href('terms',{book:b.name}))}"><span class="book-en" lang="en">${esc(bookEnglish[b.name] || b.name)}</span><h3>${esc(b.name)}</h3><p>${b.count} 条表达 · ${b.sessions} 次对话</p></a>`).join('')}</div><p class="section-note">根据已有练习主题整理，单词、短语和整句一起收录。</p><div class="quick-review"><div class="section-head"><div><h2>只想回顾两分钟</h2><p>先看中文，想一想怎么说。</p></div><a class="text-link" href="${esc(href('terms',{recall:'1',due:'1'}))}">开始回顾 ↗</a></div>${data.review_terms.map(t => `<a class="review-small" href="${esc(href('terms',{q:t.chinese,mode:'speak'}))}">${esc(t.chinese)}<span>${esc(t.book)} · ${esc(t.state_label)}</span></a>`).join('') || '<p class="fine">目前没有到建议复习日期的表达，可以从生词本选一句回顾。</p>'}</div></section></div>`;
+    `<div class="home-grid"><section><div class="section-head"><h2>最近聊过什么</h2><a class="text-link" href="#sessions">全部记录 ↗</a></div><div class="panel">${data.recent.map(s => `<a class="session-link" href="${esc(href('sessions/' + s.id))}">${sourceDate(s)}<div><h3>${esc(s.title)}</h3><p>${esc(s.book)} · ${s.expression_count} 条表达</p></div><span class="arrow">↗</span></a>`).join('') || '<p class="muted">还没有课次记录。</p>'}</div><div class="practice-note"><strong>下一场从头开始</strong><p>AI 会结合学习背景选择新场景，先介绍地点、角色和目标，再开始英语对话。</p></div></section><section><div class="section-head"><h2>我的生词本</h2><a class="text-link" href="#terms">全部表达 ↗</a></div><div class="books">${books.map(b => `<a class="book" href="${esc(href('terms',{book:b.name}))}"><span class="book-en" lang="en">${esc(bookEnglish[b.name] || b.name)}</span><h3>${esc(b.name)}</h3><p>${b.count} 条表达 · ${b.sessions} 次对话</p></a>`).join('')}</div><p class="section-note">根据已有练习主题整理，单词、短语和整句一起收录。</p><div class="quick-review"><div class="section-head"><div><h2>只想回顾两分钟</h2><p>先看中文，想一想怎么说。</p></div><a class="text-link" href="${esc(href('terms',{recall:'1',due:'1'}))}">开始回顾 ↗</a></div>${data.review_terms.map(t => `<a class="review-small" href="${esc(href('terms',{q:t.chinese,mode:'speak'}))}">${esc(t.chinese)}<span>${esc(t.book)} · ${esc(t.state_label)}</span></a>`).join('') || '<p class="fine">目前没有到建议复习日期的表达，可以从生词本选一句回顾。</p>'}</div></section></div>`;
 }
 function filters(path, args, books) {
   const terms = path === 'terms';
@@ -51,7 +57,7 @@ function sessionsPage(data, args) {
     (data.items.length ? `<div class="records">${data.items.map(s => `<article class="record-card">${sourceDate(s)}<div><h2><a href="${esc(href('sessions/'+s.id))}">${esc(s.title)}</a></h2><div class="meta">${tag(s.book)}<span>${s.expression_count} 条表达</span>${s.recovered_on?'<span>历史补录</span>':''}</div><p>${esc(s.summary)}</p></div><div class="action"><a class="text-link" href="${esc(href('sessions/'+s.id))}">查看记录 ↗</a></div></article>`).join('')}</div>${pager(data,'sessions',args)}` : empty('没有找到匹配的对话','试试换个关键词，或扩大日期范围。','sessions'));
 }
 function lessonPage(s) {
-  return `<a class="back" href="#sessions">← 返回对话记录</a><div class="lesson-heading"><span class="eyebrow">${esc(fullDate(s.date))}</span><h1>${esc(s.title)}</h1><div class="meta">${tag(s.book)}<span>${s.expression_count} 条表达</span>${tag('精选练习片段','neutral')}${s.recovered_on?'<span>补录于 '+esc(s.recovered_on)+'</span>':''}</div></div><div class="lesson-layout"><div><section class="lesson-summary"><h2>这次聊了什么</h2><p>${esc(s.summary || '本次没有单独保存摘要。')}</p></section><div class="section-head"><h2>我说过的话</h2><span class="fine">原话与复盘要点</span></div><div>${s.excerpts.map(e => `<article class="excerpt"><span class="small-label">我当时说</span><p class="original" lang="en">${esc(e.original || '这条没有记录原话。')}</p><span class="small-label">${e.original?.trim()===e.english.trim()?'这句话可以继续用':'表达参考'}</span><p class="model" lang="en">${esc(e.english)}</p><p class="chinese">${esc(e.chinese)}</p><p class="evidence-note">${esc(e.note)}</p></article>`).join('') || empty('这次未保存逐句片段','上方保留了本次总结。')}</div><details class="source-box"><summary>记录来源与完整性</summary><p>${esc(s.evidence_note || '此页仅展示当时保留下来的学习记录。')}</p><p>这些是精选片段，不是完整聊天逐字稿。表达建议也不冒充逐字保存的 AI 原话。</p><p>课次编号：${esc(s.id)}</p>${s.source_ids?.length?'<p>来源：'+esc(s.source_ids.join(' · '))+'</p>':''}<a href="/records/${esc(s.id)}.md" target="_blank" rel="noopener">查看原始 Markdown 记录 ↗</a></details></div><aside class="lesson-aside"><section class="panel"><h2>这次的学习观察</h2>${list(s.progress || ['没有额外保存观察。'])}</section><section class="panel"><h2>下次接着聊</h2>${list(s.next_focus || ['继续你感兴趣的话题。'])}</section>${s.supplement?`<section class="panel"><h2>我的补充</h2><p>${esc(s.supplement)}</p></section>`:''}<section class="panel"><h2>收进生词本了</h2><p>${esc(s.book)} · ${s.expression_count} 条表达</p><a class="text-link" href="${esc(href('terms',{session:s.id}))}">回顾这些表达 ↗</a></section></aside></div>`;
+  return `<a class="back" href="#sessions">← 返回对话记录</a><div class="lesson-heading"><span class="eyebrow">${esc(fullDate(s.date))}</span><h1>${esc(s.title)}</h1><div class="meta">${tag(s.book)}<span>${s.expression_count} 条表达</span>${tag('精选练习片段','neutral')}${s.recovered_on?'<span>补录于 '+esc(s.recovered_on)+'</span>':''}</div></div><div class="lesson-layout"><div><section class="lesson-summary"><h2>这次聊了什么</h2><p>${esc(s.summary || '本次没有单独保存摘要。')}</p></section><div class="section-head"><h2>我说过的话</h2><span class="fine">原话与复盘要点</span></div><div>${s.excerpts.map(e => `<article class="excerpt"><span class="small-label">我当时说</span><p class="original" lang="en">${esc(e.original || '这条没有记录原话。')}</p><span class="small-label">${e.original?.trim()===e.english.trim()?'这句话可以继续用':'表达参考'}</span><p class="model" lang="en">${esc(e.english)}</p><p class="chinese">${esc(e.chinese)}</p><p class="evidence-note">${esc(e.note)}</p></article>`).join('') || empty('这次未保存逐句片段','上方保留了本次总结。')}</div><details class="source-box"><summary>记录来源与完整性</summary><p>${esc(s.evidence_note || '此页仅展示当时保留下来的学习记录。')}</p><p>这些是精选片段，不是完整聊天逐字稿。表达建议也不冒充逐字保存的 AI 原话。</p><p>课次编号：${esc(s.id)}</p>${s.source_ids?.length?'<p>来源：'+esc(s.source_ids.join(' · '))+'</p>':''}<a href="/records/${esc(s.id)}.md" target="_blank" rel="noopener">查看原始 Markdown 记录 ↗</a></details></div><aside class="lesson-aside"><section class="panel"><h2>这次的学习观察</h2>${list(s.progress || ['没有额外保存观察。'])}</section><section class="panel"><h2>当时的学习建议</h2><p class="fine">以下为历史记录，用于回顾，不续演旧情节。</p>${list(s.next_focus || ['本次没有额外学习建议。'])}</section>${s.supplement?`<section class="panel"><h2>我的补充</h2><p>${esc(s.supplement)}</p></section>`:''}<section class="panel"><h2>收进生词本了</h2><p>${esc(s.book)} · ${s.expression_count} 条表达</p><a class="text-link" href="${esc(href('terms',{session:s.id}))}">回顾这些表达 ↗</a></section></aside></div>`;
 }
 function cardMode(args) {
   return ['speak','meaning','read'].includes(args.mode) ? args.mode : args.recall === '0' ? 'read' : 'speak';
@@ -124,18 +130,27 @@ async function showTerm(id) {
 }
 async function render() {
   const version = ++renderVersion, {path,args} = route();
+  clearTimeout(reviewTimer);
   const section = path.split('/')[0];
-  const navSection=section==='progress'?'stats':section;
+  const navSection=section==='progress'?'stats':section==='review'?'sessions':section;
   $('#term-dialog').close();
   window.CoachLive?.unmount();
   main.setAttribute('aria-busy','true');
   document.querySelectorAll('[data-nav]').forEach(el => { el.classList.toggle('active',el.dataset.nav===navSection); if(el.dataset.nav===navSection) el.setAttribute('aria-current','page');else el.removeAttribute('aria-current'); });
-  const names = {live:'双语伴随',overview:'概览',sessions:'对话记录',terms:'生词与表达',stats:'统计回顾',progress:'词句进展',storage:'档案与存储'};
+  const names = {live:'双语伴随',overview:'概览',review:'本次复盘',sessions:'对话记录',terms:'生词与表达',stats:'统计回顾',progress:'词句进展',storage:'档案与存储'};
   $('#breadcrumb').textContent = '我的学习 / '+(names[section]||'档案');
   try {
-    if(!overview) {overview=await api('/api/overview');$('#goal').textContent=overview.profile.goal;}
+    // A saved lesson or live feed should not wait for an unrelated overview request.
+    if(path==='stats'&&!overview) overview=await api('/api/overview');
     let data, markup;
     if(path==='live'){data=await api('/api/live',args);markup=window.CoachLive.shell();}
+    else if(path==='review'){
+      data=await api('/api/review',args);
+      if(version!==renderVersion)return;
+      if(data.status==='saved'){location.replace(href('sessions/'+data.session_id));return;}
+      markup=heading('YOUR PRACTICE REVIEW','本次复盘','保存后会自动显示在这里。')+
+        '<div class="empty" role="status"><strong>这次复盘尚未保存</strong><p>原话、表达建议和练习观察保存后，页面会自动更新，无需手动刷新。</p><p class="fine" id="review-state">正在等待本次记录。页面本身不会生成或保存复盘。</p></div>';
+    }
     else if(path==='overview'){data=await api('/api/overview');overview=data;markup=home(data);}
     else if(path==='sessions'){data=await api('/api/sessions',{...args,limit:10});markup=sessionsPage(data,args);}
     else if(path.startsWith('sessions/')){data=await api('/api/'+path);markup=lessonPage(data);}
@@ -147,13 +162,34 @@ async function render() {
     else throw new Error('这个页面不存在，请从左侧导航重新打开。');
     if(version!==renderVersion)return;
     main.innerHTML=markup;
+    if(data.profile){overview=data;$('#goal').textContent=data.profile.goal;}
+    else if(!overview)loadGoalInBackground();
     if(path==='live')window.CoachLive.mount(data,args);else updateMeta(data);
+    if(path==='review')watchReview(version,args,Date.now()+300000);
     document.title=(names[section]||'我的学习')+' · 英语学习档案';
     window.scrollTo({top:0,behavior:'instant'});
   } catch(error) {
     if(version!==renderVersion)return;
     main.innerHTML=empty('这次没有读到记录',error.message,section==='stats'?'stats':section==='terms'?'terms':'sessions');
   } finally { if(version===renderVersion) main.setAttribute('aria-busy','false'); }
+}
+function watchReview(version,args,deadline) {
+  reviewTimer=setTimeout(async()=>{
+    if(version!==renderVersion)return;
+    if(Date.now()>=deadline){$('#review-state').textContent='暂未收到保存的复盘。可以稍后点击“刷新记录”；若仍未出现，请让 Agent 检查保存结果。';return;}
+    if(!document.hidden){
+      try {
+        const data=await api('/api/review',args);
+        if(version!==renderVersion)return;
+        if(data.status==='saved'){location.replace(href('sessions/'+data.session_id));return;}
+        $('#review-state').textContent='正在等待本次记录。页面本身不会生成或保存复盘。';
+      } catch(error) {
+        if(version!==renderVersion)return;
+        $('#review-state').textContent='暂时未能检查保存结果：'+error.message;
+      }
+    }
+    if(version===renderVersion)watchReview(version,args,deadline);
+  },1000);
 }
 document.addEventListener('submit', event => {
   const form=event.target.closest('[data-filter]'); if(!form)return;event.preventDefault();

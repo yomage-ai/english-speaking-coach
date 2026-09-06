@@ -4,21 +4,40 @@ Use this mode when the learner requests a local bilingual page alongside Codex V
 
 用户用原有 Voice 说英语，网页显示双方原话与中文。后台普通程序等日志追加，有新片段才请求翻译。原话不纠错、不被译文替换；需要教学时仍由口语教练回应。
 
-## Agent start and resume / Agent 启动与续接
+## Agent preparation / Agent 启动准备
 
-1. Run the normal `paths` and `resume` workflow first. Keep the same authoritative archive and current learning thread. The companion is optional for new users; a request to use it authorizes these bounded translation requests through their existing ChatGPT login. Successful non-demo binding remembers `enabled=true`. Respect a request to stop using it via `disable`; never silently purchase credits, consume a reset or fall back to an API key.
+1. Run `resume --compact --with-project` once to read current preferences, learning evidence and the project page together. `paths` is only needed for location diagnostics. Keep the same authoritative archive and current learning thread. The companion is optional for new users; a request to use it authorizes these bounded translation requests through their existing ChatGPT login. Successful non-demo binding remembers `enabled=true`. Respect a request to stop using it via `disable`; never silently purchase credits, consume a reset or fall back to an API key.
 2. Resolve the **actual Voice task ID**, using the current task identity or the explicit source task when handling a delegation. Do not bind the implementation task or a translator task. `start` can resolve an exact UUID filename under the local Codex sessions tree; it never chooses the newest arbitrary task. Verify the source header. A currently active Voice is continued; otherwise bind the **next** Voice in that task, without replaying closed sessions.
-3. Use `prepare_practice.py --thread-id <voice-task-id>` (add `--source <verified-jsonl>` when needed, `--companion` only for a new explicit enable request). This restores context, reads the project page, binds the exact source, reuses the existing service and checks its identity and live API. It waits finitely, preserves another task's active Voice, and returns the exact run URL. Do not stop at `paths`/`resume` and start an exercise before executing this entry. If an older installed implementation requires a restart, inspect identity and wait until no unrelated Voice is active; never launch a competing manager.
+3. Choose the fresh scene using [scenario-orchestration.md](scenario-orchestration.md), then use `prepare_practice.py --thread-id <voice-task-id> --scene <scene.json>` (add `--source <verified-jsonl>` when needed, `--companion` only for a new explicit enable request). This restores context, reads the project page, binds the exact source, reuses the existing service and checks its identity and live API. It waits finitely, preserves another task's active Voice, and returns the exact run URL. Do not stop at `paths`/`resume` and start an exercise before executing this entry. If an older installed implementation requires a restart, inspect identity and wait until no unrelated Voice is active; never launch a competing manager.
 4. `backend_ready` requires the matching run/task/Voice, `ready=true`, and `stale=false`. Agent must then open and inspect the returned `/#live?run=…` in the host browser; the command reports `page_display: not_verified` because an HTTP response cannot prove a visible preview. Check `transcript_observed` separately. `waiting_backend`, `other_voice_active`, `ended` and errors do not count as ready. If tools are available but these steps were skipped, report an execution omission; only report a host limitation when the required tools/callback actually were unavailable. `probe` remains a separate login/model check, not a page or speech check.
-5. When the host provides a context handoff, pass the normal `voice_brief` plus: “Keep spoken conversation in simple English. Chinese is available on the companion page unless the learner explicitly asks you to say it. Do not forward sentences with tools.” Generating a brief does not prove Voice received it. If no callable handoff exists, report that boundary; do not pretend a file update injected context. Continue the learner's topic. Don't recite setup in every Voice turn or require the learner to operate terminals or find files.
+5. Follow the host's actual handoff contract, using the distinction below. Preserve the chosen scene and restored preferences, but do not equate an ordinary response with an instruction-update API. Reading files is not a completed startup, and generating a brief does not prove Voice received or followed it. Keep IDs and file operations with the tool Agent; learners do not operate terminals or forward sentences.
+
+<a id="handoff-boundary"></a>
+## Handoff boundary / 交接边界
+
+The tool Agent and the frontend Voice model may receive different instructions. `voice_brief` is guidance for practice, not a host configuration change. For text practice the current Agent can use that guidance directly. For Voice, inspect the active host contract and callable capabilities:
+
+- A documented instruction-update API may receive practice guidance within its allowed scope. Verify its response; report observed conversation behavior separately.
+- An ordinary backend reply may carry concise, speech-safe facts about the selected scene, saved preferences and readiness. It does not establish that Voice adopted those preferences. A host rule prohibiting instructions addressed to the frontend takes precedence over this Skill. Do not paste raw guidance, add “apply silently,” encode it, or reword commands as facts to bypass that rule.
+- Without a permitted instruction interface, report the limitation. Do not label the scene's correction or speaking-opportunity behavior as configured or verified, and do not send recurring background messages to simulate control of Voice.
+
+后台 Agent 与语音模型可能使用不同上下文。普通后台回复可以依宿主协议简述已核实的场景、用户偏好和准备结果，但不等于更新语音规则。禁止给前端模型发送指令的宿主中，不转发提示词、不伪装或绕过限制；没有允许的接口就如实报告。中文介绍、英文角色对话、网页双语是分别保存的偏好，不因传递受限而改写用户选择。
+
+For a real-session audit, check loaded preferences, permitted delivery and unique observed turns separately. Inspect a Chinese/stalled-expression opportunity and a learner-owned question opportunity when present. Deduplicate cumulative transcripts, treat unclear ASR as uncertain, and do not require every short answer to become a drill. A passing file test or correct opening cannot substitute for those observations.
+
+真实验收分别检查偏好读取、允许的传递方式和去重后的实际回合；有中文/卡词、主动提问目标时，再判断是否给出英语确认和表达空间。不要把测试通过、保存成功或开场正确算作会中练习效果通过。
 
 Agent 先恢复学习，再绑定实际 Voice 所在任务。新用户主动提出伴随需求即可启用，已启用者不反复征询。Agent 完成依赖检查、服务复用与页面检查；用户只需说英语。`bound` 不等于已就绪；须核对任务 ID、后台心跳和 `ready=true`。网页仍为空时，不声称已看到实时转写。
 
 Each binding covers one Voice. A second Voice in the same task needs a fresh `start` and readiness check. If the host gives the Agent no execution opportunity, that Voice may be missed live. Do not use an earlier run's counts as coverage for the new Voice. Before maintenance or rebinding, inspect the current binding; leave another task's active Voice alone.
 
-同一任务连续开两场 Voice，也必须逐场绑定。宿主没有执行回调时，Agent 不能自动接上；要如实说明会中漏绑定，不能沿用上一场完成数。`voice_brief` 已生成不等于已交给 Voice；没有可用交接接口时，不声称已注入。维护前核对当前绑定，不打断其他任务正在用的 Voice。
+先介绍新场景，再开始英文角色对话。同一任务连续开两场 Voice，也必须逐场绑定。宿主没有执行回调时，Agent 不能自动接上；要如实说明会中漏绑定，不能沿用上一场完成数。`voice_brief` 已生成不等于已交给 Voice；没有可用交接接口时，不声称已注入。维护前核对当前绑定，不打断其他任务正在用的 Voice。
 
 ## End and recovery / 结束与恢复
+
+At an observed end, open the prepared `review_url` before drafting the written review. It is scoped by both task and Voice IDs; the read-only page checks for a matching saved source about once a second while visible, and stops automatic waiting after five minutes. It never creates a lesson or claims a waiting review is saved. Retain transcript selection, deduplication and validation; the browser navigates to the matching lesson after its source is committed. If the page was queued rather than displayed, Agent uses the available visible browser to open and inspect the exact URL. Existing translation/drain work remains separate from review generation.
+
+结束后先显示本次复盘入口，保存完成后自动展示；网页只查询本地状态，不增加模型轮次。等待状态、已保存及读取失败分别显示，同一任务连续两场也按真实 Voice 区分。不为提速省略原话核对和复盘校验。
 
 - The exact Voice close event starts a drain. The worker keeps reading complete lines for at least five quiet seconds, translates pending rows, then closes its owned Codex child. An Agent-observed end should also run `stop --run <binding-id>`; this requests a drain and is idempotent. It does not terminate Voice or other tasks. Check for `ended` or report the actual error. With no end event, 30 minutes without new transcript (or six hours per binding) expires it visibly.
 - Restarting the archive service resumes a still-requested binding from its committed cursor. Completed translations persist. A model call interrupted before its result was committed may be sent again; do not claim exactly-once billing.

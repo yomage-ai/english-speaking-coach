@@ -8,16 +8,23 @@ import subprocess
 import sys
 import webbrowser
 from workspace_config import resolve_workspace,SKILL_ROOT
+from practice_context import review_route
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--root',type=Path)
     p.add_argument('--session')
+    p.add_argument('--review-thread', help='Open a read-only waiting page for an observed Voice end')
+    p.add_argument('--review-voice', help='Exact Voice UUID; required with --review-thread')
     p.add_argument('--page',choices=['overview','terms','stats','progress','storage','live'],default='overview')
     p.add_argument('--service-url',help='Verified loopback URL from the existing host supervisor')
     p.add_argument('--port',type=int,default=8897)
     p.add_argument('--no-browser',action='store_true')
     args=p.parse_args()
+    waiting_route = None
+    if args.review_thread or args.review_voice:
+        if args.session: p.error('Choose a saved session or a Voice waiting page, not both')
+        waiting_route = review_route(args.review_thread, args.review_voice)
     if args.session and not re.fullmatch(r'SES-\d{8}-\d{3}',args.session):p.error('Invalid session ID')
     workspace=resolve_workspace(root=args.root)
     root=Path(workspace['data_root'])
@@ -46,7 +53,7 @@ def main():
         if service.get('status')=='needs_host_supervisor':
             print(json.dumps(service,ensure_ascii=False,indent=2));return 2
     if service.get('state')!='running' or not service.get('url'):raise ValueError('Archive service is not ready')
-    url=service['url']+'/#'+('sessions/'+args.session if args.session else args.page)
+    url=service['url']+'/' + (waiting_route or '#'+('sessions/'+args.session if args.session else args.page))
     if not args.no_browser:webbrowser.open(url)
     print(json.dumps({'status':'ready','url':url,'service':service,'browser_open_requested':not args.no_browser},ensure_ascii=False,indent=2))
     return 0

@@ -15,6 +15,9 @@ from prepare_practice import prepare,readiness
 from test_live_companion import FakeTranslator
 
 THREAD='00000000-0000-0000-0000-000000000051'
+SCENE={'setting':'A fictional hotel','learner_role':'Guest','partner_role':'Receptionist',
+       'goal':'Check in','introduction':'你在酒店办理入住，你是客人，我是前台。',
+       'opening_line':'Welcome! Do you have a reservation?'}
 
 
 class QuietHandler(Handler):
@@ -31,7 +34,7 @@ class PrepareTests(unittest.TestCase):
 
     def test_no_companion_does_not_start_service_or_model(self):
         def forbidden(*args):self.fail('No service should be started')
-        result=prepare(self.root,opener=forbidden)
+        result=prepare(self.root,opener=forbidden,scene=SCENE)
         self.assertEqual(result['status'],'conversation_only');self.assertIsNone(self.store.active())
 
     def test_actual_http_preparation_reuses_binding_but_does_not_claim_ui_or_handoff(self):
@@ -43,37 +46,48 @@ class PrepareTests(unittest.TestCase):
         FakeTranslator.calls=0
         base=f'http://127.0.0.1:{server.server_port}'
         def opener(*args):return {'url':base+'/#live','service':{'manager':'isolated-test'}}
-        first=prepare(self.root,THREAD,self.source,enable_companion=True,opener=opener,timeout=3)
-        second=prepare(self.root,THREAD,self.source,opener=opener,timeout=3)
+        first=prepare(self.root,THREAD,self.source,enable_companion=True,opener=opener,timeout=3,scene=SCENE)
+        second=prepare(self.root,THREAD,self.source,opener=opener,timeout=3,scene=SCENE)
         self.assertEqual(first['status'],'backend_ready');self.assertEqual(first['binding'],second['binding'])
         self.assertFalse(first['checks']['transcript_observed'])
         self.assertEqual(first['checks']['page_display'],'not_verified')
         self.assertEqual(first['checks']['voice_handoff'],'not_verified')
+        self.assertFalse(first['startup_complete']);self.assertEqual(first['context']['scene'],SCENE)
         self.assertIn(first['binding']['id'],first['url']);self.assertEqual(FakeTranslator.calls,0)
 
     def test_competing_task_and_wrong_source_cannot_replace_binding(self):
         current=self.store.bind(THREAD,self.source)
-        result=prepare(self.root,'00000000-0000-0000-0000-000000000052',self.source)
+        result=prepare(self.root,'00000000-0000-0000-0000-000000000052',self.source,scene=SCENE)
         self.assertEqual(result['status'],'other_voice_active');self.assertEqual(self.store.active(),current)
         self.store.stop(current['id'],immediate=True)
-        with self.assertRaises(ValueError):prepare(self.root,'wrong',self.source)
+        with self.assertRaises(ValueError):prepare(self.root,'wrong',self.source,scene=SCENE)
         self.assertEqual(self.store.active()['id'],current['id'])
 
     def test_service_failure_does_not_report_ready_or_leave_new_binding_requested(self):
         def broken(*args):raise OSError('Synthetic service failure')
-        result=prepare(self.root,THREAD,self.source,enable_companion=True,opener=broken)
+        result=prepare(self.root,THREAD,self.source,enable_companion=True,opener=broken,scene=SCENE)
         self.assertEqual(result['status'],'preparation_error')
         self.assertFalse(result['checks']['backend_ready']);self.assertEqual(self.store.active()['desired'],'stopped')
 
     def test_saved_binding_without_heartbeat_is_not_readiness(self):
         def opener(*args):return {'url':'http://127.0.0.1:12345/#live'}
         result=prepare(self.root,THREAD,self.source,enable_companion=True,opener=opener,
-                       reader=lambda base:self.store.view(),timeout=0)
+                       reader=lambda base:self.store.view(),timeout=0,scene=SCENE)
         self.assertEqual(result['status'],'waiting_backend');self.assertFalse(result['checks']['backend_ready'])
         binding=result['binding'];data=self.store.view()
         data['state'].update(status='ended',ready=True,stale=False)
         self.assertEqual(readiness(data,binding),'ended')
         data['state']['id']='different';self.assertEqual(readiness(data,binding),'binding_changed')
+
+    def test_missing_or_invalid_scene_cannot_bind_or_start_service(self):
+        def forbidden(*args):self.fail('Incomplete scene must not start a service')
+        result=prepare(self.root,THREAD,self.source,enable_companion=True,opener=forbidden)
+        self.assertEqual(result['status'],'needs_scene')
+        self.assertIsNone(result['context']['voice_brief']);self.assertIsNone(self.store.active())
+        for invalid in ({}, {**SCENE,'goal':''}, {**SCENE,'goal':42}):
+            with self.assertRaises(ValueError):
+                prepare(self.root,THREAD,self.source,enable_companion=True,opener=forbidden,scene=invalid)
+        self.assertIsNone(self.store.active())
 
     def test_parallel_bindings_have_one_winner(self):
         other=self.root/'other.jsonl';tid='00000000-0000-0000-0000-000000000052'

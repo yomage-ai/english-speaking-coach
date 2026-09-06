@@ -100,7 +100,9 @@ class RecoveryTests(unittest.TestCase):
         initialize(self.root)
         self.store.bind(THREAD,self.source,demo=False)
         before=(self.root/'profile.json').read_bytes()
-        result=resume(self.root,'2026-01-01')
+        scene={'setting':'A fictional cafe','learner_role':'Guest','partner_role':'Server','goal':'Order tea',
+               'introduction':'今天练习点茶。你是客人，我是服务员。','opening_line':'What would you like to drink?'}
+        result=resume(self.root,'2026-01-01',scene=scene)
         self.assertIn('Chinese help is on the companion page',result['voice_brief'])
         self.assertNotIn('Help language: zh-CN',result['voice_brief'])
         self.assertNotIn('concept IDs',result['voice_brief'])

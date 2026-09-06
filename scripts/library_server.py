@@ -18,6 +18,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 APP = SKILL_ROOT / 'assets/library'
 from workspace_config import resolve_workspace, CONFIG_PATH
 from progress_views import period_rows, progress_list, progress_detail
+from practice_context import voice_sources
 DEFAULT_ROOT = Path(resolve_workspace()['data_root'])
 LABELS = {'not_tested': '尚未尝试', 'source_text': '看原句说出', 'keywords': '借关键词说出', 'independent': '曾独立说出', 'transfer': '曾换场景使用'}
 
@@ -102,6 +103,13 @@ class Archive:
             return {**meta,'data_root':str(self.root),'skill_root':str(SKILL_ROOT),'viewer_root':str(APP),'config_path':str(CONFIG_PATH),'default_data_root':str(SKILL_ROOT/'data'),'backup_path':str(CONFIG_PATH.parent/'backups/latest.zip'),'location':'Skill 内的专用数据目录' if self.root==SKILL_ROOT/'data' else '自定义学习目录','project_page':resolve_workspace().get('project_page')}
         if path == '/api/overview':
             return {**meta, 'today': date.today().isoformat(), 'counts': {'sessions': len(sessions), 'terms': len(terms), 'days': len({s['date'] for s in sessions}), 'books': len(data['books'])}, 'books': data['books'], 'profile': data['profile'], 'latest': data['details'][sessions[0]['id']] if sessions else None, 'recent': sessions[:4], 'review_terms': [t for t in terms if t.get('next_review', '9999') <= date.today().isoformat()][:3]}
+        if path == '/api/review':
+            sources = voice_sources(args.get('thread'), args.get('voice'))
+            matches = [s for s in sessions if set(sources) <= set(s.get('source_ids', []))]
+            if len(matches) > 1:
+                raise ValueError('同一场 Voice 有多份复盘，请让 Agent 核对记录来源。')
+            return {**meta, 'status': 'saved' if matches else 'waiting',
+                    'session_id': matches[0]['id'] if matches else None}
         if path.startswith('/api/sessions/'):
             sid = path.rsplit('/', 1)[1]
             if sid not in data['details']:

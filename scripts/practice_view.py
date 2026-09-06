@@ -60,7 +60,7 @@ def render(state, root, snapshot=False):
         if not record.get('expressions'):
             facts = '<p class="muted">本页未列出逐句证据。' + ('旧记录的表达表格保留在原始 Markdown 中。' if not record.get('source_ids') else '本次未新增表达。') + '</p>'
         raw = '<details class="raw-source"><summary>查看原始 Markdown 文本</summary><pre>' + e((root / 'Sessions' / (session['id'] + '.md')).read_text(encoding='utf-8')) + '</pre></details>'
-        journal.append('<article class="journal-row"><div class="date-stamp"><span>' + e(session['date'][:4]) + '</span><strong>' + e(session['date'][5:].replace('-', '.')) + '</strong></div><details class="session" id="session-' + e(session['id']) + '"><summary><span><span class="small-label">' + e(' / '.join(session.get('scenarios', [])) or '自由对话') + '</span><strong>' + e(session['title']) + '</strong></span><span class="expand" aria-hidden="true">＋</span></summary><div class="session-body">' + recovered + '<p class="summary">' + e(session.get('summary', '旧记录未单独保存摘要。')) + '</p>' + facts + '<div class="journal-bottom"><div><h4>这次留下的观察</h4>' + paragraph_list(session.get('progress', []) or ['没有额外评定进步。']) + '</div><div><h4>下次接着聊</h4>' + paragraph_list(session.get('next_focus', []) or ['从你当下想说的事开始。']) + '</div></div>' + ('<h4>我的补充</h4><p class="personal-note">' + e(supplement) + '</p>' if supplement else '') + '<p class="boundary">' + e(record.get('evidence_note', '精选转写用于表达反馈；不能据此判断发音，也不代表完整逐字稿。')) + '</p><div class="source-row"><a href="Sessions/' + e(session['id']) + '.md">打开 Markdown 原始记录 ↗</a><span>' + e(session['id']) + '</span></div>' + raw + '</div></details></article>')
+        journal.append('<article class="journal-row"><div class="date-stamp"><span>' + e(session['date'][:4]) + '</span><strong>' + e(session['date'][5:].replace('-', '.')) + '</strong></div><details class="session" id="session-' + e(session['id']) + '"><summary><span><span class="small-label">' + e(' / '.join(session.get('scenarios', [])) or '自由对话') + '</span><strong>' + e(session['title']) + '</strong></span><span class="expand" aria-hidden="true">＋</span></summary><div class="session-body">' + recovered + '<p class="summary">' + e(session.get('summary', '旧记录未单独保存摘要。')) + '</p>' + facts + '<div class="journal-bottom"><div><h4>这次留下的观察</h4>' + paragraph_list(session.get('progress', []) or ['没有额外评定进步。']) + '</div><div><h4>当时的学习建议</h4><p>历史建议用于回顾，不续演旧情节。</p>' + paragraph_list(session.get('next_focus', []) or ['从你当下想说的事开始。']) + '</div></div>' + ('<h4>我的补充</h4><p class="personal-note">' + e(supplement) + '</p>' if supplement else '') + '<p class="boundary">' + e(record.get('evidence_note', '精选转写用于表达反馈；不能据此判断发音，也不代表完整逐字稿。')) + '</p><div class="source-row"><a href="Sessions/' + e(session['id']) + '.md">打开 Markdown 原始记录 ↗</a><span>' + e(session['id']) + '</span></div>' + raw + '</div></details></article>')
     cards = []
     for item in expressions:
         links = ' · '.join('<a href="#session-' + e(sid) + '">' + e(sid[4:8] + '.' + sid[8:10] + '.' + sid[10:12]) + '</a>' for sid in item.get('seen_in_sessions', [item['source_session']]))
@@ -70,18 +70,17 @@ def render(state, root, snapshot=False):
     observations = []
     for session in sessions[:4]:
         observations.append('<li><span class="small-label">' + e(session['date']) + '</span><p>' + e((session.get('progress') or ['保存了这次练习，未评定能力变化。'])[0]) + '</p><a href="#session-' + e(session['id']) + '">查看依据 ↗</a></li>')
-    focus = ' / '.join(latest.get('next_focus', [])) if latest else '聊聊今天的一个小计划。'
     mode = {'conversation':'自然对话', 'roleplay':'情景扮演', 'focused':'针对练习'}[profile['mode']]
     replacements = {
         'HERO':hero,
-        'NEXT':e(focus or '继续你当下想说的话题。'),
+        'NEXT':e('AI 结合学习背景选择新场景，先介绍地点、角色和目标，再从头开始英语对话。'),
         'SESSION_COUNT':str(len(sessions)), 'EXPRESSION_COUNT':str(len(expressions)),
         'DATE_COUNT':str(len(dated)), 'DUE_COUNT':str(len(due)),
         'JOURNAL':''.join(journal) or '<p class="empty">第一次练习结束后，这里会留下你的学习手记。</p>',
         'EXPRESSIONS':''.join(cards), 'OBSERVATIONS':''.join(observations),
         'GOAL':e(profile['goal']), 'MODE':e(mode),
-        'LANGUAGE':e('英语为主，需要时中文帮助' if profile['practice_language'] == 'english_first' else '中英辅助，按理解情况调整'),
-        'CORRECTION':e('少量纠正，接着聊' if profile['correction'] == 'light' else '详细反馈'),
+        'LANGUAGE':e('英文对话，主动求助时中文帮助' if profile['practice_language'] == 'english_first' else '中英辅助，按理解情况调整'),
+        'CORRECTION':e({'light':'少量纠正，接着聊', 'detailed':'详细反馈', 'after_scene':'课后再复盘', 'in_character':'角色内自然确认，给我多说的机会'}[profile['correction']]),
         'DRILLS':e('需要时再专项练习' if profile['drills'] == 'on_request' else '引导式专项练习'),
         'REVIEW_TIP':tip('建议复习', '这些表达已到建议重访日期。Agent 每次自然带回少量内容；不是欠下的作业。点表达的记录日期可查看当时证据。'),
         'STATE_TIP':tip('表达状态', '记录最近一次有证据的提示情况，不代表永久掌握或英语等级。曾独立说出仍需隔一段时间再用；看学习手记核对原话和提示。'),

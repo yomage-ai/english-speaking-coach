@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
-from practice_context import practice_time, session_order, speaking_context, transition
+from practice_context import practice_time, session_order, speaking_context, transition, compact_context, voice_sources, review_route
 
 PROJECT_ID = 'PRJ-ENGLISH-SPEAKING'
 MASTERY_ZH = {'not_tested':'尚未尝试', 'source_text':'看原句说出', 'keywords':'借关键词说出', 'independent':'曾独立说出', 'transfer':'曾换场景使用'}
@@ -83,7 +83,7 @@ def baseline():
 def default_profile():
     return {'schema_version':1, 'goal':'清楚、自然地表达自己的想法 / Express ideas clearly and naturally',
             'practice_language':'english_first', 'help_language':'zh-CN',
-            'mode':'conversation', 'correction':'after_scene', 'drills':'guided',
+            'mode':'roleplay', 'correction':'after_scene', 'drills':'guided', 'review_delivery':'written',
             'review_limit':2, 'source_ids':[], 'updated':str(date.today())}
 
 def initialize(root):
@@ -203,7 +203,7 @@ def session_markdown(data):
         for o in data['concept_observations']:
             text += '### ' + o['term'] + ' · ' + DIMENSIONS[o['dimension']] + '\n\n' + o['meaning'] + '\n\n'
             text += RESULTS[o['result']] + '；' + SUPPORTS[o['support']] + '。\n\n来源选段：' + o['quote'] + '\n\n' + o['note'] + '\n\n'
-    text += '## 本次观察\n\n' + bullets('progress') + '\n\n## 下次接着聊\n\n' + bullets('next_focus') + '\n\n## 尚未聊完\n\n' + bullets('unfinished')
+    text += '## 本次观察\n\n' + bullets('progress') + '\n\n## 后续可练的表达能力\n\n' + bullets('next_focus') + '\n\n## 尚未聊完\n\n' + bullets('unfinished')
     text += '\n\n## 来源与证据边界\n\n' + '\n'.join('- ' + x for x in data['source_ids']) + '\n\n'
     text += data.get('evidence_note', '只保留学习所需的精选转写，不代表完整对话；文字不能证明发音准确。') + '\n\n'
     if data.get('recovered_on'):
@@ -309,38 +309,46 @@ def commit(root, data):
 def validate_profile(profile):
     if not isinstance(profile.get('goal'), str) or not profile['goal'].strip():
         raise ValueError('goal must be nonempty')
-    allowed = {'practice_language':{'english_first', 'bilingual'}, 'help_language':{'zh-CN', 'en'}, 'mode':{'conversation', 'roleplay', 'focused'}, 'correction':{'light', 'detailed', 'after_scene'}, 'drills':{'on_request', 'guided'}}
+    allowed = {'practice_language':{'english_first', 'bilingual'}, 'help_language':{'zh-CN', 'en'}, 'mode':{'conversation', 'roleplay', 'focused'}, 'correction':{'light', 'detailed', 'after_scene', 'in_character'}, 'drills':{'on_request', 'guided'}}
     for key, choices in allowed.items():
         if profile.get(key) not in choices:
             raise ValueError('Invalid preference: ' + key)
+    if profile.get('review_delivery', 'spoken') not in {'written', 'spoken'}:
+        raise ValueError('Invalid preference: review_delivery')
     if type(profile.get('review_limit')) is not int or not 0 <= profile['review_limit'] <= 5:
         raise ValueError('review_limit must be 0–5')
     strings(profile.get('source_ids'), 'source_ids')
     check_date(profile['updated'])
 
-def resume(root, today, phase=None, event=None):
+def resume(root, today, phase=None, event=None, scene=None):
     from live_companion import companion_preferences
     companion = companion_preferences(root)
     state = build_state(root)
     latest = state['sessions'][-1] if state['sessions'] else None
     due = sorted([e for e in state['expressions'] if e['next_review'] <= today], key=lambda e:(e['next_review'], e['id']))
     profile = state['profile']
-    context = speaking_context(profile, companion['enabled'], latest, phase)
+    context = speaking_context(profile, companion['enabled'], latest, phase, scene)
     if event:
-        move = transition(context['phase'], event)
-        if move['action'] == 'end':
+        move = transition(context['phase'], event, profile.get('review_delivery', 'spoken'))
+        if move['action'] in {'end', 'written_review'}:
             context = {'phase': None, 'voice_brief': 'The learner has finished. Give only a brief goodbye if Voice is still open; no new question, review or exercise.', 'policy': {'proactive_teaching': False, 'guided_drills': False}}
         elif move['action'] == 'pause':
             context['voice_brief'] = 'The learner paused. Acknowledge briefly and wait; do not start review or another exercise.'
         elif move['phase'] != context['phase']:
-            context = speaking_context(profile, companion['enabled'], latest, move['phase'])
+            context = speaking_context(profile, companion['enabled'], latest, move['phase'], scene)
         context['transition'] = move
     concepts = [{'id':c['id'],'term':c['term'],'meaning':c['meaning'],'level':c['level_label'],'next_step':c['next_step'],'last_observation':c['events'][-1]} for c in state.get('concepts',[]) if c['level']!='stable' or c['needs_revisit']][:profile['review_limit']]
     same_day_unknown = [s['id'] for s in state['sessions'] if latest and s['date'] == latest['date'] and not s.get('practiced_at')]
-    return {'profile':profile, 'latest_session':latest, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], **context, 'companion':companion,
+    recent_scenes = [{'date':s['date'], 'scenarios':s.get('scenarios', []), 'topics':s.get('topics', [])} for s in state['sessions'][-6:]]
+    # Startup receives learning facts, not historical dialogue or continuation hints.
+    # Explicit archive review can still read the complete saved summary.
+    latest_context = latest if context['phase'] == 'review' or not latest else {
+        key:latest[key] for key in ('id','date','practiced_at','scenarios','topics','progress','evidence_status') if key in latest}
+    return {'profile':profile, 'latest_session':latest_context, 'recent_scenarios':recent_scenes, 'due_candidates':due[:profile['review_limit']], 'concept_review_candidates':concepts, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))], **context, 'companion':companion,
             'agent_context': {'preparation': 'Run prepare_practice for EACH new Voice when the companion is enabled; open and inspect its returned URL before claiming it is shown.',
-                              'handoff': 'voice_brief_generated_only; host delivery is not verified by this command',
+                              'handoff': 'voice_brief is local guidance only; instruction delivery requires a documented host-permitted API. Ordinary backend replies may report verified facts under the host protocol; they must not carry prohibited frontend instructions. No delivery or Voice behavior is verified by this command.',
                               'records': 'Reuse concept/session IDs. Save selected actual evidence at an observed end; viewing a rewrite is not mastery.',
+                              'history': 'All past lessons, unfinished plots and next_focus are learning evidence only. Never continue an old plot. Choose and introduce a fresh scene for each new practice.',
                               'chronology': 'Actual practice time when available; dates and IDs only for undated legacy records. Import time is never practice time.',
                               'same_day_without_time': same_day_unknown}}
 
@@ -355,18 +363,54 @@ def validate(root):
     changed = [sid for sid,digest in legacy['session_hashes'].items() if hashlib.sha256((root / 'Sessions' / (sid+'.md')).read_bytes()).hexdigest() != digest]
     return {'ok':not problems, 'problems':problems, 'sessions':len(rebuilt['sessions']), 'expressions':len(rebuilt['expressions']), 'legacy_notes_changed':changed, 'pending':[p.name for p in sorted((root / 'Pending').glob('*.json'))]}
 
+
+def review_context(root, today, thread_id, voice_id, query=''):
+    """Read-only closeout lookup; Agent still selects and judges actual utterances."""
+    sources = voice_sources(thread_id, voice_id)
+    state = build_state(root)
+    existing = [s for s in state['sessions'] if set(sources) <= set(s.get('source_ids', []))]
+    pending = [read_json(p) for p in sorted((root / 'Pending').glob('*.json'))]
+    pending = [p for p in pending if set(sources) <= set(p.get('source_ids', []))]
+    if len(existing) > 1 or len(pending) > 1:
+        raise ValueError('Multiple records match this Voice; inspect sources before closeout')
+    prefix = 'SES-' + today.replace('-', '') + '-'
+    used = {p.stem for folder, pattern in [('Sessions', '*.md'), ('Pending', '*.json')]
+            for p in (root / folder).glob(pattern)}
+    next_id = next((prefix + f'{n:03d}' for n in range(1, 1000) if prefix + f'{n:03d}' not in used), None)
+    if not next_id and not (existing or pending):
+        raise ValueError('No session ID available for this practice date')
+    candidates = list(reversed(state['expressions']))
+    if query:
+        candidates = [e for e in candidates if query.casefold() in
+                      ' '.join(str(e.get(k, '')) for k in ('english', 'chinese', 'original')).casefold()]
+    from practice_view import read_record
+    return {'date': today, 'source_ids': sources, 'archive_route': review_route(thread_id, voice_id),
+            'existing_records': [read_record(root, s, state)[0] for s in existing],
+            'pending_records': pending,
+            'suggested_session_id': existing[-1]['id'] if existing else pending[-1]['id'] if pending else next_id,
+            'id_reserved': False,
+            'expression_catalog': [{k: e[k] for k in ('id', 'english', 'chinese')} for e in candidates[:60]],
+            'catalog_omitted': max(0, len(candidates) - 60),
+            'next_action': 'Reuse an existing record on a duplicate end. Recover a matching ended pending record, or reconcile its in-progress selection after a verified end. Otherwise select actual evidence, preserve support/ASR limits, then add-session --check. The suggested ID is not reserved; reread on a collision. Use --query to find omitted older expressions.'}
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     locations=parser.add_mutually_exclusive_group()
     locations.add_argument('--vault', type=Path)
     locations.add_argument('--root', type=Path)
-    parser.add_argument('command', choices=['init', 'migrate', 'add-session', 'add-evidence', 'paths', 'checkpoint', 'recover', 'rebuild', 'render', 'resume', 'validate', 'set-preferences', 'export'])
+    parser.add_argument('command', choices=['init', 'migrate', 'add-session', 'add-evidence', 'paths', 'checkpoint', 'recover', 'rebuild', 'render', 'resume', 'review-context', 'validate', 'set-preferences', 'export'])
     parser.add_argument('--input', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--today', default=str(date.today()))
     parser.add_argument('--phase', choices=['scene', 'review'], help='This invocation only; does not change preferences')
+    parser.add_argument('--scene', type=Path, help='Agent-authored fresh scene JSON; never a past lesson')
     parser.add_argument('--event', choices=['continue', 'help_requested', 'meaning_unclear', 'review_requested', 'scene_complete_and_continuing', 'pause', 'user_end', 'host_closed'], help='Agent-classified observed intent; does not start or end Voice')
     parser.add_argument('--expected-profile-sha256', help='Reject a preference update if the profile changed since Agent read it')
+    parser.add_argument('--compact', action='store_true', help='Compact resume output; learning evidence and preferences remain available')
+    parser.add_argument('--with-project', action='store_true', help='Include the configured project page in the same read-only response')
+    parser.add_argument('--thread-id'); parser.add_argument('--voice-id')
+    parser.add_argument('--query', default='', help='Filter the closeout expression catalog')
+    parser.add_argument('--check', action='store_true', help='Validate after add-session in the same invocation')
     args = parser.parse_args()
     from workspace_config import resolve_workspace, CONFIG_PATH
     workspace=resolve_workspace(root=args.root, vault=args.vault)
@@ -374,8 +418,18 @@ def main():
     if args.command=='paths':
         print(encoded(workspace),end='');return 0
     check_date(args.today)
-    if args.command in {'resume', 'validate'}:
-        result = resume(root, args.today, args.phase, args.event) if args.command == 'resume' else validate(root)
+    if args.check and args.command != 'add-session':
+        parser.error('--check is only for add-session')
+    if args.command in {'resume', 'validate', 'review-context'}:
+        if args.command == 'resume':
+            result = resume(root, args.today, args.phase, args.event, read_json(args.scene) if args.scene else None)
+            if args.compact: result = compact_context(result)
+        elif args.command == 'review-context':
+            result = review_context(root, args.today, args.thread_id, args.voice_id, args.query)
+        else: result = validate(root)
+        if args.with_project:
+            page = workspace.get('project_page')
+            result['project_context'] = Path(page).read_text(encoding='utf-8') if page else None
         print(encoded({**result,'workspace':workspace}), end='')
         return 1 if result.get('ok') is False else 0
     with writer(root):
@@ -388,6 +442,7 @@ def main():
             if args.input is None: raise ValueError('--input required')
             result = commit(root, read_json(args.input))
             result['archive_route']='#sessions/'+result['session']
+            if args.check: result['validation'] = validate(root)
         elif args.command == 'add-evidence':
             if args.input is None:raise ValueError('--input required')
             from learning_progress import save_evidence
@@ -415,7 +470,7 @@ def main():
             prior = read_json(root / 'profile.json')
             if args.expected_profile_sha256 and hashlib.sha256((root / 'profile.json').read_bytes()).hexdigest() != args.expected_profile_sha256:
                 raise ValueError('Preferences changed since they were read; reread and merge the current user decision')
-            if set(changes) - set(prior): raise ValueError('Unknown preference fields')
+            if set(changes) - set(default_profile()): raise ValueError('Unknown preference fields')
             profile = {**prior, **changes}; validate_profile(profile)
             write_json(root / 'profile.json', profile); rebuild(root); result = {'status':'preferences_saved'}
         else:
@@ -433,7 +488,7 @@ def main():
         backup=backup_embedded_data(root)
         if backup:result['recovery_backup']=backup
         print(encoded(result), end='')
-    return 0
+    return 1 if result.get('validation', {}).get('ok') is False else 0
 
 if __name__ == '__main__':
     try:

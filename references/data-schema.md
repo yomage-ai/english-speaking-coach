@@ -45,7 +45,7 @@
 }
 ```
 
-Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `expressions` (may be `[]`). IDs are safe stable names. Reuse an expression ID on later practice of the same phrase, rather than creating duplicates. One record per expression per session summarizes the observable attempt; do not count repeated ASR segments as separate attempts. `next_focus` has at most two items. Imports add `recovered_on` and `evidence_status: partial` when only selections are available; date remains the actual practice date, not import date. When verified, add `practiced_at`, an ISO timestamp with timezone on that local practice date (for example `2026-09-05T21:30:00+08:00`). Session continuation, attempts and concept histories use actual practice time, never the later import order. Old records without times stay valid; within a date they sort before timed records, with their ordering uncertainty reported to the Agent. Do not invent missing times or rewrite old lessons to add them.
+Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `expressions` (may be `[]`). IDs are safe stable names. Reuse an expression ID on later practice of the same phrase, rather than creating duplicates. One record per expression per session summarizes the observable attempt; do not count repeated ASR segments as separate attempts. `next_focus` has at most two items describing transferable communication skills. Existing historical `next_focus` and `unfinished` remain source evidence and never become old-plot startup instructions. Imports add `recovered_on` and `evidence_status: partial` when only selections are available; date remains the actual practice date, not import date. When verified, add `practiced_at`, an ISO timestamp with timezone on that local practice date (for example `2026-09-05T21:30:00+08:00`). Learning history, attempts and concept histories use actual practice time, never the later import order. Old records without times stay valid; within a date they sort before timed records, with their ordering uncertainty reported to the Agent. Do not invent missing times or rewrite old lessons to add them.
 
 `original` is the learner's selected wording, `english` is the suggested form, `note` explains the observed support and limits. A scored attempt needs both `review_result` and `review_prompt`. `independent` requires `success / none`; `transfer` requires `transfer_success / changed_context`. Structural validation cannot verify that an utterance really happened; Agent must check the source. Do not promote historical mastery without actual evidence.
 
@@ -60,16 +60,21 @@ Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `e
 | `goal` | nonempty text |
 | `practice_language` | `english_first`, `bilingual` |
 | `help_language` | `zh-CN`, `en` |
-| `mode` | `conversation`, `roleplay`, `focused` |
-| `correction` | `after_scene` (new-user default), `light`, `detailed` |
+| `mode` | `conversation`, `roleplay` (new-user default), `focused` |
+| `correction` | `after_scene` (new-user default), `in_character`, `light`, `detailed` |
 | `drills` | `on_request`, `guided` (new-user default; guided work is in review) |
 | `review_limit` | 0–5; default 2 |
+| `review_delivery` | `written` (new-user default), `spoken`; absent on old profiles retains the old spoken-review behavior until an authorized preference update |
+
+`help_language` also controls the initial scene introduction; role dialogue follows `practice_language`. Agent prepares a fresh scene JSON using [scenario-orchestration.md](scenario-orchestration.md). 介绍使用帮助语言，正式对话使用练习语言；两者分开。
 
 Latest explicit preference supersedes old session-specific requests. Do not turn a temporary request for Chinese into a permanent language change.
 
 `after_scene` defers proactive language teaching until review while still allowing minimal explicit help and natural clarification. `mode: focused` starts in review; conversation/roleplay start in scene. `resume --phase review` changes only this invocation. Old profiles retain their existing `light`/`detailed` and drill choices. See [practice-phases.md](practice-phases.md).
 
-`after_scene` 表达“会中先交流，课后再教”；`guided` 允许复盘阶段引导练习，不要求每句跟读。旧配置继续兼容。临时阶段不改长期偏好，保存时用新读的文件哈希避免覆盖并发修改。补录使用实际带时区的练习时间排序，未知时间不编造。
+`in_character` supports English meaning checks/recasts during the scene and adaptive prompts for fuller learner replies, without changing phase or enabling compulsory drills. Choose it only for an explicit preference; it does not migrate other profiles. Detailed review still uses `review_delivery`.
+
+`in_character` 表达“场景内自然确认、提示说法并给我多说的机会”，属于用户明确选择；不会把看过示例或说 Yes 算成独立运用。`after_scene` 表达“会中先交流，课后再教”；`guided` 允许复盘阶段引导练习，不要求每句跟读。旧配置继续兼容。临时阶段不改长期偏好，保存时用新读的文件哈希避免覆盖并发修改。补录使用实际带时区的练习时间排序，未知时间不编造。
 
 ## Writes and repairs / 写入与修复
 

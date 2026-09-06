@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from live_companion import LiveStore, TERMINAL, find_source
 from practice_store import initialize, rebuild, resume, writer, write_json
 from workspace_config import resolve_workspace, SKILL_ROOT, backup_embedded_data
+from practice_context import compact_context, review_route
 
 
 def open_service(root, service_url=None):
@@ -49,7 +50,7 @@ def readiness(data, binding):
 
 
 def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion=False,
-            service_url=None, timeout=12, opener=open_service, reader=read_live):
+            service_url=None, timeout=12, opener=open_service, reader=read_live, scene=None):
     if not 0 <= timeout <= 45:
         raise ValueError('Readiness wait must be between 0 and 45 seconds')
     workspace = resolve_workspace(root=root)
@@ -61,13 +62,18 @@ def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion
             initialize(root); rebuild(root)
             write_json(Path(workspace['config_path']), {'schema_version':1, 'data_root':str(root), 'project_page':None})
             backup_embedded_data(root)
-    context = resume(root, str(date.today()), phase)
+    context = resume(root, str(date.today()), phase, scene=scene)
     page = workspace.get('project_page')
     project_context = Path(page).read_text(encoding='utf-8') if page else None
     result = {'context':context, 'workspace':workspace, 'project_context':project_context,
+              'startup_complete':False,
               'checks':{'context_restored':True, 'project_page':workspace.get('project_page'),
+                        'scene_selected':context['startup']['scene_selected'],
                         'binding_verified':False, 'backend_ready':False, 'page_display':'not_verified',
                         'voice_handoff':'not_verified'}}
+    if context['startup']['scene_required'] and not context['startup']['scene_selected']:
+        return {**result, 'status':'needs_scene', 'url':None,
+                'next_action':context['startup']['next_action']}
     if not (enable_companion or context['companion']['enabled']):
         return {**result, 'status':'conversation_only', 'url':None}
     if not thread_id:
@@ -84,7 +90,7 @@ def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion
     binding = store.bind(thread_id, source)
     result['checks']['binding_verified'] = True
     result['binding'] = {k:binding.get(k) for k in ['id','thread_id','voice_id']}
-    result['context'] = resume(root, str(date.today()), phase)
+    result['context'] = resume(root, str(date.today()), phase, scene=scene)
     try:
         service = opener(root, service_url)
         parsed = urlsplit(service['url'])
@@ -105,7 +111,9 @@ def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion
         result['checks'].update(backend_ready=status == 'backend_ready',
                                 transcript_observed=bool(data.get('total')),
                                 voice_id=(data.get('state') or {}).get('voice_id'))
-        result['next_action'] = ('Agent: open and inspect this exact URL in the host browser. Report backend readiness, page visibility, and transcript ingestion separately. Pass only voice_brief when the host supports handoff; this result does not prove delivery.'
+        if result['checks']['voice_id']:
+            result['review_url'] = base + '/' + review_route(thread_id, result['checks']['voice_id'])
+        result['next_action'] = ('Agent: open and inspect this exact URL in a visible host browser. Report verified scene, preference and readiness facts under the host output protocol. context.voice_brief is local guidance; send it as instructions only through a documented host-permitted instruction API, never a prohibited ordinary backend reply. Report an unavailable instruction channel without claiming Voice rules were applied. Backend readiness is not startup completion; observe the actual opening and later dialogue separately. Observe transcripts after speech, not as a prerequisite for the first line.'
                                  if status == 'backend_ready' else 'Agent: inspect the actual backend status; do not claim subtitles are ready or a page was shown.')
         if (data.get('state') or {}).get('error'):
             result['error'] = data['state']['error']
@@ -122,10 +130,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path); parser.add_argument('--thread-id')
     parser.add_argument('--source', type=Path); parser.add_argument('--phase', choices=['scene','review'])
+    parser.add_argument('--scene', type=Path, help='Agent-authored fresh scene JSON; required for roleplay startup')
     parser.add_argument('--companion', action='store_true', help='Use only for an actual user request to enable the companion')
     parser.add_argument('--service-url'); parser.add_argument('--timeout', type=float, default=12)
+    parser.add_argument('--compact', action='store_true', help='After resume --with-project, omit repeated history and project text')
     args = parser.parse_args()
-    result = prepare(args.root, args.thread_id, args.source, args.phase, args.companion, args.service_url, args.timeout)
+    scene = json.loads(args.scene.read_text(encoding='utf-8')) if args.scene else None
+    result = prepare(args.root, args.thread_id, args.source, args.phase, args.companion, args.service_url, args.timeout, scene=scene)
+    if args.compact:
+        result['context'] = compact_context(result['context'], prepared=True)
+        result.pop('project_context', None)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result['status'] in {'conversation_only','backend_ready'} else 2
 

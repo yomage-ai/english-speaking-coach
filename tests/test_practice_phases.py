@@ -27,7 +27,10 @@ class PhaseTests(unittest.TestCase):
         # “Nothing” while browsing is an ordinary reply; explicit help also stays in scene.
         self.assertEqual(transition('scene','continue')['action'],'respond')
         self.assertEqual(transition('scene','help_requested')['phase'],'scene')
-        review=store.resume(self.root,'2026-01-01','scene','scene_complete_and_continuing')
+        completed=store.resume(self.root,'2026-01-01','scene','scene_complete_and_continuing')
+        self.assertEqual(completed['transition']['action'],'written_review')
+        self.assertFalse(completed['transition']['continue_voice'])
+        review=store.resume(self.root,'2026-01-01','scene','review_requested')
         self.assertEqual(review['phase'],'review');self.assertTrue(review['policy']['guided_drills'])
         ended=store.resume(self.root,'2026-01-01','review','user_end')
         self.assertIsNone(ended['phase']);self.assertFalse(ended['transition']['continue_voice'])
@@ -39,10 +42,12 @@ class PhaseTests(unittest.TestCase):
     def test_legacy_preferences_and_explicit_review_remain_supported(self):
         profile=store.read_json(self.root/'profile.json')
         profile.update(correction='detailed',drills='on_request',mode='conversation')
+        profile.pop('review_delivery')
         store.write_json(self.root/'profile.json',profile)
         result=store.resume(self.root,'2026-01-01')
         self.assertTrue(result['policy']['proactive_teaching'])
         self.assertFalse(store.resume(self.root,'2026-01-01','review')['policy']['guided_drills'])
+        self.assertEqual(store.resume(self.root,'2026-01-01','scene','scene_complete_and_continuing')['phase'],'review')
         profile['mode']='focused';store.write_json(self.root/'profile.json',profile)
         self.assertEqual(store.resume(self.root,'2026-01-01')['phase'],'review')
 

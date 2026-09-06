@@ -1,24 +1,30 @@
-Tell Codex: “Install this skill from https://github.com/yomage-ai/english-speaking-coach and practice English with me for ten minutes. Let's talk about today. Save the learning notes afterward and open my learning archive.”
+Tell Codex: “Install this skill from https://github.com/yomage-ai/english-speaking-coach and practice English with me for ten minutes. Choose a fresh scene, briefly introduce it in my help language, then begin the English dialogue. Save a written review afterward and open my learning archive.”
 
-Once installed, try “Continue our last speaking practice,” “Open my flashcards and hide the answers,” or “Show me expressions I can now use independently.” [简体中文说明](README.md)
+Once installed, try “Start a fresh speaking practice,” “Open my flashcards and hide the answers,” or “Show me expressions I can now use independently.” [简体中文说明](README.md)
 
 # English Speaking Coach
 
-Practice natural English conversation first, then review useful things you actually said. The AI is your conversation partner during the scene and a coach for explanations, models or focused speaking practice afterward. A local journal, flip cards and progress records support continued practice; vocabulary and grammar serve communication.
+Start one independent scene from the beginning, with a short introduction of the setting, both roles and your goal, then practice in English. History informs ability and variety; old plots are never continued. Written review is the default after the scene; focused spoken review remains available on request. A local journal, flip cards and progress records support continued practice; vocabulary and grammar serve communication.
 
 ## Use it in your own words
 
 - “Help me practice introducing myself for a job interview.”
 - “I'm traveling abroad. Let's practice asking a hotel receptionist for information.”
 - “I have two minutes. Open the vocabulary cards and let me guess the meanings first.”
-- “Continue our last conversation. Help me in Chinese when I need it.”
+- “Use my learning history to choose a different scene and start from the beginning. Help me in Chinese when I need it.”
 - “Open the bilingual companion. Let us speak English, with Chinese translations on the page.”
 - “Be the shop assistant. Talk naturally with me first, then review after the scene.”
 - “Review what I just said, explain it in Chinese, then guide me through another attempt.”
 
-Provide only the topic, goal, or review request. The agent handles installation checks, initialization, context recovery, saving, verification, and opening the viewer. No recurring questionnaire or mandatory webpage visit before speaking.
+Provide only the topic, goal, or review request. The agent handles installation checks, initialization, context recovery, saving, verification, and opening the viewer. You do not fill out a questionnaire, choose a scene menu or open the page manually; when the companion is enabled, the Agent opens and inspects it before dialogue.
 
-New learners default to content responses during scenes, natural clarification when meaning is unclear, and minimal help when explicitly requested. Understandable sentences do not trigger routine rewrites or repetition. Review can include a few useful explanations, demonstrations and guided attempts, separating misunderstandings, unnatural wording and optional alternatives. If you say you are done for today or say goodbye, the AI ends promptly, leaves review in the journal, and saves further practice for another time. Existing explicit correction preferences remain supported.
+New learners default to content responses during scenes, natural clarification when meaning is unclear, and minimal help when explicitly requested. Understandable sentences do not trigger routine rewrites or repetition. Written review separates misunderstandings, unnatural wording and optional alternatives. Requested spoken review can include useful explanations, demonstrations and guided attempts. If you say you are done for today or say goodbye, the AI ends promptly, leaves review in the journal, and saves further practice for another time. Existing explicit correction preferences remain supported.
+
+If you want English wording during the scene, ask for natural in-character support: the agent saves that preference, uses short meaning checks or recasts, offers keywords or an example when needed, and invites needs, reasons and details. It avoids constant menus, grammar lectures, compulsory repetition and endless pretend confusion. Existing explicit preferences stay intact.
+
+Routine startup reads preferences and the project page together, then returns only the context needed for preparation instead of repeatedly loading the whole archive. At the end, the agent opens this Voice's review page first; it automatically displays the actual quotes, suggestions and observations after the review is saved. It matches the exact Voice, never a previous lesson. The page checks local save status without extra model calls; the agent still selects evidence and validates the review.
+
+These are the skill's practice behavior targets. A separate Voice model also depends on the host's permitted instruction interface; loading the skill, saving preferences or delivering the opening does not establish that Voice adopted its rules. If the host prohibits relaying model instructions, the agent reports that limitation instead of asking you to repeatedly test the same unavailable route. See [the handoff boundary](references/live-companion.md#handoff-boundary).
 
 ## Your learning archive
 
