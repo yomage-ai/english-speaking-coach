@@ -1,6 +1,6 @@
 Copy this request to Codex to install:
 
-> Install english-speaking-coach from https://github.com/yomage-ai/english-speaking-coach and complete the initial setup.
+> Install english-speaking-coach from https://github.com/yomage-ai/english-speaking-coach, complete the initial setup, and confirm it appears in the skill list.
 
 [简体中文](README.md)
 
@@ -10,11 +10,13 @@ Practice English in travel, restaurant, interview and other everyday situations.
 
 ## Get started
 
-After installation, send this as your next message:
+After installation, send this message with the skill marker included:
 
-> Help me practice English. Choose a scene, introduce it in Chinese, then speak English with me.
+> $english-speaking-coach Help me practice English. Choose a scene, introduce it in Chinese, then speak English with me.
 
-To speak aloud, open Voice in a compatible Codex app and say “Let's practice English.” Text practice works too.
+You can also select **English Speaking Coach** from the skill picker in the message box. In interfaces that support `@`, type `@` and select the skill.
+
+**Select this skill explicitly for Voice practice too:** send the message above in the task where you will use Voice, then open Voice to continue speaking. Include the marker or select the skill for each new practice.
 
 Each practice introduces the setting, both roles and your goal before the dialogue begins. The AI responds to what you say and gives you opportunities to explain needs, give reasons and ask questions. New practices use your learning history to choose a fresh scene.
 

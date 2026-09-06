@@ -1,6 +1,6 @@
 把这句话复制给 Codex，即可安装：
 
-> 请从 https://github.com/yomage-ai/english-speaking-coach 安装 english-speaking-coach，并完成首次配置。
+> 请从 https://github.com/yomage-ai/english-speaking-coach 安装 english-speaking-coach，完成首次配置，并确认它已出现在 Skill 列表中。
 
 [English](README.en.md)
 
@@ -10,11 +10,13 @@
 
 ## 怎么开始
 
-安装完成后，在下一条消息中说：
+安装完成后，发送下面这句，保留开头的 Skill 标记：
 
-> 帮我练英语，选一个场景，先用中文介绍，再用英语和我对话。
+> $english-speaking-coach 帮我练英语，选一个场景，先用中文介绍，再用英语和我对话。
 
-想直接开口练，可以在支持 Voice 的 Codex 中打开语音，说“开始练英语”。也可以用文字练习。
+也可以从输入框的 Skill 选择菜单中选中 **English Speaking Coach**；支持 `@` 的界面可输入 `@` 后选择它。
+
+**语音练习也先明确选择这个 Skill：**在要使用 Voice 的任务中发送上面的文案，再打开 Voice 接着聊。每次新练习都带上 Skill 标记或选中它。
 
 每次会介绍场景、双方角色和你的目标，然后开始对话。AI 会根据你的表达接着聊，给你说需求、讲理由和提问的机会。新一轮会参考学习记录选择新场景。
 
