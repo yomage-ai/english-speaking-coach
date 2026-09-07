@@ -97,3 +97,19 @@ Normal skill operation does not retroactively rewrite completed sessions. If a f
 The additive `concepts` field in `state.json` is derived from session observations and Evidence files. It is not a second place to edit mastery. Data-root resolution and the bundled viewer are described in [storage-and-library.md](storage-and-library.md).
 
 Optional `record_metadata` is described in [storage-and-library.md](storage-and-library.md). Only provide it when the selected knowledge base requires it. 通用档案不默认带入个人知识库的项目和审查状态。
+
+## Normal Voice closeout / 正常语音复盘入口
+
+Normal closeout queues the local worker with `review-begin --thread-id … --voice-id …`. For verified manual fallback only, use `review-begin --manual --thread-id … --voice-id … --with-transcript`, then `finish-review --thread-id … --voice-id … --input draft.json`. The returned `finish_contract` is the complete compact draft contract. Do not hand-assign IDs or copy canonical concept values during normal closeout. `finish-review` verifies the closed source, checks that every available learner turn was selected or explicitly omitted, allocates IDs under the writer lock, preserves exact selected quotes, and validates the committed record. Existing saved records win on repeated callbacks; matching ended pending records recover. An in-progress pending selection still requires explicit reconciliation.
+
+A draft expression requires `source_turn_ids`, `original`, `english`, `chinese`, `note`; `expression_ref` may replace the canonical English/Chinese. Concept observations reference `concept_id` without term/meaning for existing senses; new senses provide term/meaning without an ID. `expression_indices` optionally refers to zero-based draft expressions. Code supplies observation IDs, modality, quote kind and scene context. Evidence classification remains an Agent judgment.
+
+`omitted_turns` maps other learner segment IDs to brief reasons, such as greeting, correct response, self-repair or coaching feedback. This is accounting, not a guarantee that a model chose well. It stores no full transcript. `priority_indices` selects up to three expression positions; all expressions are retained. Canonical optional `review_priority_ids` links these page highlights; `review_coverage` records available/selected counts and reasons. Legacy records need no migration. Source-unavailable recovery continues to use the explicit partial `add-session` contract with accurate evidence limits.
+
+复盘页面先给优先项，完整表达可继续查看。编号、原词义规范字段和来源关联交给程序，语言判断与帮助程度仍由 Agent 根据实际证据负责。
+
+## Optional reading guide / 可选读法提示
+
+An expression may have `reading_guide` with exactly five fields: `kind: suggestion`, `groups: [{text, stress: [word]}]`, `tone` (`rise`, `fall`, `level`, `fall-rise`, `context`), `tone_note` and `memory: [{text, meaning}]`. See [reading-and-chunks.md](reading-and-chunks.md) for teaching decisions. The normal finish contract includes this shape; no separate generation round is needed. Validation preserves the clean English word order and requires stress words to occur in their group. One to six groups and one to four memory parts keep the annotation readable. Legacy records can omit it.
+
+这是可选教学建议，不是实际语音观察；不改变原话或掌握证据。按意思分组与按结构记忆分开展示，短句可不在内部停顿。

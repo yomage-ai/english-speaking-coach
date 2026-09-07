@@ -18,10 +18,18 @@ These are observations, not permanent badges or CEFR levels. Repeating a supplie
 
 Agent selects at most the saved `review_limit` of relevant due items. Default to 1–2. In the scene, let the situation create a natural chance to use them; with `after_scene`, do not supply a model or turn the reply into a drill. In review, explain, model or guide a focused attempt when useful, adapting support rather than requiring a fixed sequence. Respect the user's chosen topic and clear ending; unfinished review belongs in the page or a later requested session. See [practice-phases.md](practice-phases.md).
 
-场景里自然重访词句，不插入逐句教学。复盘可以示范、跟读、针对性尝试或迁移；先分清实际误解、不自然表达与可选改写，控制在少量有价值内容。明确结束优先于复盘，不强留用户。
+场景里自然重访词句，不插入逐句教学。复盘可以示范、跟读、针对性尝试或迁移；先分清实际误解、不自然表达与可选改写，完整保留值得记录且去重后的需求，页面突出少量优先项。明确结束优先于复盘，不强留用户。
 
 Suggested initial intervals: collected/full text → next session (around 1 day); keywords → around 3 days; independent → around 7 days; transfer → around 14 days. These are practical defaults, not a validated personalized algorithm. Failure brings the item closer; repeated success in the same minute does not lengthen it. A conversation may close without new scored attempts.
 
 默认间隔是实用起点，不是已验证的个性化算法。提示依赖高则下次再聊，关键词约 3 天，脱稿约 7 天，迁移约 14 天；本分钟反复成功不单独延长间隔。用户没有产生新测评证据时照样可以结束并保存课次。
 
 For requested weekly reflection, compare dated records: less support, clearer meaning, or use in another situation. Quote short selected examples with session links; distinguish observation from interpretation. Never infer improvement merely from more sessions, more words or streak length. Store only actual review evidence using the session format if the user practices; a generated summary is not a practice attempt.
+
+## Coverage before priorities / 先覆盖，再选重点
+
+Review the full available conversation, including English structure problems the partner understood but did not teach. Rank explicit help and meaning problems first, then recurring useful structures, forgotten learned language, and the learner’s everyday goals. Correct optional variants seldom need cards. This is Agent judgment, not a frequency-ranking algorithm.
+
+Keep one entry per distinct need, linking multiple relevant source turns when the same pattern recurs. The page may highlight up to three priorities; keep the other valuable entries accessible. `review_limit` never truncates newly collected expressions. Normal Voice closeout queues the local worker with `review-begin`; the worker uses the contract and submits through `finish-review`. Manual fallback uses `review-begin --manual`. Omissions need brief reasons. A structural coverage pass cannot certify the quality of those reasons.
+
+只有原始错误而会中没有示范时，复盘给出的正确句子属于新增建议：用 `not_tested`，不把它标成已跟读、已独立使用或已掌握。反馈教练主动推进不足，保存到 `coaching_notes` 并在课次页展示，不算学习者错误。

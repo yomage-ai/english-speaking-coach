@@ -165,6 +165,9 @@ def validate_payload(data, allow_in_progress=False):
         if item.get('original') is not None and not isinstance(item['original'], str):
             raise ValueError('original must be text')
         strings(item.get('issue_tags', []), 'issue_tags')
+        if 'reading_guide' in item:
+            from reading_guidance import validate_guide
+            validate_guide(item['reading_guide'], item['english'])
         result, prompt = item.get('review_result'), item.get('review_prompt')
         if result or prompt:
             if result not in VALID_RESULT or prompt not in VALID_PROMPT or not item.get('original'):
@@ -175,6 +178,20 @@ def validate_payload(data, allow_in_progress=False):
                 raise ValueError('Independent/transfer state requires a matching observed attempt')
         if item['mastery'] == 'not_tested' and (result or prompt):
             raise ValueError('An untested collection cannot contain a scored attempt')
+    if 'review_priority_ids' in data:
+        priorities = data['review_priority_ids']
+        strings(priorities, 'review_priority_ids')
+        if len(priorities) > 3 or len(set(priorities)) != len(priorities) or not set(priorities) <= seen:
+            raise ValueError('Review priorities must reference up to three unique session expressions')
+    if 'review_coverage' in data:
+        coverage = data['review_coverage']
+        if not isinstance(coverage, dict):
+            raise ValueError('Invalid review coverage')
+        total, selected, omitted = (coverage.get(k) for k in ('available_learner_turns','selected_learner_turns','omitted_turns'))
+        if type(total) is not int or type(selected) is not int or selected < 0 or total < selected or not isinstance(omitted, dict) or total != selected + len(omitted):
+            raise ValueError('Review coverage counts do not reconcile')
+        if any(not isinstance(k,str) or not isinstance(v,str) or not v.strip() for k,v in omitted.items()):
+            raise ValueError('Review omissions need turn IDs and reasons')
 
 def record_frontmatter(data):
     """Knowledge-base metadata is explicit input, not a global governance scheme."""
@@ -197,6 +214,9 @@ def session_markdown(data):
         text += '## ' + item['english'] + '\n\n' + item['chinese'] + '\n\n'
         text += '**我当时说：** ' + (item.get('original') or '未保留原话；仅收集表达，尚未测试。') + '\n\n'
         text += '**这次观察：** ' + item['note'] + '\n\n**提示情况：** ' + MASTERY_ZH[item['mastery']] + '；建议复习 ' + item['next_review'] + '\n\n'
+        if item.get('reading_guide'):
+            from reading_guidance import guide_markdown
+            text += guide_markdown(item['reading_guide']) + '\n'
     if not data['expressions']:
         text += '本次未新增表达，仍保留练习经过与下次入口。\n\n'
     if data.get('concept_observations'):
@@ -256,6 +276,8 @@ def build_state(root):
             newer = (max((session_order(s) for s in prior_sessions), default=('', '', '')) > session_order(record))
             newer = newer or prior.get('updated', '') > record['date']
             merged = deepcopy(prior if newer else item)
+            if not newer and 'reading_guide' not in merged and prior.get('reading_guide') and prior.get('english') == item['english']:
+                merged['reading_guide'] = deepcopy(prior['reading_guide'])
             merged['source_session'] = prior.get('source_session', record['id'])
             merged['seen_in_sessions'] = sorted(set(prior.get('seen_in_sessions', []) + [record['id']]))
             merged['attempts'] = sorted(attempts, key=lambda a:session_order(sessions_by_id.get(a['session'], a)))
@@ -337,12 +359,12 @@ def resume(root, today, phase=None, event=None, scene=None):
     context = speaking_context(profile, companion['enabled'], latest, phase, scene)
     if event:
         move = transition(context['phase'], event, profile.get('review_delivery', 'spoken'))
-        if move['action'] in {'end', 'written_review'}:
+        if move['action'] == 'end':
             context = {'phase': None,
                        'voice_brief': 'Stop spoken practice. A brief goodbye is enough if Voice is open. The Agent still completes selected saving and visible written review; stopping speech does not cancel closeout.',
                        'policy': {'proactive_teaching': False, 'guided_drills': False},
                        'closeout': {'required': True, 'record_status': 'not_checked',
-                                    'next_action': 'review-context', 'match': 'thread_and_voice',
+                                    'next_action': 'review-begin', 'match': 'thread_and_voice',
                                     'spoken_review': False, 'written_review': True}}
         elif move['action'] == 'pause':
             context['voice_brief'] = 'The learner paused. Acknowledge briefly and wait; do not start review or another exercise.'
@@ -412,6 +434,10 @@ def review_context(root, today, thread_id, voice_id, query='', with_transcript=F
         except (ValueError, OSError, KeyError) as exc:
             evidence['transcript'] = {'status': 'unavailable', 'coverage': 'none', 'error': str(exc),
                                       'next_action': 'Use already supplied source evidence if available; do not infer missing speech or a closed Voice from this lookup.'}
+    from review_pipeline import CONTRACT
+    concepts = state.get('concepts', [])
+    if query:
+        concepts = [c for c in concepts if query.casefold() in (c['term'] + ' ' + c['meaning']).casefold()]
     return {**evidence, 'date': today, 'source_ids': sources, 'archive_route': review_route(thread_id, voice_id),
             'existing_records': [read_record(root, s, state)[0] for s in existing],
             'pending_records': pending,
@@ -419,20 +445,22 @@ def review_context(root, today, thread_id, voice_id, query='', with_transcript=F
             'id_reserved': False,
             'expression_catalog': [{k: e[k] for k in ('id', 'english', 'chinese')} for e in candidates[:60]],
             'catalog_omitted': max(0, len(candidates) - 60),
-            'next_action': 'Reuse an existing record on a duplicate end. Recover a matching ended pending record, or reconcile its in-progress selection after a verified end. Otherwise select actual evidence, preserve support/ASR limits, then add-session --check. The suggested ID is not reserved; reread on a collision. Use --query to find omitted older expressions.'}
+            'concept_catalog': [{k: c[k] for k in ('id','term','meaning')} for c in concepts],
+            'finish_contract': CONTRACT,
+            'next_action': 'Reuse a matching saved record. Otherwise review the full available conversation, write one draft following finish_contract, then finish-review. It allocates IDs under lock, reuses canonical concept fields, validates and recovers duplicate tails. No code/schema lookup is needed. When the closed source is unavailable, preserve supplied evidence and use the documented partial-record recovery path; never invent missing speech.'}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     locations=parser.add_mutually_exclusive_group()
     locations.add_argument('--vault', type=Path)
     locations.add_argument('--root', type=Path)
-    parser.add_argument('command', choices=['init', 'migrate', 'add-session', 'add-evidence', 'paths', 'checkpoint', 'recover', 'rebuild', 'render', 'resume', 'review-context', 'validate', 'set-preferences', 'export'])
+    parser.add_argument('command', choices=['init', 'migrate', 'add-session', 'finish-review', 'add-evidence', 'paths', 'checkpoint', 'recover', 'rebuild', 'render', 'resume', 'review-context', 'review-begin', 'validate', 'set-preferences', 'export'])
     parser.add_argument('--input', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--today', default=str(date.today()))
     parser.add_argument('--phase', choices=['scene', 'review'], help='This invocation only; does not change preferences')
     parser.add_argument('--scene', type=Path, help='Agent-authored fresh scene JSON; never a past lesson')
-    parser.add_argument('--event', choices=['continue', 'help_requested', 'word_help_requested', 'meaning_unclear', 'meaning_confirmed', 'content_clear', 'coaching_feedback', 'review_requested', 'scene_complete_and_continuing', 'pause', 'user_end', 'host_closed'], help='Agent-classified observed intent; does not start or end Voice')
+    parser.add_argument('--event', choices=['continue', 'help_requested', 'word_help_requested', 'missing_expression', 'english_structure_help', 'next_action_unclear', 'meaning_unclear', 'meaning_confirmed', 'content_clear', 'coaching_feedback', 'review_requested', 'scene_complete_and_continuing', 'pause', 'user_end', 'host_closed'], help='Agent-classified observed intent; does not start or end Voice')
     parser.add_argument('--expected-profile-sha256', help='Reject a preference update if the profile changed since Agent read it')
     parser.add_argument('--compact', action='store_true', help='Compact resume output; learning evidence and preferences remain available')
     parser.add_argument('--with-project', action='store_true', help='Include the configured project page in the same read-only response')
@@ -441,25 +469,38 @@ def main():
     parser.add_argument('--with-transcript', action='store_true', help='Read only this closed Voice’s available unique segments for review')
     parser.add_argument('--source', type=Path, help='Explicit source log for review-context --with-transcript')
     parser.add_argument('--check', action='store_true', help='Validate after add-session in the same invocation')
+    parser.add_argument('--manual', action='store_true', help='Explicit fallback only when the local review worker is unavailable')
     args = parser.parse_args()
     from workspace_config import resolve_workspace, CONFIG_PATH
     workspace=resolve_workspace(root=args.root, vault=args.vault)
     root = Path(workspace['data_root'])
     if args.command=='paths':
         print(encoded(workspace),end='');return 0
+    if args.command=='resume' and workspace['mode']=='user-data' and not (root/'profile.json').is_file():
+        if root.exists() and any(root.iterdir()):raise ValueError('Default data folder is nonempty; inspect it before initialization')
+        with writer(root):
+            initialize(root);rebuild(root)
+            write_json(CONFIG_PATH,{'schema_version':1,'data_root':str(root),'project_page':None})
+    if args.command=='review-begin' and not args.manual:
+        from review_worker import enqueue
+        result=enqueue(root,args.thread_id,args.voice_id,args.source)
+        print(encoded(result),end='');return 0
     check_date(args.today)
-    if (args.with_transcript or args.source) and args.command != 'review-context':
+    if (args.with_transcript or args.source) and args.command not in {'review-context', 'review-begin', 'finish-review'}:
         parser.error('--with-transcript and --source are only for review-context')
-    if args.source and not args.with_transcript:
+    if args.source and not args.with_transcript and args.command != 'finish-review':
         parser.error('--source requires --with-transcript')
     if args.check and args.command != 'add-session':
         parser.error('--check is only for add-session')
-    if args.command in {'resume', 'validate', 'review-context'}:
+    if args.command in {'resume', 'validate', 'review-context', 'review-begin'}:
         if args.command == 'resume':
             result = resume(root, args.today, args.phase, args.event, read_json(args.scene) if args.scene else None)
             if args.compact: result = compact_context(result)
-        elif args.command == 'review-context':
+        elif args.command in {'review-context', 'review-begin'}:
             result = review_context(root, args.today, args.thread_id, args.voice_id, args.query, args.with_transcript, args.source)
+            if args.command == 'review-begin' and not result['existing_records']:
+                from practice_runtime import begin_review
+                result['review_job'] = begin_review(root, args.thread_id, args.voice_id)
         else: result = validate(root)
         if args.with_project:
             page = workspace.get('project_page')
@@ -477,6 +518,11 @@ def main():
             result = commit(root, read_json(args.input))
             result['archive_route']='#sessions/'+result['session']
             if args.check: result['validation'] = validate(root)
+        elif args.command == 'finish-review':
+            if args.input is None: raise ValueError('--input required')
+            from review_pipeline import finish_review
+            result = finish_review(root, read_json(args.input), args.thread_id, args.voice_id, args.source)
+            result['archive_route'] = '#sessions/' + result['session']
         elif args.command == 'add-evidence':
             if args.input is None:raise ValueError('--input required')
             from learning_progress import save_evidence

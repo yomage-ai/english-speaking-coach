@@ -15,7 +15,11 @@ import socket
 import subprocess
 import sys
 import time
-from workspace_config import CONFIG_PATH, SKILL_ROOT
+from workspace_config import CONFIG_PATH, SKILL_ROOT, resolve_workspace
+
+
+def workspace_owned(root):
+    return Path(root).resolve()==Path(resolve_workspace()['data_root']).resolve()
 
 
 def command(args,check=True):
@@ -23,6 +27,7 @@ def command(args,check=True):
 
 
 def identity(root,skill=SKILL_ROOT):
+    if workspace_owned(root):root=CONFIG_PATH.parent
     return hashlib.sha256((str(Path(root).resolve())+'\n'+str(skill.resolve())).encode()).hexdigest()[:16]
 
 
@@ -44,6 +49,9 @@ def check_service(url,root,expected_pid=None):
     if info.get('application')!='english-speaking-coach' or Path(info.get('data_root','')).resolve()!=Path(root).resolve() or Path(info.get('skill_root','')).resolve()!=SKILL_ROOT.resolve():
         raise ValueError('The listener belongs to another archive; it was preserved.')
     if expected_pid is not None and info.get('pid')!=expected_pid:raise ValueError('Listener and supervised process do not match.')
+    from practice_runtime import code_revision
+    if info.get('code_revision') != code_revision(SKILL_ROOT):
+        raise ValueError('Service code is outdated. Agent: verify its existing supervisor and exact PID, then restart this instance after the active Voice ends. Do not create another service or change ports.')
     with urlopen(url+'/api/overview',timeout=2) as response:overview=json.load(response)
     if not isinstance(overview.get('counts'),dict):raise ValueError('Learning data is not readable.')
     with urlopen(url+'/',timeout=2) as response:
@@ -58,13 +66,13 @@ def status(root):
     cfg=json.loads(record.read_text(encoding='utf-8'))
     plist=plistlib.loads((folder/'service.plist').read_bytes())
     loaded=command(['launchctl','print',domain]).stdout
-    if str(SKILL_ROOT/'scripts/library_server.py') not in loaded or str(Path(root).resolve()) not in loaded:
+    if str(SKILL_ROOT/'scripts/library_server.py') not in loaded or ('--workspace' if workspace_owned(root) else str(Path(root).resolve())) not in loaded:
         raise ValueError('Loaded job identity differs; it was preserved.')
     info=check_service(cfg['url'],root,pid)
     # Verify the actual loopback socket owner as well as the HTTP identity.
     sockets=command(['/usr/sbin/lsof','-a','-p',str(pid),'-iTCP','-sTCP:LISTEN','-nP']).stdout
     if f"127.0.0.1:{cfg['port']}" not in sockets:raise ValueError('Loopback socket ownership could not be verified.')
-    return {**cfg,'pid':pid,'state':'running','manager':'launchd','persist':False,'identity_verified':True}
+    return {**cfg,'data_root':str(Path(root).resolve()),'pid':pid,'state':'running','manager':'launchd','persist':False,'identity_verified':True}
 
 
 def start(root,port=8897):
@@ -83,7 +91,8 @@ def start(root,port=8897):
     else:raise ValueError('No free loopback port found; existing listeners were preserved.')
     folder.mkdir(parents=True,exist_ok=True)
     log=folder/'library.log';plist_path=folder/'service.plist'
-    plist={'Label':label,'ProgramArguments':[str(Path(sys.executable).resolve()),str(SKILL_ROOT/'scripts/library_server.py'),'--root',str(root),'--port',str(port)],'WorkingDirectory':str(SKILL_ROOT),'RunAtLoad':True,'StandardOutPath':str(log),'StandardErrorPath':str(log),'EnvironmentVariables':{'PYTHONUNBUFFERED':'1','CODEX_HOME':str(CONFIG_PATH.parent.parent)}}
+    location=['--workspace'] if workspace_owned(root) else ['--root',str(root)]
+    plist={'Label':label,'ProgramArguments':[str(Path(sys.executable).resolve()),str(SKILL_ROOT/'scripts/library_server.py'),*location,'--port',str(port)],'WorkingDirectory':str(SKILL_ROOT),'RunAtLoad':True,'StandardOutPath':str(log),'StandardErrorPath':str(log),'EnvironmentVariables':{'PYTHONUNBUFFERED':'1','CODEX_HOME':str(CONFIG_PATH.parent.parent)}}
     plist_path.write_bytes(plistlib.dumps(plist))
     cfg={'id':label,'data_root':str(root),'skill_root':str(SKILL_ROOT),'url':f'http://127.0.0.1:{port}','port':port,'log':str(log),'plist':str(plist_path)}
     (folder/'service.json').write_text(json.dumps(cfg),encoding='utf-8')

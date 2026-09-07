@@ -10,7 +10,7 @@ This reference explains the turn cycle in `SKILL.md`. It is for the Agent respon
 
 | Saved correction / 已选纠错方式 | During the scene / 会中行为 |
 | --- | --- |
-| `in_character` | For Chinese role content or stalled expression, briefly model natural English through a meaning check and wait. Selectively recast useful English errors. |
+| `in_character` | For Chinese content, missing English or useful unresolved English structure errors, give one usable phrase even if intent is clear. Wait for explicit help or ongoing formulation; a completed turn may receive a short repair plus role response and one next cue. |
 | `after_scene` (new-user default) | Respond to understandable content; clarify real ambiguity and answer explicit help requests briefly. Leave proactive wording repair for review. |
 | `light` | Brief selective recasts according to the saved preference, without compulsory drills. |
 | `detailed` | Give the detail the learner explicitly chose while preserving the conversation; do not silently replace this with another mode. |
@@ -89,11 +89,11 @@ Do not say “You added to correctly” or check that same repaired form again. 
 
 Learner: “There is any other?”
 
-Partner: “Are you asking if we have any other options?”
+Partner: “You can ask, 'Do you have any other options?' We also have a smaller one. Would that work?”
 
-After a clear reply, the partner can ask what the learner is looking for or answer their actual question. Do not stack this confirmation with a new main question in the same turn. Clear natural variants are accepted. If the transcription is unreliable, clarify the object or meaning; do not infer a grammar or pronunciation error from spelling noise.
+When the meaning is known, do not ask the learner to confirm it again. A compact wording model can accompany a role answer. When meaning is uncertain, clarify that point first without stacking a new question. Clear natural variants are accepted. If the transcription is unreliable, clarify the object or meaning; do not infer a grammar or pronunciation error from spelling noise.
 
-每轮一个主要作用。确认意思时就先确认，不一口气再抛出另一个主问题。
+先分清是在帮用户组织句式，还是确实没听懂意思。已知意思可简短示范后接角色内容；真正确认意思时不叠加新问题。
 
 ## Keep the scene alive without taking it over / 让用户有事可说
 
@@ -107,6 +107,25 @@ When a goal involves the learner asking a price, time, condition or direction, l
 
 ## Review and stop / 复盘与结束
 
-Review distinguishes: a misunderstanding affecting intent; a useful wording improvement; an optional alternative to already correct English. Only a few actual utterances belong in the written review. Requested spoken review may explain, model and guide another attempt, adapting to the learner rather than imposing a recitation sequence.
+Review distinguishes: a misunderstanding affecting intent; a useful wording improvement; an optional alternative to already correct English. All worthwhile deduplicated needs belong in the written review; highlight a few priorities without discarding the rest. Requested spoken review may explain, model and guide another attempt, adapting to the learner rather than imposing a recitation sequence.
 
 A pause keeps the same scene and waits. A clear end stops the dialogue immediately, even mid-goal. “Thanks” during an unfinished exchange is not automatically an end. A user-requested change of topic is followed without resetting language or help preferences. A new practice starts a new scene using the learning history only; it does not resume this plot. After an observed end, stopping speech and completing selected written saving are separate obligations.
+
+## A clear next action / 明确下一步
+
+Keep a small internal account of confirmed facts, unresolved language help and remaining situation actions. After a completed learner turn, give a useful role response and one explicit relevant next cue. A quoted price alone does not tell a beginner how to proceed; name the next choice or action. Explicit help/formulation space, pauses and actual endings are exceptions. Do not mechanically append questions.
+
+Learner: “That's all, thank you.”
+Partner: “Is this for here or to go?”
+Learner: “我想打包。”
+Partner: “You can say, 'This is to go, please.'”
+Learner: “This is to go, please.”
+Partner: “Of course. I'll pack it for you. Cash or card?”
+
+A complaint such as “I don't know what to say when you stop” needs an acknowledgement plus the relevant next situation cue immediately. A complaint about overload instead needs less input and space. Completed transactions may lead to an invitation to change scene or finish; wait for the choice. An explicit goodbye ends practice without another invitation.
+
+“就这些了”通常结束加购，不结束付款或整场练习。教练确认确实还有需要处理的事项后再推进，不为多问而增加虚构步骤。
+
+## Resolving competing turn needs / 同一轮有多个需求
+
+A short-turn preference limits information, not just word count. Keep a useful unresolved English repair even when the intent is understood. If model plus role answer is too much, give the model and space, then return to the pending role question after the learner responds. Do not drop the repair merely to keep conversation moving. After overload feedback, reduce later replies as well as the acknowledgement. Two requested details are two information points; avoid appending an unrelated step. Keep a tiny cue for the same pending decision, such as permission to proceed, within the short reply; a relevant cue is different from more factual detail. Appropriate brief answers and self-corrections do not require a full-sentence drill.

@@ -48,9 +48,10 @@ def main():
     if args.session and not re.fullmatch(r'SES-\d{8}-\d{3}',args.session):p.error('Invalid session ID')
     workspace=resolve_workspace(root=args.root)
     root=Path(workspace['data_root'])
-    from practice_store import build_state
-    state=build_state(root)
-    if args.session and args.session not in {s['id'] for s in state['sessions']}:p.error('Session has not been saved')
+    if args.session:
+        from practice_store import build_state
+        state=build_state(root)
+        if args.session not in {s['id'] for s in state['sessions']}:p.error('Session has not been saved')
     if not 1024<=args.port<=65535:p.error('Port must be between 1024 and 65535')
     if args.service_url:
         from urllib.parse import urlsplit

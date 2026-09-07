@@ -13,10 +13,15 @@ import sys
 import threading
 import signal
 import sqlite3
+import secrets
+import subprocess
+import shutil
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 APP = SKILL_ROOT / 'assets/library'
-from workspace_config import resolve_workspace, CONFIG_PATH
+from practice_runtime import code_revision
+LOADED_CODE_REVISION = code_revision(SKILL_ROOT)
+from workspace_config import resolve_workspace, CONFIG_PATH, default_data_root
 from progress_views import period_rows, progress_list, progress_detail
 from practice_context import voice_sources
 DEFAULT_ROOT = Path(resolve_workspace()['data_root'])
@@ -44,6 +49,7 @@ class Archive:
         self.lock = threading.Lock()
         self.signature = None
         self.data = None
+        self.open_token = secrets.token_urlsafe(32)
 
     def fingerprint(self):
         files = [self.root / 'Archive/legacy-v1.md', self.root / 'profile.json', *sorted((self.root / 'Sessions').glob('*.md')), *sorted((self.root / 'Evidence').glob('*.md'))]
@@ -81,6 +87,9 @@ class Archive:
                     quoted=next((e for e in reversed(events) if e['quote_kind']=='utterance'),None)
                     related=[t for t in terms if t['id'] in {x for e in events for x in e.get('expression_ids',[])}]
                     terms.insert(0,{'id':concept['id'],'concept_id':concept['id'],'english':concept['term'],'chinese':concept['meaning'],'kind':'知识点','original':quoted['quote'] if quoted else None,'mastery':'independent' if concept['level'] in {'stable','independent'} else 'source_text' if concept['level']=='supported' else 'not_tested','state_label':concept['level_label'],'source_session':source['id'],'source_title':source['title'],'date':source['date'],'updated':concept['last_date'],'note':events[-1]['note'],'next_review':min([t['next_review'] for t in related] or [concept['last_date']]),'book':source['book'],'sources':[{'id':sid,'title':by_id[sid]['title'],'date':by_id[sid]['date']} for sid in sorted({e['session'] for e in events})],'seen_in_sessions':sorted({e['session'] for e in events})})
+                for session in sessions:
+                    session['card_count'] = sum(session['id'] in t.get('seen_in_sessions', [t['source_session']]) for t in terms)
+                    details[session['id']]['card_count'] = session['card_count']
                 books = [{'name': name, 'count': count, 'sessions': sum(s['book'] == name for s in sessions)} for name, count in Counter(t['book'] for t in terms).items()]
                 if signature == self.fingerprint():
                     break
@@ -91,16 +100,18 @@ class Archive:
             return self.data
 
     def query(self, path, args):
+        if path=='/api/identity':
+            return {'application':'english-speaking-coach','pid':os.getpid(),'data_root':str(self.root),'skill_root':str(SKILL_ROOT),
+                    'code_revision':LOADED_CODE_REVISION}
         if path == '/api/live':
             from live_companion import LiveStore
             return LiveStore(self.root).view(args)
+        if path=='/api/storage':
+            embedded = self.root.is_relative_to(SKILL_ROOT.resolve())
+            return {'data_root':str(self.root),'skill_root':str(SKILL_ROOT),'viewer_root':str(APP),'config_path':str(CONFIG_PATH),'default_data_root':str(default_data_root()),'backup_path':str(CONFIG_PATH.parent/'backups/latest.zip'),'embedded':embedded,'location':'旧版 Skill 内数据目录' if embedded else '独立的本地学习目录','project_page':resolve_workspace().get('project_page'), 'open_token':self.open_token}
         data = self.load()
         meta = {'revision': data['revision'], 'source_updated_at': data['source_updated_at']}
         sessions, terms = data['sessions'], data['terms']
-        if path=='/api/identity':
-            return {'application':'english-speaking-coach','pid':os.getpid(),'data_root':str(self.root),'skill_root':str(SKILL_ROOT)}
-        if path=='/api/storage':
-            return {**meta,'data_root':str(self.root),'skill_root':str(SKILL_ROOT),'viewer_root':str(APP),'config_path':str(CONFIG_PATH),'default_data_root':str(SKILL_ROOT/'data'),'backup_path':str(CONFIG_PATH.parent/'backups/latest.zip'),'location':'Skill 内的专用数据目录' if self.root==SKILL_ROOT/'data' else '自定义学习目录','project_page':resolve_workspace().get('project_page')}
         if path == '/api/overview':
             return {**meta, 'today': date.today().isoformat(), 'counts': {'sessions': len(sessions), 'terms': len(terms), 'days': len({s['date'] for s in sessions}), 'books': len(data['books'])}, 'books': data['books'], 'profile': data['profile'], 'latest': data['details'][sessions[0]['id']] if sessions else None, 'recent': sessions[:4], 'review_terms': [t for t in terms if t.get('next_review', '9999') <= date.today().isoformat()][:3]}
         if path == '/api/review':
@@ -108,8 +119,31 @@ class Archive:
             matches = [s for s in sessions if set(sources) <= set(s.get('source_ids', []))]
             if len(matches) > 1:
                 raise ValueError('同一场 Voice 有多份复盘，请让 Agent 核对记录来源。')
-            return {**meta, 'status': 'saved' if matches else 'waiting',
-                    'session_id': matches[0]['id'] if matches else None}
+            from practice_runtime import review_status
+            job = review_status(self.root, args.get('thread'), args.get('voice'))
+            if not matches and job['status'] == 'practicing' and job.get('run_id'):
+                from live_companion import LiveStore
+                with LiveStore(self.root).db() as db:
+                    row = db.execute('SELECT state FROM runs WHERE id=?', (job['run_id'],)).fetchone()
+                state = json.loads(row['state']) if row else {}
+                if state.get('voice_id') == args.get('voice') and (state.get('voice_closed_at') or state.get('close_epoch')):
+                    job['status'] = job['stage'] = 'waiting'
+            saved = matches[0] if matches else {}
+            public_job={k:v for k,v in job.items() if k not in {'source','worker_pid'}}
+            return {**meta, **public_job, **({'status':'saved', 'stage':'saved', 'elapsed_seconds':None} if matches else {}),
+                    'thread_id':args.get('thread'), 'voice_id':args.get('voice'),
+                    'created_epoch': job.get('created_epoch', job.get('started_epoch', 0)),
+                    'title': saved.get('title') or job.get('title', '本次英语练习'),
+                    'practice_time': saved.get('practiced_at') or (datetime.fromtimestamp(job['created_epoch']).astimezone().isoformat() if job.get('created_epoch') else ''),
+                    'session_id': saved.get('id')}
+        if path == '/api/reviews':
+            from practice_runtime import recent_reviews
+            jobs = recent_reviews(self.root)
+            # Keep delayed reviews discoverable even after newer practices finish.
+            pending = [j for j in jobs if not any(set(voice_sources(j['thread_id'], j['voice_id'])) <= set(s.get('source_ids', [])) for s in sessions)]
+            recent = jobs[:5]
+            selected = recent + [j for j in pending if j not in recent]
+            return {**meta, 'items':[self.query('/api/review', {'thread':j['thread_id'],'voice':j['voice_id']}) for j in selected]}
         if path.startswith('/api/sessions/'):
             sid = path.rsplit('/', 1)[1]
             if sid not in data['details']:
@@ -126,7 +160,16 @@ class Archive:
             limit = max(1, min(60, int(args.get('limit', '12'))))
             pages = max(1, (len(rows) + limit - 1) // limit)
             page = min(page, pages)
-            return {**meta, 'items': rows[(page - 1) * limit:page * limit], 'total': len(rows), 'page': page, 'pages': pages, 'limit': limit, 'books': data['books']}
+            # Scope counts and the card grid use the same session. Theme chips must not
+            # silently show global totals while the grid remains session-filtered.
+            scoped = self.filter(terms, {'session':args['session']}, data) if args.get('session') else terms
+            books = [{'name':name,'count':count} for name,count in Counter(t['book'] for t in scoped).items()]
+            latest = sessions[0] if sessions else None
+            return {**meta, 'items': rows[(page - 1) * limit:page * limit], 'total': len(rows), 'page': page, 'pages': pages, 'limit': limit,
+                    'books': books if path.endswith('terms') else data['books'],
+                    'scope': {'session_id':args.get('session'), 'session_title':data['details'].get(args.get('session'),{}).get('title'),
+                              'count':len(scoped), 'all_count':len(terms)},
+                    'latest_session': {'id':latest['id'], 'title':latest['title']} if latest else None}
         if path == '/api/progress':
             return {**meta, **progress_list(data['concepts'], args)}
         if path.startswith('/api/progress/'):
@@ -173,8 +216,71 @@ class Archive:
         return result
 
 
+def open_learning_directory(root):
+    """Ask the desktop to open only this server's configured data directory."""
+    root = Path(root).resolve()
+    if not root.is_dir():
+        raise ValueError('学习目录暂不可用，请先让 Agent 检查存储位置。')
+    if sys.platform == 'win32':
+        os.startfile(str(root))
+    else:
+        command = '/usr/bin/open' if sys.platform == 'darwin' else shutil.which('xdg-open')
+        if not command:
+            raise ValueError('当前环境没有可用的文件管理器；可复制下方目录路径。')
+        result = subprocess.run([command, str(root)], capture_output=True, timeout=8)
+        if result.returncode:
+            raise ValueError('文件管理器未能打开目录；可复制下方路径，或让 Agent 检查。')
+    return {'status':'requested', 'message':'已请求在文件管理器中打开学习目录。', 'data_root':str(root)}
+
+
 class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        paths={'/api/storage/open','/api/storage/backup','/api/storage/preview','/api/storage/apply','/api/review/retry'}
+        if self.path not in paths:return self.send_payload(404, {'error':'操作不存在。'})
+        host=self.headers.get('Host','');origin=self.headers.get('Origin')
+        allowed={f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'}
+        token=self.headers.get('X-Coach-Token','')
+        if host not in allowed or (origin is not None and origin!='http://'+host) or not secrets.compare_digest(token,self.server.archive.open_token):
+            return self.send_payload(403,{'error':'请从本机学习网页执行此操作。'})
+        try:
+            length=int(self.headers.get('Content-Length','0'))
+            limit=360*1024*1024 if self.path=='/api/storage/preview' else 8192
+            if not 0<length<=limit or self.headers.get('Content-Type','').split(';')[0]!='application/json':
+                raise ValueError('无效的本地操作请求。')
+            body=json.loads(self.rfile.read(length))
+            if not isinstance(body,dict):raise ValueError('无效的本地操作内容。')
+            from contextlib import nullcontext
+            with getattr(self.server,'gate',nullcontext()):
+                if not secrets.compare_digest(token,self.server.archive.open_token):
+                    return self.send_payload(403,{'error':'学习目录已切换，请刷新页面后重试。'})
+                if self.path=='/api/storage/open':
+                    if body!={}:raise ValueError('只能打开当前学习目录。')
+                    return self.send_payload(200,open_learning_directory(self.server.archive.root))
+                if self.path=='/api/review/retry':
+                    if set(body)!={'thread','voice'}:raise ValueError('需要指定本场 Voice。')
+                    from practice_runtime import review_file
+                    from review_worker import enqueue
+                    path=review_file(self.server.archive.root,body['thread'],body['voice'])
+                    if not path.exists():raise ValueError('未找到这场复盘登记。')
+                    job=json.loads(path.read_text())
+                    from live_companion import find_source
+                    source=job.get('source') or find_source(body['thread'])
+                    result=enqueue(self.server.archive.root,body['thread'],body['voice'],source,retry=True)
+                    return self.send_payload(200,{k:v for k,v in result.items() if k!='source'})
+                controller=self.server.storage
+                if self.path=='/api/storage/backup':
+                    return self.send_bytes(200,controller.export(body),'application/zip')
+                result=controller.preview(body) if self.path.endswith('/preview') else controller.apply(body)
+                self.send_payload(200,result)
+        except (ValueError,OSError,KeyError,TypeError,subprocess.TimeoutExpired) as exc:
+            self.send_payload(400,{'error':'无法打开学习目录；可复制目录路径。' if self.path=='/api/storage/open' else str(exc)})
+
     def do_GET(self):
+        from contextlib import nullcontext
+        with getattr(self.server,'gate',nullcontext()):
+            return self.read_get()
+
+    def read_get(self):
         parsed = urlsplit(self.path)
         path = unquote(parsed.path)
         if self.headers.get('Host', '').split(':')[0] not in {'127.0.0.1', 'localhost'}:
@@ -182,12 +288,15 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path.startswith('/api/'):
                 args = {k: v[-1] for k, v in parse_qs(parsed.query).items()}
-                return self.send_payload(200, self.server.archive.query(path, args))
+                data=self.server.archive.query(path,args)
+                if path=='/api/storage' and hasattr(self.server,'storage'):data.update(self.server.storage.info())
+                if path=='/api/identity':data['workspace_managed']=getattr(self.server,'workspace_managed',False)
+                return self.send_payload(200,data)
             assets = {'/': ('index.html', 'text/html'), '/index.html': ('index.html', 'text/html'), '/app.css': ('app.css', 'text/css'), '/app.js': ('app.js', 'text/javascript'), '/favicon.svg': ('favicon.svg', 'image/svg+xml')}
             if path in assets:
                 filename, mime = assets[path]
                 return self.send_bytes(200, (APP / filename).read_bytes(), mime)
-            if path in {'/live.js', '/live.css'}:
+            if path in {'/live.js', '/live.css', '/storage.js'}:
                 return self.send_bytes(200, (APP / path[1:]).read_bytes(), 'text/javascript' if path.endswith('.js') else 'text/css')
             if re.fullmatch(r'/records/SES-\d{8}-\d{3}\.md', path):
                 sid = Path(path).stem
@@ -221,34 +330,47 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
 
 
+class LibraryServer(ThreadingHTTPServer):
+    def __init__(self, address, root, skill_root=SKILL_ROOT, workspace=False, config_path=None, background=True):
+        super().__init__(address,Handler)
+        self.archive=Archive(root,skill_root)
+        self.gate=threading.RLock();self.workspace_managed=workspace
+        self.background=background;self.companion=self.review_worker=None
+        from storage_controller import StorageController
+        self.storage=StorageController(self,workspace,config_path)
+
+    def start_background(self):
+        if not self.background or not (self.archive.root/'profile.json').is_file():return
+        from live_companion import LiveSupervisor
+        from review_worker import ReviewWorker
+        try:
+            self.companion=LiveSupervisor(self.archive.root);self.companion.start()
+        except (sqlite3.Error,OSError):
+            self.companion=None
+        self.review_worker=ReviewWorker(self.archive.root);self.review_worker.start()
+
+    def stop_background(self):
+        for worker in (self.companion,self.review_worker):
+            if worker:worker.close()
+        self.companion=self.review_worker=None
+
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=8897)
-    parser.add_argument('--root', type=Path, default=DEFAULT_ROOT)
-    parser.add_argument('--skill-root', type=Path, default=SKILL_ROOT)
-    args = parser.parse_args()
-    archive = Archive(args.root, args.skill_root)
-    archive.load()
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
-    server.archive = archive
-    from live_companion import LiveSupervisor
-    companion = None
-    try:
-        companion = LiveSupervisor(args.root)
-        companion.start()
-    except (sqlite3.Error, OSError) as exc:
-        print('Companion cache unavailable; ordinary archive remains available.', file=sys.stderr, flush=True)
-    def stop(signum, frame):
-        raise SystemExit(0)
-    signal.signal(signal.SIGTERM, stop)
-    print(f'English learning archive: http://127.0.0.1:{args.port}', flush=True)
-    try:
-        server.serve_forever()
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--port',type=int,default=8897)
+    loc=parser.add_mutually_exclusive_group()
+    loc.add_argument('--root',type=Path)
+    loc.add_argument('--workspace',action='store_true',help='Use the machine configuration at startup and support verified directory changes')
+    parser.add_argument('--skill-root',type=Path,default=SKILL_ROOT)
+    args=parser.parse_args()
+    root=args.root or Path(resolve_workspace()['data_root'])
+    server=LibraryServer(('127.0.0.1',args.port),root,args.skill_root,workspace=args.workspace or args.root is None)
+    server.start_background()
+    def stop(signum,frame):raise SystemExit(0)
+    signal.signal(signal.SIGTERM,stop)
+    print(f'English learning archive: http://127.0.0.1:{args.port}',flush=True)
+    try:server.serve_forever()
     finally:
-        if companion:
-            companion.close()
-        server.server_close()
+        server.stop_background();server.server_close()
 
-
-if __name__ == '__main__':
-    main()
+if __name__=='__main__':main()

@@ -1,63 +1,50 @@
-# Storage and bundled archive / 数据位置与内置档案
+# Storage and local library / 存储与本地学习页
 
-The skill owns the tools and templates; the learner owns the records. The HTML viewer is bundled in `assets/library`, served by `scripts/library_server.py`. No learner profile, dialogue, transcript, concept evidence, local machine configuration or recovery archive belongs in a published skill package.
+The Skill contains rules, generic examples, scripts and web assets. Personal learning facts live in the configured data root.
 
-Skill 提供程序和规范，用户拥有学习档案。网页、样式、脚本随 Skill 分发，数据由真实练习生成。不要打包、上传或提交 `data/` 和本机配置；`.gitignore` 是辅助措施，压缩包或其他分发方式仍需 Agent 检查。
+## Location / 位置
 
-## Resolve one root / 唯一读取位置
+New users default to `~/.codex/english-speaking-coach/data` (or its CODEX_HOME equivalent). Agent initializes a pristine default on first preparation/text resume. Installation does not force a folder-choice dialog. Machine-only workspace.json in the parent folder records the active directory and optional project page.
 
-Agent runs `practice_store.py paths` or `workspace_config.py show`:
+Existing configuration wins. Missing configured storage never creates an empty replacement; the storage page remains reachable for restoration. The learner can keep the default, ask the Agent to change it, or use **本地学习数据** after practice and review finish.
 
-1. Explicit `--root` or backward-compatible `--vault` for a one-off operation.
-2. Saved `workspace.json` under `$CODEX_HOME/english-speaking-coach` (default `~/.codex/english-speaking-coach`).
-3. For a new learner, `<installed-skill>/data`.
+## Authoritative files / 哪些是真正数据
 
-配置文件只保存数据路径和可选项目页，不存课程内容。不同窗口先读取同一配置；配置路径不可用时先恢复或重新连接，不另起一份空档案。新用户不需要理解目录结构，也不需要先装 Obsidian；Agent 运行 `init` 完成初始化。
+| Files | Meaning |
+| --- | --- |
+| profile.json | Learning goal and adopted preferences |
+| Sessions/*.md | Selected lesson evidence and expressions; speaking-record-v2 fact block |
+| Evidence/*.md | Additional sourced word/concept observations |
+| Archive/legacy-v1.md | Preserved legacy learning baseline |
+| Pending/*.json | Recoverable unfinished selections |
+| Runtime/scene-history.json | Recent scene choices, including unsaved starts |
+| Runtime/Reviews | Durable review job metadata; not mastery evidence |
+| Context/project-*.md, when imported | Portable copy of an associated project page |
+| state.json, INDEX.md, dashboard.html | Derived views rebuilt from facts |
+| Live/companion.sqlite3 | Recent bilingual transcript cache, SQLite; optional in backup |
 
-`Sessions`, `Evidence`, `Archive`, `Pending` and `profile.json` live in the data root. `state.json`, `INDEX.md` and the legacy `dashboard.html` are rebuildable. The newer archive reads source files directly through a local API. Browsing, flipping cards and opening explanations never count as an ability attempt.
+Long-term memory is Markdown plus JSON, not the Live SQLite cache. Flipping cards does not change mastery. Codex's own logs, recordings, account/login and unrelated linked documents are outside this archive.
 
-## Custom location and migration / 自定义与迁移
+## Working backup and migration / 备份和迁移
 
-The user can name a local folder or an Obsidian vault subfolder. Obsidian is optional, not a second data source. Agent inspects destination rules and verifies access, then runs:
+The web page provides four actions:
+- **下载完整备份 ZIP**: verified manifest, file hashes/counts, core files, custom notes, pending selections, scene history and the configured project-page text. Recent bilingual cache is opt-in and uses SQLite's consistent backup.
+- **把当前档案复制到新目录，并使用新目录**: verify before switching, keep the source.
+- **从备份 ZIP 恢复**: inspect, show counts/destination, restore into an empty dedicated directory, then activate.
+- **使用已复制到本机的学习目录**: validate and adopt an existing archive, including when the old drive is missing. No archive merge.
 
-```sh
-python3 <skill>/scripts/workspace_config.py configure --data-root <dedicated-folder> --copy-existing
-```
+No operation overwrites a nonempty destination or follows symlinks out of the archive. Files and canonical records are verified before configuration changes. Machine-side location-history receipts retain the previous configuration. Imported jobs never automatically call old-machine sources. Selected Pending material remains recoverable. Project-page text is included; unrelated attachments and Codex raw logs are not.
 
-The script refuses nonempty destinations, nested source/destination paths and unavailable configured sources. It copies and checks the source, then updates the single current path; the original folder remains. Pointing to the same current location needs no copy flag. Use `--project-page` only for an actual relevant project entry.
+On a new computer, install the Skill, then restore the ZIP or ask Agent to adopt the copied directory. Agent handles setup, dependency and integrity checks. Copying only a web page, state.json or Live SQLite is not a complete migration.
 
-迁移成功后 Agent 关闭自己管理的旧档案服务、为新数据位置启动服务并验证显示的真实路径。不得按端口杀进程，不得让两份数据都继续被当成当前档案。
+## Agent tools / Agent 工具
 
-## Updates, uninstall and recovery / 更新、卸载与恢复
+`archive_transfer.py backup --file <new.zip> [--include-live]`, `inspect --file <zip>`, `restore --file <zip> --destination <empty-folder>`, `adopt --destination <existing-archive>`, and `move --destination <empty-folder>` are internal maintenance tools, not learner setup commands. Apply the same idle/ownership checks before CLI changes. `practice_store.py export` produces a reading snapshot, not a full backup.
 
-The requested default `<skill>/data` is portable but sits inside a replaceable program directory. After a successful CLI write, skill-internal data is also atomically backed up to `$CODEX_HOME/english-speaking-coach/backups/latest.zip` outside the skill. This is a latest recovery copy, not automatic cloud synchronization or unlimited backup history. Custom paths use the owner's existing backup strategy; this skill does not silently copy an external knowledge base elsewhere.
+## Service ownership / 服务归属
 
-Agent 更新或卸载前检查实际数据路径和备份：数据在 Skill 内时，先把数据独立复制、校验，再替换程序文件，绝不能删除私人 data。第三方安装器、用户手动删除整个 `.codex` 或磁盘损坏不受此脚本保护。恢复时检查备份，Agent 负责解包与校验；不要悄悄用一个空 data 代替丢失记录。
+Normal installed use runs `library_server.py --workspace` under the existing manager. Its service identity follows the machine workspace; the data root comes from workspace.json at each start. An idle instance can rebind after a verified page operation; restart still uses the new root.
 
-## Open the actual archive / 打开实际页面
+Explicit `--root` is a bound preview/test service. It permits opening/backing up that root but cannot switch the global workspace. Keep existing supervisors; verify /api/identity and code revision. Never kill foreign listeners. open_library reuses matching healthy instances. library_service is the macOS fallback only when no host manager owns an instance, without login startup.
 
-```sh
-python3 <skill>/scripts/open_library.py --no-browser
-python3 <skill>/scripts/open_library.py --session <saved-session-id> --no-browser
-python3 <skill>/scripts/open_library.py --page stats --no-browser
-```
-
-The opener resolves the root, validates the requested saved session and first reuses a healthy matching archive at the requested port. The existing supervisor keeps ownership; a matching but unhealthy service is reported for repair, not replaced by another instance. Agent follows the host's service lifecycle rules and supplies `--service-url` when the verified service uses a different port. Otherwise the bundled supervisor handles first startup on macOS; other hosts receive the exact command for their native supervisor. Without `--no-browser`, the script requests the system browser. It never claims the browser visibly opened merely from that request.
-
-On macOS without this manager, `open_library.py` uses the bundled `library_service.py` launchd manager for the current login session. It checks job identity, PID, loopback socket ownership and the archive API, preserves occupied ports and reuses healthy instances. It does not install login startup or compete with an existing manager. Its `status|stop --root <data-root>` operations identify this exact archive.
-
-On Linux/Windows without an existing manager, the helper returns `needs_host_supervisor` and a server command. Agent uses the host's existing systemd user service or Windows Task Scheduler arrangement, verifies the actual process and listener, and calls `open_library.py --service-url http://127.0.0.1:<actual-port>`. The helper checks archive identity and data readability. Native Linux/Windows desktop supervision is not yet verified on real devices. Agent handles this work, not the learner. Python 3 is needed; Agent checks the runtime. The ordinary archive viewer needs no public website, account, remote hosting, cloud database or paid dependency. The built-in bilingual companion uses the existing ChatGPT login and account quota. Listen only on loopback and serve the allowed assets and APIs.
-
-The automatic learning recovery ZIP excludes `Live/` so temporary full transcripts are not retained as permanent learning backups. Before migrating a folder containing this cache, Agent drains the bound companion and stops the exact archive service through its existing manager, then copies and verifies the quiescent folder. It restarts the service against the verified destination and explicitly binds the next Voice; a copied cursor is not permission to watch another task.
-
-自动课次恢复 ZIP 不收录 `Live/` 临时转写。迁移含有缓存的目录前，Agent 先排空该绑定、用现有管理器停止准确的档案服务，再复制校验静止文件；迁移后重新绑定 Voice。
-
-## Voice records / Voice 沉淀
-
-Default to selected learning utterances, explanations, prompt conditions and source identifiers. Do not store an entire private conversation or background speech by default. Raw audio is stored only when the user requests it and the host actually makes the file available. No background recording, guaranteed session-end callback or cross-device memory is installed. When a real host end signal or explicit learner stop is observed, Agent saves, validates and opens the session page. If tools or source material are unavailable, preserve the real limitation and recover only available evidence later.
-
-## Optional note metadata / 可选笔记元数据
-
-Generic records use `type: english-practice` and private sensitivity. If the selected knowledge base requires project IDs, candidate status or domains, Agent reads its rules and supplies `record_metadata` on that session or historical supplement. Allowed keys: `type`, `status`, `primary_project`, `related_projects`, `domains`, `sensitivity`. Values are strings or lists of strings. IDs, dates and source identifiers cannot be overridden. Existing saved notes remain unchanged.
-
-旧版目录迁移通过明确的 `--root` 或兼容 `--vault` 输入进行；不扫描其他用户的个人知识库路径。已有机器配置继续生效。
+Backups are local, not cloud synchronization. Dialogue, translation and review use the connected account/service. Learning files and machine configuration stay out of public Skill packages.

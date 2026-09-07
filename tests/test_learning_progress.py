@@ -66,10 +66,23 @@ class WorkspaceTests(unittest.TestCase):
         self.base=Path(self.temp.name).resolve();self.cfg=self.base/'machine/workspace.json';self.skill=self.base/'skill';self.legacy=self.base/'legacy'
     def resolve(self):return config.resolve_workspace(config_path=self.cfg,skill_root=self.skill,legacy_root=self.legacy)
     def test_new_user_default_and_custom_override(self):
-        self.assertEqual(Path(self.resolve()['data_root']),self.skill/'data')
+        self.assertEqual(Path(self.resolve()['data_root']),self.cfg.parent/'data')
+        self.assertEqual(self.resolve()['mode'],'user-data')
         self.cfg.parent.mkdir();self.cfg.write_text(json.dumps({'schema_version':1,'data_root':str(self.base/'custom'),'project_page':None}))
         self.assertEqual(Path(self.resolve()['data_root']),self.base/'custom')
         self.assertFalse((self.base/'custom').exists())
+    def test_legacy_partial_archive_is_not_hidden_by_new_default(self):
+        embedded=self.skill/'data';embedded.mkdir(parents=True)
+        (embedded/'profile.json').write_text('{}')
+        self.assertEqual(Path(self.resolve()['data_root']),embedded)
+        self.assertEqual(self.resolve()['mode'],'legacy-skill-data')
+        self.assertFalse((self.cfg.parent/'data').exists())
+    def test_new_external_default_gets_recovery_backup(self):
+        root=self.cfg.parent/'data';store.initialize(root);store.rebuild(root)
+        with patch.object(config,'SKILL_ROOT',self.skill),patch.object(config,'CONFIG_PATH',self.cfg):
+            result=config.backup_embedded_data(root)
+        self.assertTrue(Path(result).is_file())
+        self.assertEqual(Path(result).parent,self.cfg.parent/'backups')
     def test_existing_archive_wins_over_new_default(self):
         self.legacy.mkdir();(self.legacy/'Sessions').mkdir();(self.legacy/'state.json').write_text('{}')
         self.assertEqual(self.resolve()['mode'],'existing-vault')

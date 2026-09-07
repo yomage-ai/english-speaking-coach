@@ -56,10 +56,13 @@ class InCharacterTests(unittest.TestCase):
             self.assertFalse(review['policy']['embedded_recasts'])
             self.assertFalse(review['policy']['learner_expansion'])
             self.assertTrue(review['policy']['guided_drills'])
-            for event in ('user_end', 'host_closed', 'scene_complete_and_continuing'):
+            for event in ('user_end', 'host_closed'):
                 ended = store.resume(root, '2026-01-02', event=event, scene=SCENE)
                 self.assertFalse(ended['transition']['continue_voice'])
                 self.assertIsNone(ended['phase'])
+            complete = store.resume(root, '2026-01-02', event='scene_complete_and_continuing', scene=SCENE)
+            self.assertTrue(complete['transition']['continue_voice'])
+            self.assertEqual(complete['transition']['action'], 'offer_next_scene_or_finish')
             paused = store.resume(root, '2026-01-02', event='pause', scene=SCENE)
             self.assertFalse(paused['transition']['continue_voice'])
             self.assertEqual(old_lesson.read_bytes(), old_bytes)

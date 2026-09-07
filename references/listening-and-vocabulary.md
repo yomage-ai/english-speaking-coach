@@ -14,7 +14,7 @@ An explicit ongoing request for shorter turns can be saved as `input_support: sh
 
 Choose one meaningful task and predict only the language needed for its first few turns. Optional scene `key_terms` contains up to three candidates with `term`, `meaning` and a short `example`. This is a temporary preparation plan, not a record of learning. Omit an unnecessary rare term by saying it more simply; do not teach every term the character could possibly use.
 
-When vocabulary support is useful, briefly preview one or two items within the help-language scene introduction: say the English phrase and its concise meaning. With an English help language, give an easy English meaning. Do not read all examples or an itinerary. Then begin with one easy role line and listen. If the learner already knows an item, skip it. A third useful item can wait until it becomes relevant. The learner does not need to pass a vocabulary test to enter the scene.
+When vocabulary support is useful, briefly preview one or two items alongside the written help-language scene card. Speech stays English-first: use an English phrase and a very short easy-English meaning. Use spoken Chinese only on explicit request. Do not read all examples or an itinerary. Then begin with one easy role line and listen. If the learner already knows an item, skip it. A third useful item can wait until it becomes relevant. The learner does not need to pass a vocabulary test to enter the scene.
 
 场景已确定后，Agent 先判断接下来几轮真正需要哪些表达。开场只带一两个可能有用的词组，例如订房情景中的 `late checkout`（延迟退房），再让用户开口。不是先发一张大词表，也不把预测出来的所有词自动当成生词入库。中文说明放在开场铺垫中；角色对话仍保持英语。
 
@@ -48,7 +48,9 @@ When the learner chooses to continue, use one very short concrete point and no n
 
 During the conversation retain a small encounter list in task context: term and sense, actual quote, whether the learner asked, which help was supplied, and whether understanding or use was observed. Explicitly requested words take priority over the Agent's predicted vocabulary. A displayed gloss or successful repeat is supported exposure, not independent knowledge. Match existing concept IDs by sense rather than spelling alone.
 
-At closeout inspect this list as well as sentence corrections. A starting collection target is 2–3 useful items total across new word and expression cards, reduced when review is already difficult; it is not a quota or a cap on saving explicitly requested items. A zero-card session is valid. Keep additional unresolved needs in the written notes for later selection rather than dumping every uncommon word into the deck. Existing `review_limit` still controls the combined natural review workload.
+At closeout inspect this list together with all available learner turns and sentence corrections. Preserve every worthwhile distinct need, including useful English structure problems and explicit word help; merge duplicates and explain omitted turns using the normal closeout contract. Select up to three priorities for the page without reducing the complete review. Unqueried rare words, greetings and correct replies need not become cards; a zero-card session is valid. Existing `review_limit` controls how many due items to practice now, not how many valuable needs to save.
+
+先核对整场可用发言，完整保留有价值且去重后的表达与词义问题，再挑最多三项重点；不因优先项够了就把其他需求推迟收录。没有学习需求的发言无需制卡。
 
 Save an actual word-help encounter with `concept_observations`; the existing archive includes these in the flashcards even without an expression. Use `needs_help` when the difficulty remains unresolved, `explained` when an explanation was provided, and independent `success` only with appropriate learner evidence. A bad explanation must not become success. Save learner/coaching feedback in `coaching_notes`; neither becomes a permanent language level. For old completed sessions use the source-linked evidence supplement described in [concept-progress.md](concept-progress.md).
 

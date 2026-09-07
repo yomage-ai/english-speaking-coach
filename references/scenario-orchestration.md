@@ -1,12 +1,12 @@
 # Choose a fresh scene / 选择全新场景
 
-Agent chooses the scene. Use the user's current specified topic first; otherwise use the adopted goal, recent scenes and observed support needs to choose a different accessible situation. Each new practice starts from the beginning. History is learning evidence, never a plot to resume. Do not ask the learner to choose a menu, remember old dialogue, or design a syllabus.
+Agent chooses the scene; the single startup command can select a diverse default from a small catalog when the user did not specify a topic. Use the user's current specified topic first; otherwise use the adopted goal, recent scenes and observed support needs to choose a different accessible situation. Each new practice starts from the beginning. History is learning evidence, never a plot to resume. Do not ask the learner to choose a menu, remember old dialogue, or design a syllabus.
 
 Agent 优先按用户指定话题选场景；没有指定时，结合目标、近期场景和实际困难，选择有区别且容易进入的新情境。每次从头建立地点、双方角色和目标，不续接旧剧情，不要求用户回忆上次台词或先选菜单。
 
 ## Scene supplied to the startup command / 提交给启动命令的场景
 
-Agent writes this JSON in the task's temporary work directory. All six fields are required nonempty strings. Write `introduction` in the saved `help_language` (Chinese or English), and `opening_line` as natural English spoken by the partner. Match the roles, goal and difficulty; do not reveal a scripted answer the learner must repeat. No model call or scene catalog is required by the script; the Agent makes this bounded creative choice.
+Agent writes this JSON in the task's temporary work directory. All six fields are required nonempty strings. Write the written `introduction` card in the saved `help_language` (Chinese or English), and `opening_line` as natural English spoken by the partner. Match the roles, goal and difficulty; do not reveal a scripted answer the learner must repeat. This custom route needs no additional model call. With no specified topic, use `--auto-scene` instead: it avoids recent scene families using saved lessons and selected-opening history, and reuses the same scene on a preparation retry.
 
 Agent 在任务临时目录生成以下结构；六项必填。介绍使用已保存的帮助语言，英文第一句来自角色身份。程序只校验结构，场景合适程度和语言由 Agent 检查；无需用户制作文件。
 
@@ -53,3 +53,9 @@ For example, “borrow an umbrella and decide where to walk” can let the learn
 Adapt the route to the actual response. A visitor who prefers walking can stay in the tourist-center scene even if the initial goal mentioned an indoor activity. Follow the new meaning without switching the whole scene or insisting on the original plan. Helpful follow-ups depend on what remains unresolved, not a predetermined quota. Support and examples follow [practice-phases.md](practice-phases.md).
 
 Use at most one new difficulty at a time: longer answer, another tense, a clarification, or an unexpected change. With deferred correction, adjust difficulty through the situation. Keep one scene per practice. Written review is the new-user default; spoken review requires an explicit request or saved preference. Goodbye or a stop request ends promptly. Do not build an exam curriculum or a pronunciation scorer unless requested.
+
+Recent selections live in `Runtime/scene-history.json`, separate from learning facts. A selected but rejected opening still counts for variety; changing setting while keeping the same recurring topic is not enough. Old due cards are not scene selectors. Agent can override the default catalog with a relevant custom scene; never force a topic simply because it is in the catalog.
+
+近期选题与正式课次分开记录；用户拒绝并换掉的开场也用于避重。默认选题减少准备工具往返，Agent 仍需根据当前目标核对，不让历史词卡反复把练习拉回同一话题。
+
+For English-first practice, the written introduction does not switch the spoken language. The preparation result supplies an English spoken introduction from the role/goal fields; English authored introductions are retained.

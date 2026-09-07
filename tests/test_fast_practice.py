@@ -53,9 +53,11 @@ class FastPracticeTests(unittest.TestCase):
         profile['correction'] = 'in_character'; store.write_json(self.root / 'profile.json', profile)
         full = store.resume(self.root, '2026-01-02', scene=SCENE)
         short = compact_context(full)
-        for key in ('voice_brief', 'scene', 'policy', 'latest_session', 'concept_review_candidates'):
+        for key in ('voice_brief', 'scene', 'latest_session', 'concept_review_candidates'):
             self.assertEqual(short[key], full[key])
         self.assertEqual(short['profile']['correction'], 'in_character')
+        self.assertEqual(short['policy']['missing_expression_help'], 'immediate_before_content')
+        self.assertNotIn('proactive_teaching', short['policy'])
         self.assertEqual(short['due_candidates'][0]['note'], full['due_candidates'][0]['note'])
         ready = compact_context(full, prepared=True)
         self.assertEqual(ready['voice_brief'], full['voice_brief'])

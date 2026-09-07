@@ -310,12 +310,16 @@ class LiveStore:
             row = db.execute('SELECT * FROM runs WHERE id=?', (run_id,)).fetchone()
             history = [json.loads(r['state']) for r in db.execute('SELECT state FROM runs ORDER BY rowid DESC LIMIT 12')]
             state = {**json.loads(row['state']), 'desired': row['desired']} if row else None
+            if state:
+                intro=db.execute('SELECT value FROM meta WHERE key=?',('scene:'+run_id,)).fetchone()
+                if intro:state['scene_introduction']=intro[0]
             if run_id and not row:
                 raise KeyError('没有找到这场双语缓存。')
             counts = dict(db.execute('SELECT status,COUNT(*) FROM segments WHERE run=? GROUP BY status', (run_id,)).fetchall())
             total = sum(counts.values()); pages = max(1, (total + 39) // 40)
             page = max(1, min(pages, int(args.get('page', pages))))
-            rows = [dict(r) for r in db.execute('SELECT * FROM segments WHERE run=? ORDER BY seq LIMIT 40 OFFSET ?', (run_id, (page - 1) * 40))]
+            offset = (page - 1) * 40 if args.get('page') else max(0, total - 40)
+            rows = [dict(r) for r in db.execute('SELECT * FROM segments WHERE run=? ORDER BY seq LIMIT 40 OFFSET ?', (run_id, offset))]
         if state:
             # Do not expose source filesystem paths to a subtitle reader.
             for key in ('source', 'file_identity', 'cursor'):

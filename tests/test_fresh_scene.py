@@ -40,7 +40,9 @@ class FreshSceneTests(unittest.TestCase):
         brief=result['voice_brief']
         self.assertEqual(result['scene'],SCENE)
         self.assertFalse(result['policy']['history_continuation'])
-        self.assertLess(brief.index(SCENE['introduction']),brief.index(SCENE['opening_line']))
+        self.assertNotIn(SCENE['introduction'],brief)
+        self.assertLess(brief.index(SCENE['setting']),brief.index(SCENE['opening_line']))
+        self.assertEqual(result['scene']['introduction'],SCENE['introduction'])
         for value in ['OLD-PLOT-ONLY','OLD-LINE-ONLY','OLD-ENDING-ONLY']:
             self.assertNotIn(value,brief)
         self.assertIsNone(speaking_context(profile,True,old)['voice_brief'])

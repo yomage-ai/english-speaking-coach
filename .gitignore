@@ -18,6 +18,9 @@ workspace.json
 /state.json
 /profile.json
 /Live/
+/Runtime/
+/INDEX.md
+/dashboard.html
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm

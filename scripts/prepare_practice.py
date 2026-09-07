@@ -13,6 +13,7 @@ from live_companion import LiveStore, TERMINAL, find_source
 from practice_store import initialize, rebuild, resume, writer, write_json
 from workspace_config import resolve_workspace, SKILL_ROOT, backup_embedded_data
 from practice_context import compact_context, review_route
+from practice_runtime import choose_scene, remember_scene, scene_for_binding
 
 
 def open_service(root, service_url=None):
@@ -57,19 +58,25 @@ def readiness(data, binding):
 
 
 def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion=False,
-            service_url=None, timeout=12, opener=open_service, reader=read_live, scene=None):
+            service_url=None, timeout=0, opener=open_service, reader=read_live, scene=None, auto_scene=False):
+    started = time.monotonic()
+    explicit_scene = scene is not None
     if not 0 <= timeout <= 45:
         raise ValueError('Readiness wait must be between 0 and 45 seconds')
     workspace = resolve_workspace(root=root)
     root = Path(workspace['data_root'])
     if not (root/'profile.json').is_file():
-        if workspace['mode'] != 'skill-data':
+        if workspace['mode'] != 'user-data' or (root.exists() and any(root.iterdir())):
             raise ValueError('Configured archive is unavailable; no empty replacement was created')
         with writer(root):
             initialize(root); rebuild(root)
             write_json(Path(workspace['config_path']), {'schema_version':1, 'data_root':str(root), 'project_page':None})
             backup_embedded_data(root)
     context = resume(root, str(date.today()), phase, scene=scene)
+    if auto_scene and context['startup']['scene_required'] and not scene:
+        scene = choose_scene(root, context)
+        from practice_context import speaking_context
+        context.update(speaking_context(context['profile'], context['companion']['enabled'], context['latest_session'], phase, scene))
     page = workspace.get('project_page')
     project_context = Path(page).read_text(encoding='utf-8') if page else None
     result = {'context':context, 'workspace':workspace, 'project_context':project_context,
@@ -102,9 +109,17 @@ def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion
     # Binding verifies the source identity before any service operation. Repeating this entry
     # reuses an active/waiting binding in the same task and never replays a closed Voice.
     binding = store.bind(thread_id, source)
+    if not explicit_scene:
+        scene = scene_for_binding(root, binding['id']) or scene
+    if scene:
+        remember_scene(root, binding['id'], scene)
+        with store.db() as db:
+            db.execute('INSERT OR REPLACE INTO meta VALUES (?,?)',('scene:'+binding['id'],scene['introduction']))
     result['checks']['binding_verified'] = True
     result['binding'] = {k:binding.get(k) for k in ['id','thread_id','voice_id']}
-    result['context'] = resume(root, str(date.today()), phase, scene=scene)
+    from practice_context import speaking_context
+    context.update(speaking_context(context['profile'], context['companion']['enabled'], context['latest_session'], phase, scene))
+    result['context'] = context
     try:
         service = opener(root, service_url)
         base = service_base(service)
@@ -118,14 +133,30 @@ def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion
                 break
             time.sleep(min(.25, max(0, deadline - time.monotonic())))
         result['status'] = status
+        result['conversation_may_start'] = status in {'backend_ready', 'waiting_backend'}
+        result['timing'] = {'local_preparation_ms': round((time.monotonic() - started) * 1000),
+                            'scope': 'Local preparation only; excludes Agent and browser delivery time'}
         result['checks']['binding_verified'] = status != 'binding_changed'
         result['checks'].update(backend_ready=status == 'backend_ready',
                                 transcript_observed=bool(data.get('total')),
                                 voice_id=(data.get('state') or {}).get('voice_id'))
         if result['checks']['voice_id']:
             result['review_url'] = base + '/' + review_route(thread_id, result['checks']['voice_id'])
+            from practice_runtime import set_review_stage
+            set_review_stage(root, thread_id, result['checks']['voice_id'], 'practicing',
+                             title=(scene or {}).get('setting', '本次英语练习'), run_id=binding['id'],
+                             source=str(source), auto_review=True)
+        else:
+            # The local reader may observe the Voice start after preparation returns.
+            write_json(root/'Runtime/ReviewWatches'/(binding['id']+'.json'),
+                       {'thread_id':thread_id,'source':str(source),'run_id':binding['id'],
+                        'title':(scene or {}).get('setting','本次英语练习')})
         result['next_action'] = ('Agent: complete page delivery using references/voice-delivery.md: open this exact URL, inspect the visible result, and recover a queued display through an available permitted browser route. Introduce the complete scene once. Use the restored turn cycle for ordinary learner replies; all speech-facing scene messages follow the practice language. context.voice_brief is local guidance, never a prohibited prompt relay. Keep preparation diagnostics on the appropriate written surface. Backend readiness is not startup completion; verify actual opening and dialogue separately. Observe transcripts after speech, not as a prerequisite for the first line.'
                                  if status == 'backend_ready' else 'Agent: inspect the actual backend status; do not claim subtitles are ready or a page was shown.')
+        if status == 'waiting_backend':
+            result['next_action'] = ('Agent: the correct Voice is bound and the local page is reachable; caption translation is still connecting. '
+                                     'Open this URL once, allow at most one permitted display recovery, then introduce the selected scene and start speaking. '
+                                     'Keep the pending subtitle status truthful. Do not repeat preparation or wait for Chinese translation before the first learner turn.')
         if (data.get('state') or {}).get('error'):
             result['error'] = data['state']['error']
         return result
@@ -142,17 +173,20 @@ def main():
     parser.add_argument('--root', type=Path); parser.add_argument('--thread-id')
     parser.add_argument('--source', type=Path); parser.add_argument('--phase', choices=['scene','review'])
     parser.add_argument('--scene', type=Path, help='Agent-authored fresh scene JSON; required for roleplay startup')
+    parser.add_argument('--auto-scene', action='store_true', help='Select a varied accessible default; reuse the same plan on preparation retries')
+    parser.add_argument('--with-project', action='store_true', help='Read the configured project page in this single startup call')
     parser.add_argument('--companion', action='store_true', help='Restore captions after an explicit user request to undo a saved disable; normal Voice practice needs no flag')
-    parser.add_argument('--service-url'); parser.add_argument('--timeout', type=float, default=12)
+    parser.add_argument('--service-url'); parser.add_argument('--timeout', type=float, default=0)
     parser.add_argument('--compact', action='store_true', help='After resume --with-project, omit repeated history and project text')
     args = parser.parse_args()
     scene = json.loads(args.scene.read_text(encoding='utf-8')) if args.scene else None
-    result = prepare(args.root, args.thread_id, args.source, args.phase, args.companion, args.service_url, args.timeout, scene=scene)
+    result = prepare(args.root, args.thread_id, args.source, args.phase, args.companion, args.service_url, args.timeout, scene=scene, auto_scene=args.auto_scene)
     if args.compact:
         result['context'] = compact_context(result['context'], prepared=True)
-        result.pop('project_context', None)
+        if not args.with_project:
+            result.pop('project_context', None)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result['status'] in {'conversation_only','backend_ready'} else 2
+    return 0 if result['status'] in {'conversation_only','backend_ready','waiting_backend'} else 2
 
 
 if __name__ == '__main__':

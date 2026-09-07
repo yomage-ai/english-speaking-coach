@@ -120,6 +120,8 @@ class PrepareTests(unittest.TestCase):
         result=prepare(self.root,THREAD,self.source,enable_companion=True,opener=opener,
                        reader=lambda base:self.store.view(),timeout=0,scene=SCENE)
         self.assertEqual(result['status'],'waiting_backend');self.assertFalse(result['checks']['backend_ready'])
+        self.assertTrue(result['conversation_may_start'])
+        self.assertIn('Do not repeat preparation',result['next_action'])
         binding=result['binding'];data=self.store.view()
         data['state'].update(status='ended',ready=True,stale=False)
         self.assertEqual(readiness(data,binding),'ended')

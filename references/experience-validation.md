@@ -38,8 +38,27 @@ For listening and vocabulary changes, include supported short speech on a worthw
 
 ## Delivery-boundary rehearsal / 交付边界演练
 
-For an English-first profile, include setup progress, a Chinese introduction followed by English, a Chinese coaching complaint, a user-requested topic change and an explicit Chinese explanation. Inspect every output item. For content, include direct word help, a Chinese yes resolving a check, a clear sentence with pauses and an optional alternative that does not need repetition. Follow the actual answers across turns, not isolated ideal examples.
+For an English-first profile, include setup progress, an English introduction with a separate written Chinese scene card, a Chinese coaching complaint, a user-requested topic change and an explicit Chinese explanation. Inspect every output item. For content, include direct word help, a Chinese yes resolving a check, a clear sentence with pauses and an optional alternative that does not need repetition. Follow the actual answers across turns, not isolated ideal examples.
 
 When the host uses a separate speech model, a second isolated rehearsal can receive only the ordinary backend outputs and the learner turns under that host's available protocol. Inspect the resulting speech-facing text without telling the evaluator which failure to look for. This is a delivery simulation, not actual Voice. If it still translates or adds drills, keep that failure visible and revise the evidence-based response path; do not treat a shorter prompt as a proven cure.
 
 For closeout, include an ended callback with a generic acknowledgement hint. Verify exact-Voice record lookup, deduplication, write validation and written display independently. Repeated tails must reuse the saved record; missing or active-source evidence must not be labeled a verified closed transcript.
+
+## Whole-flow regressions / 整体回归
+
+- Repeated starts: reuse an exact binding on retries; consecutive unsaved openings still participate in scene diversity. Due cards never select the scene by themselves.
+- Missing English: Chinese intent, a Chinese noun and “I don't know how to say…” each receive one usable phrase before role content. Confirmed meaning moves forward; support does not force a repeat. Include a recap after several agreed items to check that none disappear.
+- Captions: test 40→41→42 utterances, delayed Chinese, viewport resize, explicit pause/resume and a run change. The document has no vertical overflow in live view; only the feed scrolls. Following stays on by default.
+- Review: exercise exact-Voice waiting, preparing, delayed and saved states; saved redirects once to the matching lesson. Distinguish total end-turn latency from local command duration.
+- Vocabulary: session card count, theme counts and pager share the same scope; all-history is one clear action away. Test rapid reverse flips and reduced motion; only one face is visible and no text is mirrored. Chinese prompts should not contain the English answer.
+- Runtime: compare source, installed files and loaded service revision after Python changes. Agent uses the existing owner/manager for a necessary restart after Voice ends. A page refresh alone is insufficient.
+
+Run `python3 -m unittest discover -s tests`, `node tests/test_page_updates.cjs`, and `node tests/test_live_updates.cjs` from the skill source. These are Agent maintenance commands, not learner setup steps. Verify actual viewport/keyboard interactions with the available browser tools. An independent textual rehearsal checks the generated coaching responses; it does not certify native Voice latency or paraphrasing.
+
+## English form, continuity and closeout coverage / 英文句型、推进与复盘覆盖
+
+Include understandable but unresolved English structure errors; a reply that only fulfills the role request fails that opportunity in in-character mode. Ordinary hesitations, self-repair and correct variants still need no forced correction. After a completed ordinary exchange, inspect an explicit situation-based cue or action, not just a question-mark count. Help/formulation space and explicit pauses remain valid. Check the response after the learner accepts help, and after a complete transaction while practice continues.
+
+Storage verification includes five or more different useful needs in one lesson, exact source quote links, canonical concept references without copied meaning text, omitted-turn accounting, conservative support, concurrent IDs and duplicate callbacks. Browser verification leaves the review route, waits for a save while viewing an old lesson, opens the exact result from the persistent entry, and finds both priority and remaining expressions plus coach adjustments. A long timer does not by itself prove interruption.
+
+记录所有实际生成的演练回应，包括失败版本；修订后另做演练，不回写旧结果伪装首次通过。真实 Voice 的延迟和改述仍需实际语音证据。

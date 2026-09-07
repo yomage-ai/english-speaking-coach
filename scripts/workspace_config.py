@@ -9,6 +9,9 @@ import sys
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = Path(os.environ.get('CODEX_HOME', Path.home() / '.codex')) / 'english-speaking-coach' / 'workspace.json'
 
+def default_data_root(config_path=None):
+    return Path(config_path or CONFIG_PATH).parent / 'data'
+
 def resolve_workspace(root=None, vault=None, config_path=None, skill_root=None, legacy_root=None):
     config_path = Path(config_path or CONFIG_PATH)
     skill_root = Path(skill_root or SKILL_ROOT)
@@ -26,7 +29,12 @@ def resolve_workspace(root=None, vault=None, config_path=None, skill_root=None, 
     legacy = Path(legacy_root) if legacy_root is not None else None
     if legacy is not None and (legacy / 'state.json').is_file() and (legacy / 'Sessions').is_dir():
         return {'data_root':str(legacy.resolve()), 'project_page':str(legacy.parent / 'PRJ-ENGLISH-SPEAKING.md'), 'mode':'existing-vault', 'config_path':str(config_path)}
-    return {'data_root':str((skill_root / 'data').resolve()), 'project_page':None, 'mode':'skill-data', 'config_path':str(config_path)}
+    embedded = skill_root / 'data'
+    # Preserve any existing content, including a partial archive, rather than
+    # hiding it behind a newly created empty default. Migration stays explicit.
+    if embedded.is_dir() and any(embedded.iterdir()):
+        return {'data_root':str(embedded.resolve()), 'project_page':None, 'mode':'legacy-skill-data', 'config_path':str(config_path)}
+    return {'data_root':str(default_data_root(config_path).resolve()), 'project_page':None, 'mode':'user-data', 'config_path':str(config_path)}
 
 def configure(destination, project_page=None, copy_existing=False, config_path=None):
     from practice_store import build_state, initialize, rebuild, write_json
@@ -45,14 +53,10 @@ def configure(destination, project_page=None, copy_existing=False, config_path=N
             raise ValueError('Destination is not empty; no files were overwritten.')
         if source.resolve() in target.parents or target in source.resolve().parents:
             raise ValueError('Source and destination cannot contain each other.')
-        before = build_state(source)
-        shutil.copytree(source, target, dirs_exist_ok=True)
-        if build_state(target) != before:
-            raise ValueError('Copy verification failed; original configuration and source preserved.')
-        import hashlib
-        for file in source.rglob('*'):
-            if file.is_file() and hashlib.sha256(file.read_bytes()).digest() != hashlib.sha256((target / file.relative_to(source)).read_bytes()).digest():
-                raise ValueError('Copy hash mismatch; original configuration preserved.')
+        from archive_transfer import move_archive
+        moved=move_archive(source,target,project_page or current.get('project_page'),config_path)
+        return {**moved['configuration'],'config_path':str(config_path),'source_retained':str(source)}
+
     if not target.exists() or not any(target.iterdir()):
         initialize(target); rebuild(target)
     else:
@@ -63,11 +67,11 @@ def configure(destination, project_page=None, copy_existing=False, config_path=N
     return {**cfg, 'config_path':str(config_path), 'source_retained':str(source) if copy_existing else None}
 
 def backup_embedded_data(root):
-    """One atomic recovery copy outside the skill, only for skill-internal data."""
+    """Recovery copy for managed user data and compatible skill-internal data."""
     import tempfile
     import zipfile
     root=Path(root).resolve()
-    if SKILL_ROOT.resolve() not in root.parents:return None
+    if root != default_data_root().resolve() and SKILL_ROOT.resolve() not in root.parents:return None
     destination=CONFIG_PATH.parent/'backups'/'latest.zip'
     destination.parent.mkdir(parents=True,exist_ok=True)
     handle,temp=tempfile.mkstemp(dir=destination.parent,prefix='.latest-',suffix='.zip');os.close(handle)
