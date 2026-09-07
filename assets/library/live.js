@@ -38,7 +38,7 @@ window.CoachLive = (() => {
     let messages=[];
     if(s?.demo)messages.push('虚构测试演示 · 这里用于查看翻译效果，没有写入正式学习档案。');
     if(s?.recovery_mode==='after_voice')messages.push(s.recovery_reason==='missing_binding'?'结束后恢复 · 本场会中没有连接字幕；这里是从指定日志补充的双语内容，不代表实时同步。':'结束后重新翻译或补充尾段 · 原话保留，新增译文不代表会中实时同步。');
-    if(s?.status==='ended')messages.push('本次对话已结束。课后复盘会整理本次表达与词义。');
+    if(s?.status==='ended')messages.push('本次对话已结束。点击下方「本次复盘」查看整理进度或已保存的结果。');
     if(s?.stale)messages.push('最近未收到后台心跳，请让 Agent 检查伴随服务。页面仍可回看已有内容。');
     if(s?.error)messages.push(s.error);
     if(s?.invalid_lines)messages.push(`有 ${s.invalid_lines} 行日志未能读取，请让 Agent 检查遗漏。`);
