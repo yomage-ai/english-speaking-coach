@@ -2,6 +2,7 @@
 import argparse
 from datetime import date
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -55,6 +56,35 @@ def readiness(data, binding):
     if not state.get('ready') or state.get('stale'):
         return 'waiting_backend'
     return 'backend_ready'
+
+
+def opening_context(result, with_project=False):
+    """A successful startup needs the learner and scene, not duplicated operating prose."""
+    if result['status'] not in {'conversation_only','backend_ready','waiting_backend'}:
+        return result
+    context=compact_context(result['context'],prepared=True)
+    scene=context.get('scene') or {}
+    output={k:result[k] for k in ('status','url','review_url','binding','timing') if k in result}
+    output.update(conversation_may_start=True,
+        profile=context['profile'],learning_context=context.get('learning_context',{}),
+        phase=context.get('phase'),
+        scene={k:v for k,v in scene.items() if k!='introduction'},
+        written_scene=scene.get('introduction'),
+        due_review=[{k:v for k,v in item.items() if k in {'id','english','chinese','note','next_review','mastery','review_result','review_prompt'}}
+                    for item in result['context'].get('due_candidates',[])[:context['profile'].get('review_limit',2)]],
+        concept_review=result['context'].get('concept_review_candidates',[])[:context['profile'].get('review_limit',2)],
+        next_action='Open url once and inspect; if queued, try one permitted recovery, then provide a truthful written link. '
+                    'Introduce place, roles and goal in short English, then the scene opening. Start now; do not wait for subtitles or run more healthy-service checks.',
+        deferred_work='Nonessential diagnostics and knowledge cleanup follow practice delivery, not the first spoken line. '
+                      'Use review_url at the end; the local worker owns review generation.',
+        delivery={'page':'not_verified','spoken_opening':'not_verified'},
+        data_root=result['workspace']['data_root'])
+    if context.get('phase')=='review':
+        output['next_action']='Open url once, with at most one display recovery. Start one due expression or word review using its evidence and saved drill preference; do not invent a roleplay scene.'
+    elif not scene:
+        output['next_action']='Open url once, with at most one display recovery. Start one short English conversation question suited to the saved goal and learning evidence; no extra healthy-service checks.'
+    if with_project:output['project_context']=result.get('project_context')
+    return output
 
 
 def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion=False,
@@ -170,7 +200,7 @@ def prepare(root=None, thread_id=None, source=None, phase=None, enable_companion
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--root', type=Path); parser.add_argument('--thread-id')
+    parser.add_argument('--root', type=Path); parser.add_argument('--thread-id',default=os.environ.get('CODEX_THREAD_ID'))
     parser.add_argument('--source', type=Path); parser.add_argument('--phase', choices=['scene','review'])
     parser.add_argument('--scene', type=Path, help='Agent-authored fresh scene JSON; required for roleplay startup')
     parser.add_argument('--auto-scene', action='store_true', help='Select a varied accessible default; reuse the same plan on preparation retries')
@@ -178,15 +208,19 @@ def main():
     parser.add_argument('--companion', action='store_true', help='Restore captions after an explicit user request to undo a saved disable; normal Voice practice needs no flag')
     parser.add_argument('--service-url'); parser.add_argument('--timeout', type=float, default=0)
     parser.add_argument('--compact', action='store_true', help='After resume --with-project, omit repeated history and project text')
+    parser.add_argument('--opening',action='store_true',help='Return only the learner, selected scene, required page links and immediate opening action')
     args = parser.parse_args()
     scene = json.loads(args.scene.read_text(encoding='utf-8')) if args.scene else None
     result = prepare(args.root, args.thread_id, args.source, args.phase, args.companion, args.service_url, args.timeout, scene=scene, auto_scene=args.auto_scene)
-    if args.compact:
+    status=result['status']
+    if args.opening:
+        result=opening_context(result,args.with_project)
+    elif args.compact:
         result['context'] = compact_context(result['context'], prepared=True)
         if not args.with_project:
             result.pop('project_context', None)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result['status'] in {'conversation_only','backend_ready','waiting_backend'} else 2
+    return 0 if status in {'conversation_only','backend_ready','waiting_backend'} else 2
 
 
 if __name__ == '__main__':

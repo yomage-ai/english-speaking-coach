@@ -42,3 +42,7 @@
 #storage-plan {margin-top:20px;padding:18px;background:var(--soft,#f3f6f3);border-radius:12px}
 #storage-plan code {display:block;overflow-wrap:anywhere}
 #storage-result {min-height:1.5em;overflow-wrap:anywhere}
+.review-preview {border:1px solid var(--line,#deded5);background:#fffdf7;border-radius:14px;padding:24px;margin:0 0 24px}
+.review-preview-expression + .review-preview-expression {border-top:1px solid #e5e1d7;margin-top:18px;padding-top:18px}
+.review-preview-expression p {margin:6px 0;overflow-wrap:anywhere}
+.preview-english {font-family:Georgia,serif;font-size:clamp(20px,2.4vw,28px);line-height:1.5}

@@ -18,6 +18,16 @@ window.CoachLive = (() => {
       </section><p class="live-footnote">只显示本次绑定的双方文字，不录音。中文使用现有 Codex 登录翻译，会使用该账户额度。临时缓存与正式学习记录分开，7 天前的缓存会在下一次开始伴随时清理。</p>`;
   }
   function notice(text) {const el=get('#live-notice');if(el){el.hidden=!text;el.textContent=text;}}
+  function hintCard(hint) {
+    if(!hint||options.page)return '';
+    return `<aside class="live-hint" aria-label="当前表达提示"><div class="live-speaker"><strong>${hint.kind==='help'?'这一句可以这样说':'接下来可以聊'}</strong><span class="help"><button type="button" aria-label="表达提示说明" aria-expanded="false">?</button><span class="help-body" role="tooltip">这是根据最新发言生成的书面建议，不是 Voice 原话，也不代表已经掌握。一次保留一个说法；说顺后继续场景。断句按意思轻停，不必每块都停。</span></span></div>${hint.english?`<p class="live-english" lang="en">${e(hint.english)}</p><p class="live-translation">${e(hint.chinese)}</p>${hint.groups?.length>1?`<p class="live-groups"><span>轻停参考</span> ${hint.groups.map(e).join(' / ')}</p>`:''}`:''}${hint.next_cue?`<p class="live-next" lang="en">${e(hint.next_cue)}</p>`:''}</aside>`;
+  }
+  function utterance(x, open, state) {
+    const fragment=x.fragment,tail=fragment?.kind==='word_tail';
+    const annotation=tail?`<p class="live-fragment">转写续接 · 可能与前段连读 <strong lang="en">${e(fragment.joined_word)}</strong>，不是单独词条。</p>`:fragment?'<p class="live-fragment">前句续接 · 原始转写片段</p>':'';
+    const translation=tail?'':x.status==='translated'?chinese?`<p class="live-translation" lang="zh-CN">${e(x.chinese)}</p>`:`<details class="live-answer" data-segment="${e(x.id)}" ${open.has(x.id)?'open':''}><summary>看中文</summary><p lang="zh-CN">${e(x.chinese)}</p></details>`:`<p class="live-pending">${x.status==='failed'?'这句翻译失败，英文已保留':state?.status==='error'?'翻译已暂停，英文已保留':'中文稍后出现…'}</p>`;
+    return `<article class="live-utterance ${x.role==='user'?'live-user':'live-coach'}"><div class="live-speaker"><span>${x.role==='user'?'你 · YOU':'教练 · COACH'}</span><time>${e(stamp(x.timestamp))}</time></div><p class="live-english" lang="en">${e(x.text)}</p>${annotation}${translation}</article>`;
+  }
   function paint(data) {
     current = data;
     const s=data.state, feed=get('#live-feed');if(!feed)return;
@@ -39,7 +49,7 @@ window.CoachLive = (() => {
     const pending=(data.counts.pending||0)+(data.counts.translating||0);
     get('#live-time').textContent=s?`最近转写 ${stamp(s.last_transcript_at)}${pending?` · ${pending} 条等待中文`:''}`:'开始后由 Agent 自动绑定当前 Voice';
     const review=get('#live-review');if(review){review.hidden=!s?.voice_id;if(s?.voice_id)review.href='#review?'+new URLSearchParams({thread:s.thread_id,voice:s.voice_id});}
-    const signature=JSON.stringify([s?.id,data.items.map(x=>[x.seq,x.text,x.status,x.chinese]),chinese]);
+    const signature=JSON.stringify([s?.id,data.items.map(x=>[x.seq,x.text,x.status,x.chinese,x.fragment]),data.teaching,chinese]);
     if(signature!==fingerprint) {
       const scroll=feed.scrollTop;
       const open=new Set([...feed.querySelectorAll('details[open]')].map(x=>x.dataset.segment));
@@ -48,7 +58,7 @@ window.CoachLive = (() => {
         const ended=['ended','expired','error'].includes(s?.status);
         feed.innerHTML=`<div class="live-empty"><span aria-hidden="true">Aa ↗</span><h2>${!s?'让对话留在英文里':ended?'这次没有收到双方转写':s.ready?'可以继续说英语了':'正在准备双语伴随'}</h2><p>${!s?'对 Agent 说“开双语伴随，继续练英语”。Agent 会负责绑定与打开；你不需要找文件。':ended?'可以继续正常练习。需要双语伴随时，让 Agent 检查日志并重新绑定。':s.ready?'先继续和 Voice 聊。收到本次转写后，英文会先出现，中文随后补齐。':'页面不会启动麦克风。Agent 正在检查后台翻译连接。'}</p>${s?.ready?'<p class="fine">如果已经说了几句仍是空白，让 Agent 检查 Voice 是否在会中写出转写。</p>':''}</div>`;
       } else {
-        feed.innerHTML=data.items.map(x=>`<article class="live-utterance ${x.role==='user'?'live-user':'live-coach'}"><div class="live-speaker"><span>${x.role==='user'?'你 · YOU':'教练 · COACH'}</span><time>${e(stamp(x.timestamp))}</time></div><p class="live-english" lang="en">${e(x.text)}</p>${x.status==='translated'?chinese?`<p class="live-translation" lang="zh-CN">${e(x.chinese)}</p>`:`<details class="live-answer" data-segment="${e(x.id)}" ${open.has(x.id)?'open':''}><summary>看中文</summary><p lang="zh-CN">${e(x.chinese)}</p></details>`:`<p class="live-pending">${x.status==='failed'?'这句翻译失败，英文已保留':s?.status==='error'?'翻译已暂停，英文已保留':'中文稍后出现…'}</p>`}</article>`).join('');
+        feed.innerHTML=data.items.map(x=>utterance(x,open,s)).join('')+hintCard(data.teaching);
       }
       fingerprint=signature;
       if(follow&&!options.page)feed.scrollTop=feed.scrollHeight;else feed.scrollTop=scroll;

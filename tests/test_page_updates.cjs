@@ -124,5 +124,11 @@ const lesson = {...meta,id:'SES-20260101-002',date:'2026-01-01',title:'Synthetic
   assert.equal(opens,1);assert.equal(openOptions.method,'POST');assert.equal(openOptions.body,'{}');
   assert.equal(openOptions.headers['X-Coach-Token'],'server-token');
   assert.equal(folder.context.folderButton.disabled,false);
+  let progress={...meta,thread_id:'p',voice_id:'v',status:'generating',preview:[{original:'shop?',english:'Can we shop <today>?',chinese:'可以购物吗？'}]};
+  const preview=browser('#review?thread=p&voice=v',url=>url==='/api/reviews'?{items:[progress]}:url.startsWith('/api/review')?progress:overview);
+  await flush();assert.match(preview.elements.get('#content').innerHTML,/先看这几句/);assert.match(preview.elements.get('#content').innerHTML,/&lt;today&gt;/);assert.equal(preview.redirects.length,0);
+  progress={...progress,status:'error',error:'Synthetic unfinished request'};await vm.runInContext('refreshReviews()',preview.context);
+  assert.match(preview.elements.get('#review-preview').innerHTML,/暂未完成/);assert.equal(preview.redirects.length,0);
+  progress={...progress,status:'saved',session_id:lesson.id,preview:[]};await vm.runInContext('refreshReviews()',preview.context);assert.deepEqual(preview.redirects,['#sessions/'+lesson.id]);
   console.log('Passed page checks: exact review, stale response, nonblocking lesson, rapid flip reversals, reduced motion, persistent review navigation, full coverage and coach feedback.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

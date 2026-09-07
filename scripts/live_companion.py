@@ -11,10 +11,11 @@ import sqlite3
 import threading
 import time
 import uuid
-from codex_translation import CodexTranslator, MODEL
+from codex_translation import CodexTranslator
 from workspace_config import resolve_workspace
 
 MAX_LINE = 8 * 1024 * 1024
+MODEL = 'gpt-5.6-sol'
 TERMINAL = {'ended', 'error', 'expired'}
 
 
@@ -94,6 +95,7 @@ def companion_preferences(root):
 
 class LiveStore:
     def __init__(self, root):
+        self.root=Path(root)
         directory = Path(root) / 'Live'
         directory.mkdir(parents=True, exist_ok=True)
         self.path = directory / 'companion.sqlite3'
@@ -169,6 +171,7 @@ class LiveStore:
                 if row['id'] != state['id'] and time.time() - old['created_epoch'] > 7 * 86400:
                     db.execute('DELETE FROM segments WHERE run=?', (row['id'],))
                     db.execute('DELETE FROM runs WHERE id=?', (row['id'],))
+                    db.execute('DELETE FROM meta WHERE key IN (?,?)',('hint:'+row['id'],'scene:'+row['id']))
         return self.active()
 
     def enabled(self):
@@ -291,16 +294,33 @@ class LiveStore:
                 db.execute("UPDATE segments SET status='translating',attempts=attempts+1 WHERE seq=?", (row['seq'],))
         return selected
 
-    def translated(self, run, result, latency):
+    def translated(self, run, result, latency, expected=None):
         with self.db() as db:
             for item in result:
-                db.execute("UPDATE segments SET chinese=?,status='translated',translated_at=?,latency=? WHERE run=? AND id=?",
-                           (item['chinese'], now(), latency, run, item['id']))
+                sql="UPDATE segments SET chinese=?,status='translated',translated_at=?,latency=? WHERE run=? AND id=? AND (status!='translated' OR chinese IS NOT ?)"
+                values=[item['chinese'],now(),latency,run,item['id'],item['chinese']]
+                if expected is not None:
+                    sql+=' AND text=?';values.append(expected.get(item['id']))
+                db.execute(sql,values)
+
+    def teaching_context(self, run):
+        from live_fragments import annotate_fragments
+        from practice_runtime import scene_for_binding
+        with self.db() as db:
+            rows=[dict(r) for r in db.execute('SELECT id,role,text,timestamp FROM segments WHERE run=? ORDER BY seq DESC LIMIT 30',(run,))]
+        profile=json.loads((self.root/'profile.json').read_text(encoding='utf-8'))
+        return {'conversation':annotate_fragments(list(reversed(rows))),
+                'scene':scene_for_binding(self.root,run),
+                'profile':{k:profile.get(k) for k in ('correction','input_support','help_language')}}
+
+    def save_hint(self, run, hint):
+        with self.db() as db:
+            db.execute('INSERT OR REPLACE INTO meta VALUES (?,?)',('hint:'+run,json.dumps(hint,ensure_ascii=False)))
 
     def fail_batch(self, run, batch):
         with self.db() as db:
             for row in batch:
-                db.execute("UPDATE segments SET status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'pending' END WHERE run=? AND id=?", (run, row['id']))
+                db.execute("UPDATE segments SET status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'pending' END WHERE run=? AND id=? AND status='translating' AND text=?", (run, row['id'], row['text']))
             return db.execute("SELECT COUNT(*) FROM segments WHERE run=? AND status='failed'", (run,)).fetchone()[0]
 
     def view(self, args=None):
@@ -319,7 +339,15 @@ class LiveStore:
             total = sum(counts.values()); pages = max(1, (total + 39) // 40)
             page = max(1, min(pages, int(args.get('page', pages))))
             offset = (page - 1) * 40 if args.get('page') else max(0, total - 40)
-            rows = [dict(r) for r in db.execute('SELECT * FROM segments WHERE run=? ORDER BY seq LIMIT 40 OFFSET ?', (run_id, offset))]
+            from live_fragments import annotate_fragments
+            lookback=min(4,offset)
+            rows = [dict(r) for r in db.execute('SELECT * FROM segments WHERE run=? ORDER BY seq LIMIT ? OFFSET ?', (run_id,40+lookback,offset-lookback))]
+            rows=annotate_fragments(rows)[lookback:]
+            hint_row=db.execute('SELECT value FROM meta WHERE key=?',('hint:'+str(run_id),)).fetchone()
+            hint=json.loads(hint_row[0]) if hint_row else None
+            latest=db.execute("SELECT id,text FROM segments WHERE run=? AND role='user' ORDER BY seq DESC LIMIT 1",(run_id,)).fetchone()
+            if not latest or not isinstance(hint,dict) or hint.get('source_id')!=latest['id'] or hint.get('source_text')!=latest['text']:
+                hint=None
         if state:
             # Do not expose source filesystem paths to a subtitle reader.
             for key in ('source', 'file_identity', 'cursor'):
@@ -328,7 +356,8 @@ class LiveStore:
                                   (not state.get('heartbeat_epoch') or time.time() - state['heartbeat_epoch'] > 8))
             if state['status'] == 'recovering':
                 state['stale'] = time.time() - state.get('heartbeat_epoch', 0) > 90
-        return {'state': state, 'items': rows, 'total': total, 'counts': counts, 'page': page, 'pages': pages,
+            if state.get('close_epoch') or state['status'] in TERMINAL or state['desired']=='stopped':hint=None
+        return {'state': state, 'items': rows, 'teaching':hint, 'total': total, 'counts': counts, 'page': page, 'pages': pages,
                 'enabled': self.enabled(), 'server_time': now(),
                 'history': [{k: r.get(k) for k in ['id', 'created_at', 'demo', 'status', 'thread_id', 'recovery_mode', 'voice_started_at']} for r in history]}
 
@@ -368,6 +397,8 @@ class LiveSupervisor:
                     if not current and active and active['desired'] != 'stopped' and active['status'] not in TERMINAL:
                         current = active; self.store.recover_queue(current['id'])
                         self.client = self.factory(current['model'])
+                        if hasattr(self.client,'teaching_context'):
+                            self.client.teaching_context=self.store.teaching_context(current['id'])
                         current['status'] = 'starting'; current['ready'] = False
                         future = pool.submit(self.client.connect); connecting = True; batch = []
                     if current:
@@ -381,7 +412,9 @@ class LiveSupervisor:
                                 if connecting:
                                     current['connection'] = result; current['ready'] = True
                                 else:
-                                    self.store.translated(current['id'], *result)
+                                    self.store.translated(current['id'], *result,expected={r['id']:r['text'] for r in batch})
+                                    if hasattr(self.client,'last_hint'):
+                                        self.store.save_hint(current['id'],self.client.last_hint)
                                     current['error'] = None
                             except Exception as exc:
                                 message = str(exc) if isinstance(exc, ValueError) else '后台翻译失败，请让 Agent 检查连接。'
@@ -393,6 +426,11 @@ class LiveSupervisor:
                         if not future:
                             batch = self.store.batch(current['id'])
                             if batch:
+                                if hasattr(self.client,'teaching_context'):
+                                    self.client.teaching_context=self.store.teaching_context(current['id'])
+                                    def publish_translation(result,latency,run=current['id'],expected={r['id']:r['text'] for r in batch}):
+                                        self.store.translated(run,result,latency,expected)
+                                    self.client.on_translation=publish_translation
                                 future = pool.submit(self.client.translate, batch)
                         current['status'] = ('starting' if connecting else 'translating' if future else
                             'draining' if current['close_epoch'] or drain_epoch else
@@ -440,7 +478,7 @@ def main():
     sub.add_parser('status'); sub.add_parser('probe')
     args = parser.parse_args()
     if args.command == 'probe':
-        client = CodexTranslator()
+        client = CodexTranslator(MODEL)
         try: result = client.connect()
         finally: client.close()
     else:

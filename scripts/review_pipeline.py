@@ -37,6 +37,40 @@ def canonical_key(english, chinese):
     return english.strip().casefold(), chinese.strip()
 
 
+def coalesce_expressions(draft):
+    """One canonical phrase can include an initial need and a later supported attempt."""
+    result=deepcopy(draft);items=[];keys={};remap={}
+    for index,raw in enumerate(result['expressions']):
+        if raw.get('expression_ref'):
+            key=('ref',raw['expression_ref'])
+        elif all(isinstance(raw.get(k),str) and raw[k].strip() for k in ('english','chinese')):
+            key=canonical_key(raw['english'],raw['chinese'])
+        else:
+            # Partial/malformed drafts still belong to the normal validator.
+            key=('unresolved',index)
+        if key not in keys:
+            keys[key]=len(items);remap[index]=len(items);items.append(raw);continue
+        target=keys[key];remap[index]=target;old=items[target]
+        quotes=[]
+        for item in (old,raw):
+            quotes.extend(item.get('source_quotes') or [{'quote':item['original'],'source_turn_ids':item['source_turn_ids']}])
+        # Preserve an actual scored attempt verbatim; never manufacture a stronger score.
+        chosen=deepcopy(raw if raw.get('review_result') and not old.get('review_result') else old)
+        chosen['source_turn_ids']=list(dict.fromkeys(old['source_turn_ids']+raw['source_turn_ids']))
+        chosen['source_quotes']=list({(q['quote'],tuple(q['source_turn_ids'])):q for q in quotes}.values())
+        if not chosen.get('reading_guide'):
+            guide=old.get('reading_guide') or raw.get('reading_guide')
+            if guide:chosen['reading_guide']=guide
+        items[target]=chosen
+    result['expressions']=items
+    if 'priority_indices' in result:
+        result['priority_indices']=list(dict.fromkeys(remap.get(i,i) for i in result['priority_indices']))
+    result['reading_omissions']={str(remap.get(int(i),int(i))):v for i,v in result.get('reading_omissions',{}).items()}
+    for item in result.get('concept_observations',[]):
+        if 'expression_indices' in item:item['expression_indices']=list(dict.fromkeys(remap.get(i,i) for i in item['expression_indices']))
+    return result
+
+
 def next_id(prefix, used):
     value = next((prefix + f'{i:03d}' for i in range(1, 1000) if prefix + f'{i:03d}' not in used), None)
     if value is None:
@@ -88,6 +122,8 @@ def normalize_review(root, draft, thread_id, voice_id, snapshot, state):
     for raw in draft['expressions']:
         item = deepcopy(raw)
         source_turns(item, item.get('original'))
+        for quote in item.get('source_quotes',[]):
+            source_turns(quote,quote.get('quote'))
         ref = item.pop('expression_ref', None)
         if ref:
             if ref not in expressions:

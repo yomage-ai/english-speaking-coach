@@ -139,7 +139,7 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
                   'For overload, acknowledge in one short sentence and stop; do not append a simplified lesson or a new question. '
                   'A complaint about not knowing how to continue needs a brief acknowledgement plus a relevant situation cue now. '
                   'Accept resolved checks, self-repair and normal hesitations. After help and the learner’s reply, return to role action; praise alone is not a next step. '
-                  'Keep confirmed facts, pending needs and who acts next. A recap retains agreed items unless changed. That is all ends adding items, not necessarily collection or payment. '
+                  'Keep the learner’s successfully used formulation; do not replace it with synonyms after acceptance. Keep confirmed facts, pending needs and who acts next. Do not change agreed dates or collapse alternatives without a choice. A recap retains agreed items unless changed. That is all ends adding items, not necessarily collection or payment. '
                   'After an ordinary role answer, give one explicit relevant next question or action; do not assume a price or acknowledgement tells a beginner what to do. Help/formulation space, pause and end are exceptions. A still-unanswered prior question may be restated briefly. Do not mechanically repeat Anything else. '
                   'One useful learning point and at most one main question. A brief model can accompany a short role answer if digestible. No running grades or compulsory retakes. ')
         if in_character:

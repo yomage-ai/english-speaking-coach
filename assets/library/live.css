@@ -40,3 +40,10 @@ body.live-view{height:100dvh;overflow:hidden}
 }
 @media(max-height:500px){.live-view .topbar,.live-view .page-heading{display:none}.live-history-tools{display:none}}
 .live-view .page-heading p#live-scene{display:block;font-size:12px;line-height:1.5;margin:5px 0 0;max-width:700px}
+.live-hint {background:#f6f1e6;border:1px solid #dfd3b6;border-radius:12px;padding:16px;margin:12px 0 4px}
+.live-hint .live-speaker {justify-content:flex-start;gap:8px}
+.live-hint p {margin:8px 0 0;overflow-wrap:anywhere}
+.live-hint .live-groups,.live-fragment {font-size:13px;color:#676350;line-height:1.6}
+.live-groups span {color:#777;font-size:12px}
+.live-fragment {background:#f6f4ed;padding:8px 10px;border-radius:6px}
+.live-next {font-size:18px;line-height:1.5}

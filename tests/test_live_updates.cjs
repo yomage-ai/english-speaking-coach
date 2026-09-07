@@ -15,5 +15,8 @@ response=data(41,'translated','测试句');const [id,tick]=[...timers][0];timers
 response=data(42);await el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/Synthetic line 42/);
 el('#live-pause').handlers.click();assert.equal(timers.size,0,'An explicit pause freezes the current window');feed.scrollTop=100;observer();assert.equal(feed.scrollTop,100);
 response=data(43);el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/Synthetic line 43/);assert.equal(feed.scrollTop,3500);
+response={...data(44,'translated','错误的独立词义'),items:[{id:'tail',seq:44,role:'user',text:'- buster',status:'translated',chinese:'错误的独立词义',fragment:{kind:'word_tail',joined_word:'blockbuster'}}],teaching:{kind:'help',english:'Could we see a movie?',chinese:'可以看电影吗？',groups:['Could we see a movie?'],next_cue:''}};
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/blockbuster/);assert.doesNotMatch(feed.innerHTML,/错误的独立词义/);assert.match(feed.innerHTML,/这一句可以这样说/);
+response=data(45);el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.doesNotMatch(feed.innerHTML,/这一句可以这样说/,'A new turn cannot retain an old hint');
 live.unmount();assert.equal(timers.size,0);console.log('Passed live behavior: initial follow, resize, delayed translation, next segment, pause and resume.');
 })().catch(e=>{console.error(e);process.exitCode=1});

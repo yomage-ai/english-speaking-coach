@@ -55,6 +55,8 @@ Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `e
 
 Each expression requires nonempty `id`, `english`, `chinese`, `mastery`, `next_review` (YYYY-MM-DD), and `note`. Include `original` for selected learner wording. Inspect `add-session --check` itself before running dependent cleanup; a later successful command must not mask a failed save.
 
+Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked need and later attempt when duplicate canonical expressions are coalesced. Each quote is checked against this Voice before saving; it does not create extra attempts or promote mastery.
+
 `original` is the learner's selected wording, `english` is the suggested form, `note` explains the observed support and limits. A scored attempt needs both `review_result` and `review_prompt`. `independent` requires `success / none`; `transfer` requires `transfer_success / changed_context`. Structural validation cannot verify that an utterance really happened; Agent must check the source. Do not promote historical mastery without actual evidence.
 
 必填包括真实来源和表达数组，表达数组允许为空。同一表达复用 ID；补录保留实际练习日期并注明补录日期。原话、推荐表达、提示程度和判断依据分开。脚本只验证结构，真实证据由 Agent 核对。

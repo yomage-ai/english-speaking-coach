@@ -24,7 +24,7 @@ Codex automatically opens the local learning page at the start of every practice
 
 | Page | What you can do |
 | --- | --- |
-| Bilingual companion | Follow the English transcript and reveal Chinese translations when needed |
+| Bilingual companion | Follow the original transcript, Chinese translations and a current expression hint |
 | Session review | Read expressions, suggestions and priorities; find the review again after switching pages |
 | Learning home / Review | Start the next activity on Home; inspect changes over time in Review |
 | Local learning data | Open the folder, download a full backup, restore a backup or use another copied archive |
@@ -36,7 +36,7 @@ Codex automatically opens the local learning page at the start of every practice
 - The bilingual companion and independent session reviews use your existing ChatGPT login and account quota, without a separate API key. Caption availability depends on the Voice transcript.
 - Learning records are separate from the Skill program. New users automatically start in `~/.codex/english-speaking-coach/data`, outside the Skill; installation does not require choosing a folder. Use “Open learning folder” to view the data. On a new computer, restore a backup or use the copied learning folder; Codex can handle this for you, and the old folder is retained. AI conversation and translation still use the connected model services; the bilingual companion temporarily keeps recent transcripts and translations.
 
-The local service generates reviews independently, so leaving the current chat does not interrupt them. The page shows actual progress and lets you retry failures. Model generation still takes time; there is no fixed-time guarantee.
+The local service generates reviews independently, so leaving the current chat does not interrupt them. The page first shows source-checked expression suggestions, then completes and saves the full review; failures can be retried. Model generation still takes time; there is no fixed-time guarantee.
 
 Native Voice can respond autonomously or paraphrase the Agent’s English. The Skill therefore cannot guarantee that Voice always speaks English or handles pauses correctly; captions cannot control speech either. This is a current host limitation.
 

@@ -70,7 +70,7 @@ function readingGuide(e) {
   return `<details class="reading-guide"><summary>怎么念 · 怎么记 <span>含英文提示</span></summary><div class="reading-body"><p class="fine">按意思分组，/ 处可轻停；粗体略重。网页换行不代表停顿。</p><p class="reading-line" lang="en">${g.groups.map(group=>`<span class="reading-group">${marked(group)}</span>`).join('<span class="reading-break" aria-label="可轻停"> / </span>')} <span class="reading-tone" aria-hidden="true">${arrows[g.tone]||''}</span></p><p class="tone-note">${esc(g.tone_note)}</p><h3>先记住这些表达块</h3><div class="memory-parts">${g.memory.map(p=>`<div><strong lang="en">${esc(p.text)}</strong><span>${esc(p.meaning)}</span></div>`).join('')}</div><p class="fine">记忆块方便起头和替换，不要求每块都停顿。这是参考读法，不是实际语音评分。</p></div></details>`;
 }
 function excerpt(e) {
-  return `<article class="excerpt"><span class="small-label">我当时说</span><p class="original" lang="en">${esc(e.original || '这条没有记录原话。')}</p><span class="small-label">${e.original?.trim()===e.english.trim()?'这句话可以继续用':'表达参考'}</span><p class="model" lang="en">${esc(e.english)}</p><p class="chinese">${esc(e.chinese)}</p><p class="evidence-note">${esc(e.note)}</p>${readingGuide(e)}</article>`;
+  return `<article class="excerpt"><span class="small-label">我当时说</span><p class="original" lang="en">${esc(e.original || '这条没有记录原话。')}</p><span class="small-label">${e.original?.trim()===e.english.trim()?'这句话可以继续用':'表达参考'}</span><p class="model" lang="en">${esc(e.english)}</p><p class="chinese">${esc(e.chinese)}</p><p class="evidence-note">${esc(e.note)}</p>${e.source_quotes?.length>1?`<details class="source-quotes"><summary>这句话的求助与后续尝试</summary>${e.source_quotes.map(q=>`<p>${esc(q.quote)}</p>`).join('')}</details>`:''}${readingGuide(e)}</article>`;
 }
 function lessonPage(s) {
   const selected=new Set(s.review_priority_ids || []);
@@ -194,6 +194,7 @@ async function render() {
       rememberReview(data,args);
       if(data.status==='saved'){location.replace(href('sessions/'+data.session_id));return;}
       markup=heading('YOUR PRACTICE REVIEW','本次练习复盘','完成后，这里会自动显示总结和本次词句。')+
+        `<section id="review-preview" class="review-preview" aria-label="已可先看的表达建议" ${data.preview?.length?'':'hidden'}>${reviewPreview(data)}</section>`+
         `<section class="review-wait" role="status"><span class="review-indicator" aria-hidden="true"></span><h2 id="review-title">${reviewMessage(data).title}</h2><p id="review-state">${esc(reviewMessage(data).body)}</p><p class="fine">可以先看其他记录；页面上方会保留本次整理状态和返回入口。</p><button class="button" type="button" data-retry-review ${data.status==='error'?'':'hidden'}>重试本场复盘</button> <a class="button" href="#terms">先看全部词句</a></section>`;
     }
     else if(path==='overview'){data=await api('/api/overview');overview=data;markup=home(data);}
@@ -222,6 +223,7 @@ async function render() {
 function reviewMessage(data) {
   if(data.status==='saved')return {title:'本次复盘已保存',body:'表达、词义和下次练习重点已经可以查看。'};
   if(data.status==='error')return {title:'复盘暂未完成',body:data.error||'已保留待办和草稿，可重试；原有学习记录不受影响。'};
+  if(data.preview?.length)return {title:`已有 ${data.preview.length} 句可先看`,body:'完整复盘仍在补全词义、读法与本次观察，保存后会自动显示。'};
   if(data.status==='queued')return {title:'本地服务已接收复盘',body:'任务已排队；可以离开当前聊天，生成和保存会继续。'};
   if(data.status==='reading')return {title:'正在读取本场对话',body:'只核对这次练习的转写和相关学习记录。'};
   if(data.status==='generating')return {title:'正在生成复盘',body:'分别整理句型、生词与朗读提示。无需等待聊天 Agent 完成其他收尾。'};
@@ -231,6 +233,11 @@ function reviewMessage(data) {
   if(data.status==='preparing')return {title:'正在整理本次表达',body:'正在核对对话中的表达问题、词义和优先练习点。'};
   if(data.status==='practicing')return {title:'练习进行中',body:'语音结束后会整理本次表达。'};
   return {title:'正在等待课后整理开始',body:'语音已结束或等待结束确认；收到整理进度后会在这里更新。'};
+}
+function reviewPreview(data) {
+  if(!data.preview?.length)return '';
+  return `<h2>先看这几句</h2><p class="fine">表达建议 · 完整复盘${data.status==='error'?'暂未完成，可重试':'仍在补全'}。这里不代表已经掌握，也不会提前计入学习记录。</p>`+
+    data.preview.map(x=>`<article class="review-preview-expression"><p class="fine">当时说：${esc(x.original)}</p><p class="preview-english" lang="en">${esc(x.english)}</p><p>${esc(x.chinese)}</p></article>`).join('');
 }
 function reviewKey(data) {return data.thread_id+'/'+data.voice_id;}
 function rememberReview(data,args={}) {
@@ -273,6 +280,8 @@ function applyReviewToCurrentPage(data) {
   if(title)title.textContent=reviewMessage(data).title;
   if(state)state.textContent=reviewMessage(data).body;
   const retry=document.querySelector('[data-retry-review]');if(retry)retry.hidden=data.status!=='error';
+  const preview=$('#review-preview');
+  if(preview){const markup=reviewPreview(data);preview.hidden=!markup;if(preview.dataset.markup!==markup){preview.innerHTML=markup;preview.dataset.markup=markup;}}
 }
 async function refreshReviews() {
   if(reviewPolling)return;
