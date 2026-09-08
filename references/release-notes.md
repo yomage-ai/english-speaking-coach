@@ -1,5 +1,7 @@
 Standalone local companion / 独立本地伴随程序
 
+v0.2.1 also preserves literal `#`, `%` and other supported filename characters in a chosen learning directory. v0.2.0 is superseded and should not be used for custom paths containing URI syntax.
+
 - No Python, Node.js or Go installation is needed to use the Skill. The Agent downloads the pinned, checksum-verified program for the user's OS and CPU.
 - Source transcripts, translation and written reviews run independently. A translation outage preserves new English and offers retry.
 - Existing selected Markdown/JSON learning records and SQLite caption caches remain compatible. Backup/restore retains original sources and detaches machine-specific work.

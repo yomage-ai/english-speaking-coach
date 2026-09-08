@@ -28,11 +28,15 @@ func openLive(root string) *Live {
 		must(lock.Lock())
 	}
 	defer lock.Unlock()
-	db, e := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate")
+	// The chosen folder is a filesystem path, not URI syntax. Preserve literal
+	// percent/hash/question-mark characters instead of opening a truncated path.
+	uriPath := strings.NewReplacer("%", "%25", "#", "%23", "?", "%3F").Replace(filepath.ToSlash(path))
+	db, e := sql.Open("sqlite", "file:"+uriPath+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_txlock=immediate")
 	must(e)
 	db.SetMaxOpenConns(1)
 	_, e = db.Exec(`CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,desired TEXT NOT NULL,state TEXT NOT NULL);CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);CREATE TABLE IF NOT EXISTS segments(seq INTEGER PRIMARY KEY AUTOINCREMENT,run TEXT NOT NULL,id TEXT NOT NULL,role TEXT NOT NULL,text TEXT NOT NULL,timestamp TEXT,ordinal INTEGER,ingested_at TEXT NOT NULL,chinese TEXT,status TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,translated_at TEXT,latency REAL,UNIQUE(run,id));CREATE INDEX IF NOT EXISTS segment_queue ON segments(run,status,seq);`)
 	must(e)
+	require(exists(path), "字幕数据库没有创建在指定目录；已停止，未采用其他路径。")
 	_ = os.Chmod(path, 0600)
 	return &Live{root, db}
 }
