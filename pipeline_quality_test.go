@@ -254,7 +254,7 @@ func TestRealPipelineSemantics(t *testing.T) {
 	if os.Getenv("ENGLISH_COACH_REAL_MODEL_TEST") != "1" {
 		t.Skip("Explicit development opt-in required")
 	}
-	c := newModelClient(defaultModel, 45*time.Second)
+	c := newModelClient(textOr(os.Getenv("ENGLISH_COACH_CAPTION_MODEL"), defaultModel), 45*time.Second)
 	defer c.close()
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
 	defer cancel()

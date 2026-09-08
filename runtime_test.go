@@ -527,6 +527,9 @@ func fakeModelServer() {
 	scanner.Buffer(make([]byte, 65536), 16*1024*1024)
 	for scanner.Scan() {
 		row := parseObject(scanner.Text())
+		if trace := os.Getenv("ENGLISH_COACH_TEST_REQUESTS"); trace != "" {
+			appendLog(trace, row)
+		}
 		id := row["id"]
 		if id == nil {
 			continue
@@ -556,7 +559,7 @@ func fakeModelServer() {
 				continue
 			}
 			answer := "{}"
-			if mode == "translation-poison" || mode == "content-malformed" {
+			if mode == "translation-poison" || mode == "content-malformed" || mode == "latency-lanes" || mode == "stream-captions" {
 				payload := parseObject(str(obj(arr(obj(row["params"])["input"])[0])["text"]))
 				translations := A{}
 				for _, v := range arr(payload["units"]) {
@@ -568,6 +571,32 @@ func fakeModelServer() {
 					translations = append(translations, x)
 				}
 				answer = compact(M{"translations": translations})
+				if mode == "stream-captions" && len(translations) > 1 {
+					prefix := `{"translations":[` + compact(translations[0]) + `,`
+					send(M{"method": "item/agentMessage/delta", "params": M{"turnId": "test-turn", "itemId": "answer", "delta": prefix}})
+					time.Sleep(800 * time.Millisecond)
+				}
+				if mode == "latency-lanes" {
+					if payload["teaching_context"] != nil {
+						conversation := arr(obj(payload["teaching_context"])["conversation"])
+						var latest M
+						for _, v := range conversation {
+							if obj(v)["role"] == "user" {
+								latest = obj(v)
+							}
+						}
+						if marker := os.Getenv("ENGLISH_COACH_TEST_HINT_STARTED"); marker != "" {
+							atomicWrite(marker, []byte(str(latest["id"])))
+						}
+						if release := os.Getenv("ENGLISH_COACH_TEST_HINT_RELEASE"); release != "" {
+							for !exists(release) {
+								time.Sleep(20 * time.Millisecond)
+							}
+						}
+						answer = compact(M{"teaching": M{"kind": "help", "source_id": latest["id"], "quote": latest["text"], "english": "I need a quieter room.", "chinese": "我需要更安静的房间。", "groups": stringsA("I need a quieter room."), "next_cue": ""}})
+					}
+				}
+
 				if mode == "content-malformed" {
 					for _, unit := range arr(payload["units"]) {
 						if obj(unit)["text"] == "broken" {

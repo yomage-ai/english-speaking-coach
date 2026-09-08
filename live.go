@@ -330,6 +330,13 @@ func (l *Live) failBatch(run string, rows A) {
 		sqlExec(l.db, "UPDATE segments SET status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'pending' END WHERE run=? AND id=? AND text=? AND status='translating'", run, r["id"], r["text"])
 	}
 }
+func (l *Live) rejectTranslations(run string, rejected, expected M) {
+	// A later duplicate/conflicting unit can invalidate an early streamed row.
+	// Revoke only that request's exact source version, then apply the usual budget.
+	for id := range rejected {
+		sqlExec(l.db, "UPDATE segments SET chinese=NULL,translated_at=NULL,latency=NULL,status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'pending' END WHERE run=? AND id=? AND text=?", run, id, expected[id])
+	}
+}
 func (l *Live) rememberTranslationErrors(run string, valid A, rejected M, expected M) {
 	errors := copyM(obj(l.run(run)["translation_rejected"]))
 	for _, v := range valid {
@@ -457,7 +464,6 @@ func runTranslations(ctx context.Context, root string) {
 		}
 	}()
 	current := ""
-	taught := ""
 	failures := 0
 	retryAt := 0.0
 	for {
@@ -484,7 +490,6 @@ func runTranslations(ctx context.Context, root string) {
 			}
 			client = nil
 			current = id
-			taught = ""
 			failures = 0
 			retryAt = 0
 			sqlExec(l.db, "UPDATE segments SET status='pending' WHERE run=? AND status='translating'", id)
@@ -506,14 +511,12 @@ func runTranslations(ctx context.Context, root string) {
 			if client == nil {
 				l.patch(id, M{"translation_status": "connecting", "translation_error": nil})
 				client = newModelClient(str(s["model"]), 45*time.Second)
-				client.instructions = str(contracts["translation_instructions"]) + str(contracts["teaching_instructions"])
+				client.maxTurns = 8
 				client.connect(ctx)
 				l.patch(id, M{"ready": true, "translation_status": "ready", "connection": M{"model": s["model"], "effort": "low", "auth": "chatgpt", "ephemeral": true}})
 			}
 			rows = l.batch(id)
-			teaching := l.teachingContext(id)
-			key := teachingKey(teaching)
-			if len(rows) == 0 && (key == "" || key == taught) {
+			if len(rows) == 0 {
 				return
 			}
 			l.patch(id, M{"translation_status": "translating"})
@@ -522,19 +525,22 @@ func runTranslations(ctx context.Context, root string) {
 				r := obj(v)
 				expected[str(r["id"])] = r["text"]
 			}
-			out, hint, rejected, latency := client.translate(ctx, rows, teaching, func(part A, seconds float64) { l.translated(id, part, seconds, expected) })
-			taught = key
+			timing := M{"started_at": now(), "segments": len(rows)}
+			out, _, rejected, latency := client.translate(ctx, rows, nil, func(part A, seconds float64) {
+				l.translated(id, part, seconds, expected)
+				if timing["first_sentence_seconds"] == nil {
+					timing["first_sentence_seconds"] = seconds
+					l.patch(id, M{"translation_timing": timing})
+				}
+			})
+			timing["request_seconds"] = latency
 			l.translated(id, out, latency, expected)
+			l.rejectTranslations(id, rejected, expected)
 			// Semantic failures retry only their own rows, at most twice. They
 			// never trip the connection circuit breaker or discard valid rows.
 			l.failBatch(id, rows)
 			l.rememberTranslationErrors(id, out, rejected, expected)
-			if hint != nil {
-				l.setMeta("hint:"+id, compact(hint))
-			} else {
-				sqlExec(l.db, "DELETE FROM meta WHERE key=?", "hint:"+id)
-			}
-			l.patch(id, M{"translation_status": "ready", "translation_error": nil, "translation_failures": 0, "translation_retry_at": 0, "ready": true})
+			l.patch(id, M{"translation_status": "ready", "translation_error": nil, "translation_failures": 0, "translation_retry_at": 0, "ready": true, "translation_timing": timing})
 		})
 		if err != nil {
 			l.failBatch(id, rows)

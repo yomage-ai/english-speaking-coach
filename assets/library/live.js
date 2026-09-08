@@ -46,7 +46,9 @@ window.CoachLive = (() => {
     const failed=data.counts.failed||0, pending=(data.counts.pending||0)+(data.counts.translating||0);
     const ended=['ended','error','expired','stopped'].includes(s?.status);
     if(failed&&!s?.translation_error)messages.push(`${failed} 句中文待补，其余内容继续更新。`);
-    get('#live-diagnostic').textContent=[s?.error,s?.translation_error,s?.review_error,...Object.values(s?.translation_rejected||{})].filter(Boolean).join(' · ')||'暂无异常';
+    const timing=s?.translation_timing;
+    const speed=timing?`最近一批 ${timing.segments} 句${Number.isFinite(timing.first_sentence_seconds)?` · 首句 ${timing.first_sentence_seconds.toFixed(1)} 秒`:''}${Number.isFinite(timing.request_seconds)?` · 请求完成 ${timing.request_seconds.toFixed(1)} 秒`:''}`:'';
+    get('#live-diagnostic').textContent=[s?.error,s?.translation_error,s?.review_error,s?.teaching_error?`书面提示：${s.teaching_error}`:'',...Object.values(s?.translation_rejected||{}),speed].filter(Boolean).join(' · ')||'暂无异常';
     const retry=get('#live-retry-translation');if(retry){retry.hidden=!!s?.imported||!((s?.translation_error||failed||(ended&&pending))&&s.status!=='recovering');retry.disabled=!!s?.recovery_requested;retry.textContent=s?.recovery_requested?'补译已排队':'重试中文';}
     if(s?.invalid_lines)messages.push(`有 ${s.invalid_lines} 行日志未能读取，请让 Agent 检查遗漏。`);
     notice(messages.join(' '));

@@ -40,7 +40,7 @@ func (s *Server) startBackground() {
 	}
 	ctx, cancel := context.WithCancel(s.parent)
 	s.cancel = cancel
-	for _, f := range []func(context.Context, string){runTailer, runTranslations, runReviews, runCaptionRecoveries} {
+	for _, f := range []func(context.Context, string){runTailer, runTranslations, runTeaching, runReviews, runCaptionRecoveries} {
 		s.workers.Add(1)
 		go func(f func(context.Context, string), root string) {
 			defer s.workers.Done()

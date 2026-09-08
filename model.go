@@ -33,6 +33,8 @@ type ModelClient struct {
 	thread       string
 	serial       int
 	turns        int
+	freshTurns   bool
+	maxTurns     int
 	contextTail  A
 	mu           sync.Mutex
 }
@@ -205,6 +207,7 @@ func (c *ModelClient) receive(ctx context.Context, deadline time.Time) M {
 	}
 }
 func (c *ModelClient) request(ctx context.Context, method string, params M) M {
+	must(ctx.Err())
 	c.serial++
 	id := c.serial
 	c.send(method, params, id)
@@ -218,9 +221,16 @@ func (c *ModelClient) request(ctx context.Context, method string, params M) M {
 	}
 }
 func (c *ModelClient) generate(ctx context.Context, payload M, schema any, stream func(string)) M {
+	limit := 20
+	if c.maxTurns > 0 {
+		limit = c.maxTurns
+	}
 	if c.thread == "" {
 		c.connect(ctx)
-	} else if c.turns >= 20 {
+	} else if c.turns >= limit || c.freshTurns && c.turns > 0 {
+		// Release our prior ephemeral conversation instead of accumulating
+		// loaded threads while keeping the authenticated process warm.
+		c.request(ctx, "thread/unsubscribe", M{"threadId": c.thread})
 		c.startThread(ctx)
 	}
 	res := c.request(ctx, "turn/start", M{"threadId": c.thread, "effort": "low", "input": A{M{"type": "text", "text": compact(payload)}}, "outputSchema": schema})
@@ -476,7 +486,7 @@ func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, pub
 		}
 	}()
 	return c.translateBatch(ctx, segments, teaching, func(part A, seconds float64) {
-		visible = part
+		visible = append(visible, part...)
 		if publish != nil {
 			publish(part, seconds)
 		}
@@ -509,17 +519,26 @@ func (c *ModelClient) translateBatch(ctx context.Context, segments A, teaching M
 		must(json.Unmarshal(rawContracts["translation_schema"], &transport))
 		schema = json.RawMessage(`{"type":"object","properties":{"translations":` + string(transport.Properties["translations"]) + `,"teaching":` + string(rawContracts["teaching_schema"]) + `},"required":["translations","teaching"],"additionalProperties":false}`)
 	}
-	published := false
+	published := M{}
 	answer := c.generate(ctx, payload, schema, func(raw string) {
-		if publish == nil || published {
+		if publish == nil {
 			return
 		}
-		part, complete := arrayPrefix(raw, "translations", 200)
-		if complete {
+		part, _ := arrayPrefix(raw, "translations", 200)
+		if len(part) > 0 {
 			var visible A
 			if attempt(func() { visible, _ = partialTranslations(segments, units, part) }) == nil && len(visible) > 0 {
-				publish(visible, time.Since(start).Seconds())
-				published = true
+				fresh := A{}
+				for _, v := range visible {
+					r := obj(v)
+					if published[str(r["id"])] != r["chinese"] {
+						fresh = append(fresh, r)
+						published[str(r["id"])] = r["chinese"]
+					}
+				}
+				if len(fresh) > 0 {
+					publish(fresh, time.Since(start).Seconds())
+				}
 			}
 		}
 	})

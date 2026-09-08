@@ -62,6 +62,7 @@ func recoverCaptionsContext(ctx context.Context, root, thread, voice, source, mo
 	sqlExec(l.db, "UPDATE segments SET status='pending',attempts=0 WHERE run=? AND (status!='translated' OR ?)", id, refresh)
 	l.copyLocalTranscripts(id)
 	client := newModelClient(model, 45*time.Second)
+	client.maxTurns = 8
 	defer client.close()
 	batches := 0
 	connectionFailures := 0
@@ -82,8 +83,9 @@ func recoverCaptionsContext(ctx context.Context, root, thread, voice, source, mo
 			}
 			l.patch(id, M{"heartbeat": now(), "heartbeat_epoch": epoch()})
 			err := attempt(func() {
-				out, _, rejected, latency := client.translate(ctx, rows, nil, nil)
+				out, _, rejected, latency := client.translate(ctx, rows, nil, func(part A, seconds float64) { l.translated(id, part, seconds, expected) })
 				l.translated(id, out, latency, expected)
+				l.rejectTranslations(id, rejected, expected)
 				l.failBatch(id, rows)
 				l.rememberTranslationErrors(id, out, rejected, expected)
 				if latency > 0 {
