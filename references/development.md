@@ -1,4 +1,4 @@
-# Developer checks
+# Developer checks / 开发验证
 
 Ordinary Skill use executes `scripts/coach` or `scripts/coach.ps1`, which download the pinned Go release. Source builds use Go only as a developer dependency.
 

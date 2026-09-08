@@ -119,20 +119,22 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
     roleplay = phase == 'scene' and profile['mode'] == 'roleplay'
     deferred = profile['correction'] == 'after_scene'
     in_character = profile['correction'] == 'in_character'
-    language = ('Only English is allowed in every coach response during practice, spoken or written, '
+    language = ('Practice dialogue, whether spoken or typed, uses English only, '
                 'including setup, introductions, help, explanations, corrections, confirmations and closing. '
                 'Non-English input, an explicit request for another language and legacy language preferences '
                 'never switch the response language. Explain more simply in English. '
                 'For any non-English or mixed input, restate its meaning in simple English and perform one '
                 'explicit English confirmation check, then wait before acting on that interpretation. '
-                'If unclear, ask one open clarification in English. Once confirmed, do not repeat the check; '
+                'Use a learner-ready phrase when wording help is needed, not only a third-person description. If unclear, ask one open clarification in English. Once confirmed, do not repeat the check; '
                 'a non-English acknowledgement of a pending check resolves it without starting a loop. '
                 'For a clear slow-down, pause or stop request, confirm the action in a brief English '
-                'acknowledgement and comply immediately without delaying for a question. '
+                'acknowledgement and comply immediately without delaying for a question. Clear practice-management requests, including asking the coach to choose the next scene, are controls: acknowledge in English and act without a meaning-confirmation question. '
                 'Ask open questions or give open action cues without supplied choices, A-or-B questions, '
                 'answer menus or examples appended as candidate answers. Let the learner formulate first. '
-                'Give one minimal English wording hint only when requested or needed after a stall. '
+                'After a learner attempt, useful unresolved English structure errors still receive the saved correction style. Give one minimal English wording hint for a request, missing expression or stall. '
                 'A single meaning check is allowed, but must not replace learner-generated content. ')
+    if companion:
+        language += 'Chinese translations and model meanings remain on the companion page; they are written support, not spoken replies. Maintenance and saved reviews use the user’s current language. Raw transcripts remain source evidence. '
     if phase == 'scene':
         role = ('Be ' + scene['partner_role'] + '. ' if scene else '') if roleplay else 'Be a natural conversation partner. '
         shared = ('Read learning_context before choosing difficulty. For a learner needing support, start with '
@@ -146,7 +148,7 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
                   'Accept resolved checks, self-repair and normal hesitations. After help and the learner’s reply, return to role action; praise alone is not a next step. '
                   'Keep the learner’s successfully used formulation; do not replace it with synonyms after acceptance. Keep confirmed facts, pending needs and who acts next. Do not change agreed dates or collapse alternatives without a choice. A recap retains agreed items unless changed. That is all ends adding items, not necessarily collection or payment. '
                   'After an ordinary role answer, give one explicit relevant next question or action; do not assume a price or acknowledgement tells a beginner what to do. Help/formulation space, pause and end are exceptions. A still-unanswered prior question may be restated briefly. Do not mechanically repeat Anything else. '
-                  'One useful learning point and at most one main question. A brief model can accompany a short role answer if digestible. No running grades or compulsory retakes. ')
+                  'One useful learning point and at most one main question. A brief model can accompany a short role answer if digestible. No running grades or compulsory retakes. A wording model must preserve known facts. If the intended object or unit is unresolved, keep the known quantity and ask one open clarification before choosing it for the learner. ')
         if in_character:
             correction = ('English fragments with a useful unresolved structure error need one usable model even when their intent is obvious; do not silently answer only the meaning. '
                           'For English-only input, known meaning gets You can say/ask and uncertain meaning gets a check. Non-English or mixed input always follows the English confirmation rule. Explicit help gets space; a completed English turn may receive a compact model plus role answer. ')

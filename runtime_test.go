@@ -637,7 +637,7 @@ func TestRealModelTranslation(t *testing.T) {
 	c.instructions = str(contracts["translation_instructions"]) + str(contracts["teaching_instructions"])
 	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
 	defer cancel()
-	rows := A{M{"id": "u1", "role": "user", "text": "I want buy two bread for breakfast."}}
+	rows := A{M{"id": "u1", "role": "user", "text": "I want buy two bread rolls for breakfast."}}
 	out, hint, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A bakery"}, "profile": M{"correction": "in_character", "help_language": "zh-CN", "input_support": "short_turns"}}, nil)
 	if len(out) != 1 || !hanRE.MatchString(str(obj(out[0])["chinese"])) || hint == nil || hint["kind"] != "help" {
 		t.Fatal("Unexpected translation/teaching", out, hint)

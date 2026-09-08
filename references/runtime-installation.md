@@ -1,4 +1,4 @@
-# Standalone runtime
+# Standalone runtime / 独立运行程序
 
 The Agent owns installation, diagnosis, initialization, service setup and verification. The learner supplies only their practice intent and any real login/system permission that cannot be delegated. Do not turn these instructions into user homework.
 
@@ -33,3 +33,5 @@ Upgrades: download/cache the new pinned binary first. Check the current listener
 `coach paths` returns the authoritative `data_root`, config path and optional project page. First use creates `~/.codex/english-speaking-coach/data` (or `$CODEX_HOME/english-speaking-coach/data`) without a directory questionnaire. Existing machine configuration wins; missing configured storage is never replaced with a fresh empty archive. Saved correction choices are preserved; new users default to useful in-character English wording help.
 
 The page's storage entry supports opening the directory, complete ZIP backup, restore, adoption and copy-and-switch. `coach storage` exposes the same verified operations for the Agent. Old sources remain. A migration detaches machine-specific live watchers and unfinished model jobs. It does not migrate Codex login or the native app's complete conversation history.
+
+中文要点：用户不用配置开发环境；Agent 完成下载、校验、启动和故障定位。程序、学习档案、宿主转写和模型连接分别核对。缺少转写时不能把空页面说成已就绪，翻译失败也不应停止接收原文。系统拦截运行或需要登录时，才请用户处理那一个真实阻碍。

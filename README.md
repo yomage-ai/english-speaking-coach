@@ -1,47 +1,49 @@
-Copy this request to Codex to install:
+把这句话复制给 Codex，即可安装：
 
-> Install english-speaking-coach from https://github.com/yomage-ai/english-speaking-coach, complete the initial setup, and confirm it appears in the skill list.
+> 请从 https://github.com/yomage-ai/english-speaking-coach 安装 english-speaking-coach，完成首次配置，并确认它已出现在 Skill 列表中。
 
-# English Speaking Coach
+[English](README.en.md)
 
-Practice coaching uses English only. Non-English input receives an English meaning check. The coach asks open questions without supplied choices so the learner can formulate their own responses.
+# 英语口语教练
 
-Practice English in travel, restaurant, interview and other everyday situations. Afterward, review useful expressions, flashcards and your progress. Tell Codex what you want to practice; it handles preparation and saves your records.
+在旅行、点餐、面试等情景中练习英语，聊完后查看表达建议、复习卡片和学习进度。你只需说想练什么，Codex 负责准备和保存记录。
 
-## Get started
+练习对话全程使用英语；听到中文或中英混合表达时，教练会用英语帮你确认意思。教练用开放问题引导，不给备选答案；需要时仍会教你一句可用的说法。网页保留中文翻译和书面复盘。
 
-After installation, open Voice, then send this message to start practicing English:
+## 怎么开始
 
-> /$english-speaking-coach Help me practice English.
+安装完成后，打开 Voice，再发送下面这句，然后就可以开始对话学习英语啦：
 
-You can also select **English Speaking Coach** from the skill picker in the message box.
+> /$english-speaking-coach 帮我练英语。
 
-Each practice introduces the setting, both roles and your goal before the dialogue begins. The AI helps you form useful expressions according to your chosen correction style and guides the next step, with opportunities to explain needs, give reasons and ask questions. New practices use your learning history to choose a fresh scene.
+也可以从输入框的 Skill 选择菜单中选中 **English Speaking Coach** 。
 
-## Pages you can use
+每次会介绍场景、双方角色和你的目标，然后开始对话。AI 会按你选择的纠错方式帮助你组织表达，并引导情景的下一步，给你说需求、讲理由和提问的机会。新一轮会参考学习记录选择新场景。
 
-Codex automatically opens the local learning page at the start of every practice and shows your session review afterward. The page includes:
+## 会看到哪些页面
 
-| Page | What you can do |
+每次开始练习，Codex 都会自动打开本地学习页面；结束后展示本次复盘。页面包含：
+
+| 页面 | 你可以做什么 |
 | --- | --- |
-| Bilingual companion | Follow the original transcript, Chinese translations and a current expression hint |
-| Session review | Read expressions, suggestions and priorities; find the review again after switching pages |
-| Learning home / Review | Start the next activity on Home; inspect changes over time in Review |
-| Local learning data | Open the folder, download a full backup, restore a backup or use another copied archive |
-| Flashcards | Recall before flipping; expand saved reading and memory tips when useful |
+| 双语伴随页 | 边聊边看原话、中文翻译和当前一句表达提示 |
+| 课后复盘 | 看本次表达、改进建议和优先练习点；切换页面仍能找回整理结果 |
+| 学习首页 / 学习回顾 | 首页开始下一步，回顾查看一段时间的练习变化 |
+| 本地学习数据 | 打开目录、下载完整备份、恢复备份或使用另一份已复制档案 |
+| 复习卡片 | 先自己想，再翻面查看答案；需要时展开保存的读法与记忆提示 |
 
-On first use, Codex downloads and verifies the standalone program for this computer, then reuses it. **No Python, Node.js or Go installation is required.** Desktop support and limits are described below.
+首次使用时，Codex 会自动下载并校验适合这台电脑的本地程序，后续直接复用。**不需要安装 Python、Node.js 或 Go。** 支持的桌面环境及边界见下文。
 
-## Before you use it
+## 使用前了解
 
-- Use Codex on macOS, Windows or Linux with skill installation and local file access. Live bilingual captions additionally require the host to expose both sides of the transcript during a call; ordinary web chat and mobile apps do not automatically have this capability.
-- The bilingual companion and independent session reviews use your existing ChatGPT login and account quota, without a separate API key. Caption availability depends on the Voice transcript.
-- Learning records are separate from the Skill program. New users automatically start in `~/.codex/english-speaking-coach/data`, outside the Skill; installation does not require choosing a folder. Use “Open learning folder” to view the data. On a new computer, restore a backup or use the copied learning folder; Codex can handle this for you, and the old folder is retained. AI conversation and translation still use the connected model services; the bilingual companion temporarily keeps recent transcripts and translations.
+- 在 macOS、Windows 或 Linux 上能安装 Skill、访问本地文件的 Codex 中使用。实时双语还需要宿主在会中提供双方转写；普通网页聊天和手机端不自动具备此能力。
+- 双语伴随和独立课后复盘使用现有 ChatGPT 登录及账户额度，无需另外填写 API Key；字幕显示取决于语音转写的可用情况。
+- 学习档案与 Skill 程序分开，新用户默认保存在 Skill 外。网页的“打开学习目录”可查看本机数据。AI 对话和翻译仍使用所连接的模型服务；双语伴随页会临时保留近期转写与译文。默认目录是 `~/.codex/english-speaking-coach/data`，首次使用自动创建，不要求安装时选位置。换电脑时，在新电脑恢复备份或使用已复制的学习目录，也可以让 Codex 代办；原目录保留。
 
-The local service generates reviews independently, so leaving the current chat does not interrupt them. The page first shows source-checked expression suggestions, then completes and saves the full review; failures can be retried. Model generation still takes time; there is no fixed-time guarantee.
+复盘由本地服务独立生成，离开当前聊天后仍会继续；页面先展示已校验来源的表达建议，再补全并保存完整复盘，失败可重试。它仍需要模型生成时间，不保证固定秒数。
 
-If translation disconnects, new original text still appears; the page explains the failure and offers retry. A healthy backend does not prove that the host exposes live transcripts, so Codex checks these separately.
+翻译连接失败时，原文继续更新；网页会说明原因并提供重试。后台可用不等于宿主一定提供实时转写，Codex 会分别检查。
 
-Native Voice can respond autonomously or paraphrase the Agent’s English. The Skill therefore cannot guarantee that Voice always speaks English or handles pauses correctly; captions cannot control speech either. This is a current host limitation.
+原生 Voice 可能自行回应或改述 Agent 的英文，因此 Skill 不能保证它每次都保持英文或正确判断停顿；字幕也不能控制语音。这是当前宿主的能力边界。
 
-[MIT License](LICENSE)
+[MIT 开源许可](LICENSE)

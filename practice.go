@@ -249,13 +249,13 @@ func transitionContext(c M, event string) M {
 		move["continue_voice"] = false
 		move["spoken_review"] = false
 		c["phase"] = nil
-		c["voice_brief"] = "Stop spoken practice. A brief goodbye is enough. The Agent still completes the selected written review; stopping speech does not cancel closeout."
+		c["voice_brief"] = "Stop spoken practice. A brief English goodbye is enough. The Agent still completes the selected written review; stopping speech does not cancel closeout."
 		c["closeout"] = M{"required": true, "next_action": "review-begin", "match": "thread_and_voice", "spoken_review": false, "written_review": true}
 	case "pause":
 		action = "pause"
 		move["continue_voice"] = false
 		move["spoken_review"] = false
-		c["voice_brief"] = "The learner paused. Acknowledge briefly and wait; do not start review or another exercise."
+		c["voice_brief"] = "The learner paused. Acknowledge briefly in English and wait; do not start review or another exercise."
 	case "review_requested":
 		action = "review"
 		move["phase"] = "review"

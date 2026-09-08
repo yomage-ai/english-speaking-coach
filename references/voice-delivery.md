@@ -64,3 +64,5 @@ If no permitted API controls the speech model or delegates every learner turn, s
 ## Installed app-server capability checks
 
 A generated local app-server protocol exposes experimental thread-scoped realtime start, prompt, startup context and speech append fields. Field presence is not runtime support. Test an isolated own session, with no microphone and no playback, using the existing account before proposing it as a native-Voice fix. In the September 2026 validation, the installed app-server rejected both v2 text and v3 audio realtime startup under ChatGPT login with `realtime conversation requires API key auth`. No replacement voice client is shipped or claimed working on that basis. Do not change login, global feature flags or add a paid API dependency silently. Backend English and actual native speech remain separate acceptance checks.
+
+Clear practice-management requests, such as asking the coach to choose a new scene, are controls even when expressed in Chinese. Acknowledge in English and perform the requested arrangement without an extra meaning check or a list of scene choices.
