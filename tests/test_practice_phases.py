@@ -28,7 +28,7 @@ class PhaseTests(unittest.TestCase):
         self.assertEqual(transition('scene','continue')['action'],'respond')
         self.assertEqual(transition('scene','help_requested')['phase'],'scene')
         completed=store.resume(self.root,'2026-01-01','scene','scene_complete_and_continuing')
-        self.assertEqual(completed['transition']['action'],'offer_next_scene_or_finish')
+        self.assertEqual(completed['transition']['action'],'ask_open_next_step')
         self.assertTrue(completed['transition']['continue_voice'])
         self.assertFalse(completed['transition']['save_selected'])
         review=store.resume(self.root,'2026-01-01','scene','review_requested')

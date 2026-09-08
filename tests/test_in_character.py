@@ -62,7 +62,7 @@ class InCharacterTests(unittest.TestCase):
                 self.assertIsNone(ended['phase'])
             complete = store.resume(root, '2026-01-02', event='scene_complete_and_continuing', scene=SCENE)
             self.assertTrue(complete['transition']['continue_voice'])
-            self.assertEqual(complete['transition']['action'], 'offer_next_scene_or_finish')
+            self.assertEqual(complete['transition']['action'], 'ask_open_next_step')
             paused = store.resume(root, '2026-01-02', event='pause', scene=SCENE)
             self.assertFalse(paused['transition']['continue_voice'])
             self.assertEqual(old_lesson.read_bytes(), old_bytes)

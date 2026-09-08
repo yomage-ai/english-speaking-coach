@@ -8,6 +8,8 @@ Copy this request to Codex to install:
 
 Practice English in travel, restaurant, interview and other everyday situations. Afterward, review useful expressions, flashcards and your progress. Tell Codex what you want to practice; it handles preparation and saves your records.
 
+Practice dialogue stays in English. For non-English or mixed input, the coach helps check the meaning in English. Open questions invite your own answers, without supplied choices; wording help remains available when needed. The page keeps Chinese translations and written reviews.
+
 ## Get started
 
 After installation, open Voice, then send this message to start practicing English:

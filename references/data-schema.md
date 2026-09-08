@@ -76,7 +76,7 @@ Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked 
 | `review_limit` | 0–5; default 2 |
 | `review_delivery` | `written` (new-user default), `spoken`; absent on old profiles retains the old spoken-review behavior until an authorized preference update |
 
-`help_language` also controls the initial scene introduction; role dialogue follows `practice_language`. Agent prepares a fresh scene JSON using [scenario-orchestration.md](scenario-orchestration.md). 介绍使用帮助语言，正式对话使用练习语言；两者分开。
+Legacy language fields remain readable and unchanged on disk. They do not switch the English-only practice dialogue. `help_language` remains written support metadata; page translations and saved reviews are separate from speech. Agent prepares an English scene JSON using [scenario-orchestration.md](scenario-orchestration.md). 口语全英文不删除网页中文或改写历史学习档案。
 
 Latest explicit preference supersedes old session-specific requests. Do not turn a temporary request for Chinese into a permanent language change.
 

@@ -69,7 +69,7 @@ def transition(phase, event, review_delivery='spoken'):
         return {'phase': phase, 'action': 'pause', 'spoken_review': False,
                 'save_selected': False, 'continue_voice': False}
     if event == 'scene_complete_and_continuing':
-        return {'phase': phase, 'action': 'offer_next_scene_or_finish', 'spoken_review': False,
+        return {'phase': phase, 'action': 'ask_open_next_step', 'spoken_review': False,
                 'save_selected': False, 'continue_voice': True}
     if event == 'review_requested':
         return {'phase': 'review', 'action': 'review', 'spoken_review': True,
@@ -119,32 +119,39 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
     roleplay = phase == 'scene' and profile['mode'] == 'roleplay'
     deferred = profile['correction'] == 'after_scene'
     in_character = profile['correction'] == 'in_character'
-    if profile['practice_language'] == 'english_first':
-        language = ('Use English for all speech-facing messages, including setup updates, word help, '
-                    'topic changes, scene introductions and coaching feedback. The written scene card uses '
-                    + profile['help_language'] + '; spoken Chinese explanation requires an explicit request. '
-                    'Chinese learner words do not switch the conversation language. ')
-        if companion:
-            language += 'Chinese help is on the companion page; its display language does not set the spoken language. '
-    else:
-        language = 'Use short English with brief ' + profile['help_language'] + ' support at the learner’s pace. '
+    language = ('Practice dialogue, whether spoken or typed, uses English only, '
+                'including setup, introductions, help, explanations, corrections, confirmations and closing. '
+                'Non-English input, an explicit request for another language and legacy language preferences '
+                'never switch the response language. Explain more simply in English. '
+                'For any non-English or mixed input, restate its meaning in simple English and perform one '
+                'explicit English confirmation check, then wait before acting on that interpretation. '
+                'Use a learner-ready phrase when wording help is needed, not only a third-person description. If unclear, ask one open clarification in English. Once confirmed, do not repeat the check; '
+                'a non-English acknowledgement of a pending check resolves it without starting a loop. '
+                'For a clear slow-down, pause or stop request, confirm the action in a brief English '
+                'acknowledgement and comply immediately without delaying for a question. Clear practice-management requests, including asking the coach to choose the next scene, are controls: acknowledge in English and act without a meaning-confirmation question. '
+                'Ask open questions or give open action cues without supplied choices, A-or-B questions, '
+                'answer menus or examples appended as candidate answers. Let the learner formulate first. '
+                'After a learner attempt, useful unresolved English structure errors still receive the saved correction style. Give one minimal English wording hint for a request, missing expression or stall. '
+                'A single meaning check is allowed, but must not replace learner-generated content. ')
+    if companion:
+        language += 'Chinese translations and model meanings remain on the companion page; they are written support, not spoken replies. Maintenance and saved reviews use the user’s current language. Raw transcripts remain source evidence. '
     if phase == 'scene':
         role = ('Be ' + scene['partner_role'] + '. ' if scene else '') if roleplay else 'Be a natural conversation partner. '
         shared = ('Read learning_context before choosing difficulty. For a learner needing support, start with '
                   'one or two short sentences, about 10–20 words total, one useful point and at most one likely-new term. '
                   'These are adjustable starting targets, not a language level or an audio limiter. '
                   'Do not shorten by dropping a useful repair: if model plus role content overloads this learner, give the model first and retain the pending role answer for the next turn. After overload feedback keep later turns lighter too. Two requested details do not invite a third unrelated fact or step; an ordinary completed answer still needs a tiny cue for the same pending decision. Natural short answers remain valid. '
-                  'Check meaning, usable English form, and the situation’s next action separately. Chinese/mixed content or missing English needs one usable phrase before role fulfillment; explicit help or ongoing formulation gets space to respond. '
+                  'Check meaning, usable English form, and the situation’s next action separately. Non-English or mixed content needs an English restatement and confirmation before role fulfillment; missing English needs one usable phrase. Explicit help or ongoing formulation gets space to respond. '
                   'Coaching feedback: address it and change that behavior, without turning it into practice. '
                   'For overload, acknowledge in one short sentence and stop; do not append a simplified lesson or a new question. '
                   'A complaint about not knowing how to continue needs a brief acknowledgement plus a relevant situation cue now. '
                   'Accept resolved checks, self-repair and normal hesitations. After help and the learner’s reply, return to role action; praise alone is not a next step. '
                   'Keep the learner’s successfully used formulation; do not replace it with synonyms after acceptance. Keep confirmed facts, pending needs and who acts next. Do not change agreed dates or collapse alternatives without a choice. A recap retains agreed items unless changed. That is all ends adding items, not necessarily collection or payment. '
                   'After an ordinary role answer, give one explicit relevant next question or action; do not assume a price or acknowledgement tells a beginner what to do. Help/formulation space, pause and end are exceptions. A still-unanswered prior question may be restated briefly. Do not mechanically repeat Anything else. '
-                  'One useful learning point and at most one main question. A brief model can accompany a short role answer if digestible. No running grades or compulsory retakes. ')
+                  'One useful learning point and at most one main question. A brief model can accompany a short role answer if digestible. No running grades or compulsory retakes. A wording model must preserve known facts. If the intended object or unit is unresolved, keep the known quantity and ask one open clarification before choosing it for the learner. ')
         if in_character:
             correction = ('English fragments with a useful unresolved structure error need one usable model even when their intent is obvious; do not silently answer only the meaning. '
-                          'Known meaning gets You can say/ask; only uncertain meaning gets a check. Explicit help gets space; a completed English turn may receive a compact model plus role answer. ')
+                          'For English-only input, known meaning gets You can say/ask and uncertain meaning gets a check. Non-English or mixed input always follows the English confirmation rule. Explicit help gets space; a completed English turn may receive a compact model plus role answer. ')
         elif deferred:
             correction = 'Save optional wording repairs for review; immediate missing-expression help still takes priority. Clarify genuine ambiguity. '
         else:
@@ -152,9 +159,9 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
                           'Give the detailed correction the learner selected, without forcing repetition. ')
         if profile.get('input_support') == 'short_turns':
             shared = ('The learner chose short turns with gradual vocabulary support; retain meaningful adult topics. '
-                      'At a new scene, briefly offer one or two useful phrases before the role opening unless declined or unnecessary from evidence. ') + shared
+                      'At a new scene, start with a short open question and allow an independent attempt; preview only a necessary comprehension word in English, without supplying the learner answer. ') + shared
         behavior = shared + correction + ('Follow requested topic changes. When the scene is complete and the learner has not ended practice, '
-                    'offer one choice to try a new scene or finish, then wait. Do not silently stop at the scene ending or force another scene. ')
+                    'ask What would you like to practice next? without naming alternatives, then wait. Do not silently stop at the scene ending or force another scene. ')
     else:
         role = 'Be a supportive coach for a requested review. '
         behavior = ('Use selected actual utterances; distinguish misunderstandings, useful improvements and optional alternatives. '
@@ -167,12 +174,12 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
     brief = 'Local reminder for the responding Agent, not a policy update for another model.\n' + language + role + behavior + ending
     if roleplay and scene:
         import re
-        intro = ('We are at ' + scene['setting'] + '. You are ' + scene['learner_role'] + '. I am ' + scene['partner_role'] + '. Your goal: ' + scene['goal'] + '.') if profile['practice_language']=='english_first' and re.search(r'[\u3400-\u9fff]',scene['introduction']) else scene['introduction']
-        brief += ('\nIntroduce this fresh scene once in ' + ('English' if profile['practice_language']=='english_first' else profile['help_language']) + ': ' + intro
-                  + '\nThen mark the English conversation boundary and open: ' + scene['opening_line'] + '\n')
+        intro = ('We are at ' + scene['setting'] + '. You are ' + scene['learner_role'] + '. I am ' + scene['partner_role'] + '. Your goal: ' + scene['goal'] + '.') if re.search(r'[\u3400-\u9fff]',scene['introduction']) else scene['introduction']
+        brief += ('\nIntroduce this fresh scene once in English; translate any non-English preparation data before speaking: ' + intro
+                  + '\nThen open in English with an open question, adapting any closed prompt without adding candidate answers: ' + scene['opening_line'] + '\n')
         if scene.get('key_terms'):
-            brief += ('Use scene.key_terms as preparation candidates: briefly preview only one or two useful items '
-                      'before the role opening, then let the learner respond. Do not read the whole plan or assume the terms are unknown.\n')
+            brief += ('Use scene.key_terms as preparation candidates: preview only a necessary comprehension word in English '
+                      'before the role opening, then let the learner respond. Do not prefill the learner answer, read the whole plan or assume the terms are unknown.\n')
     if roleplay and scene is None:
         brief = None
     return {'phase': phase, 'voice_brief': brief,
@@ -185,10 +192,13 @@ def speaking_context(profile, companion, latest, phase=None, scene=None):
                        'review_delivery': profile.get('review_delivery', 'spoken'),
                        'input_support': profile.get('input_support', 'adaptive'),
                        'history_continuation': False,
+                       'response_language': 'english_only',
+                       'non_english_input': 'confirm_in_english_once',
+                       'question_style': 'open_without_supplied_choices',
                        'proactive_teaching': phase == 'review' or not (deferred or in_character),
                        'missing_expression_help': 'immediate_before_content',
                        'english_structure_help': 'after_scene' if deferred else 'model_when_useful_even_if_understandable',
-                       'scene_completion': 'offer_next_scene_or_finish',
+                       'scene_completion': 'ask_open_next_step',
                        'next_action': 'make_relevant_next_step_visible',
                        'unsolicited_drills': False,
                        'embedded_recasts': phase == 'scene' and in_character,

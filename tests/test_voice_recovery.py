@@ -96,18 +96,31 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(second['voice_id'],'second');self.assertNotEqual(first['id'],second['id'])
         self.assertEqual(self.store.view()['total'],1)
 
-    def test_voice_brief_prioritizes_written_chinese_without_profile_mutation(self):
+    def test_voice_context_requires_english_without_profile_mutation(self):
         initialize(self.root)
         self.store.bind(THREAD,self.source,demo=False)
         before=(self.root/'profile.json').read_bytes()
         scene={'setting':'A fictional cafe','learner_role':'Guest','partner_role':'Server','goal':'Order tea',
                'introduction':'今天练习点茶。你是客人，我是服务员。','opening_line':'What would you like to drink?'}
         result=resume(self.root,'2026-01-01',scene=scene)
-        self.assertIn('Chinese help is on the companion page',result['voice_brief'])
+        self.assertEqual(result['policy']['response_language'], 'english_only')
+        self.assertEqual(result['policy']['non_english_input'], 'confirm_in_english_once')
+        self.assertEqual(result['policy']['question_style'], 'open_without_supplied_choices')
         self.assertNotIn('Help language: zh-CN',result['voice_brief'])
         self.assertNotIn('concept IDs',result['voice_brief'])
         self.assertIn('EACH new Voice',result['agent_context']['preparation'])
         self.assertFalse(result['policy']['proactive_teaching'])
+        self.assertEqual((self.root/'profile.json').read_bytes(),before)
+        # Legacy language settings are readable without re-enabling bilingual coaching.
+        from practice_context import speaking_context
+        profile=json.loads(before)
+        for language in ('english_first','bilingual'):
+            profile['practice_language']=language
+            for phase in ('scene','review'):
+                context=speaking_context(profile,True,None,phase=phase,scene=scene)
+                self.assertEqual(context['policy']['response_language'],'english_only')
+                self.assertEqual(context['policy']['question_style'],'open_without_supplied_choices')
+                self.assertNotIn(scene['introduction'],context['voice_brief'])
         self.assertEqual((self.root/'profile.json').read_bytes(),before)
 
 
