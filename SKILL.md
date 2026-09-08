@@ -11,15 +11,19 @@ Help the learner say their own meaning in usable English, then continue the situ
 
 ## Start a practice / 开始练习
 
+Use the bundled entry `scripts/coach` on macOS/Linux or `scripts/coach.ps1` on Windows. It downloads the pinned release for this machine, verifies SHA-256 and caches a standalone executable. The Agent runs it; the learner does not install Python, Node.js or Go. If downloading, system execution permission, Codex login or host transcription is unavailable, report that specific capability and continue available practice; never call an empty page “ready”. See [runtime-installation.md](references/runtime-installation.md) only for setup failures, upgrades or a new host.
+
 For an actual Voice practice, run the single entry:
 
-`python3 <skill-root>/scripts/prepare_practice.py --auto-scene --opening --with-project`
+`<skill-root>/scripts/coach prepare --auto-scene --opening --with-project`
+
+Windows uses the same arguments after `& <skill-root>/scripts/coach.ps1`.
 
 The command uses the current task's `CODEX_THREAD_ID` and verifies the source identity. If unavailable, pass the actual Voice task ID with `--thread-id`; do not list unrelated tasks when the host already supplies it. Read the returned profile, learning evidence, project context and scene. For a requested topic, use a six-field `--scene` JSON instead of `--auto-scene`; see [scenario-orchestration.md](references/scenario-orchestration.md). Old scenes inform learning needs, not a repeated opening plot. The same binding reuses the same scene on retries.
 
 If `conversation_may_start` is true, open `url` once and inspect through the host-permitted route. A queued display gets one permitted recovery, then an honest written link/status. **Introduce the place, roles and goal in short English, then use the scene opening immediately.** The scene returned by setup is preparation data, not an introduction the learner has already heard; a bare shop greeting does not complete this step. Do not reread the voice manual, curl a healthy service, wait for subtitles, or complete knowledge cleanup before this first line. The local preparation entry already checks service ownership, code revision and exact binding. Required host preference/service rules still apply; keep their returned context compact, and separate initial required checks from deferred maintenance. No new global model setting is implied.
 
-Retain `review_url`. Due review can use a relevant phrase; do not reopen its old plot. Missing configured storage needs recovery, not an empty replacement. New users get external local data automatically. Text practice uses `practice_store.py resume --compact --with-project` and `open_library.py --page overview --no-browser`; no Voice binding.
+Retain `review_url`. Due review can use a relevant phrase; do not reopen its old plot. Missing configured storage needs recovery, not an empty replacement. New users get external local data automatically. Text practice uses `coach resume --compact --with-project` and `coach open --page overview --no-browser`; no Voice binding.
 
 Honor a returned review phase or conversation mode: begin its due review or brief conversation question instead of inventing a roleplay introduction.
 
@@ -43,13 +47,15 @@ Detailed examples/modes: [practice-phases.md](references/practice-phases.md). Li
 
 The companion preserves original transcripts. Explicit continuation fragments are annotated rather than presented as independent vocabulary. Alongside the existing translation request, it can display ONE source-linked model or next-scene cue with reading groups. This is a written suggestion, not something Voice said or proof of mastery; stale cues disappear when a new learner turn arrives. It does not change raw evidence or speak through the microphone.
 
+Source ingestion, translation and review use independent workers. Translation errors retain fresh English and offer a bounded retry; they never finish the transcript binding. A source identity/error stops only the unsafe source read. Review keeps its own durable state.
+
 A separate native Voice model can answer without delegation or paraphrase a backend reply. The responding Agent owns its own teaching and language, but a skill cannot enforce another model's autonomous speech. Never simulate roles or relay disguised instructions. Use [voice-delivery.md](references/voice-delivery.md) only for an unfamiliar host, unresolved delivery mismatch or end/tail contract. Routine queued recovery is the single bounded step above, not a reason to reread a manual before opening. Do not promise that an instruction edit or a working page fixed actual Voice behavior.
 
 ## End and review / 结束与复盘
 
 An explicit bye/end stops speech immediately; only that request authorizes the host end-call tool. Do not keep the microphone open for paperwork. A scene completion or ordinary “that's all” does not itself end the practice. Spoken review is allowed only while practice continues and the saved/requested mode calls for it.
 
-1. Open retained `review_url` on the written surface. The local worker observes the exact registered Voice close and generates independently. On a real end/tail callback, `practice_store.py review-begin --thread-id <task> --voice-id <voice>` queues/reuses it once. No competing draft or repeated polling scripts in the parent task.
+1. Open retained `review_url` on the written surface. The local worker observes the exact registered Voice close and generates independently. On a real end/tail callback, `coach review-begin --thread-id <task> --voice-id <voice>` queues/reuses it once. No competing draft or repeated polling scripts in the parent task.
 2. The page can show complete source-checked expression suggestions while the same request finishes. These are provisional suggestions, not saved learning records. The full review separately checks sentence needs, words, reading help and coach faults; all learner turns are accounted for, with no fixed card quota. Successful repetition is not independent mastery.
 3. Saved results update the exact page; recent-review navigation retains the entry. A generating/preview state is not saved. An error preserves work and offers retry. Verify status once as needed; the page and worker own progress, without source-code searches or knowledge cleanup in the critical path.
 4. Manual recovery applies only when the local worker is unavailable or failed and its ownership has been checked. See [review-worker.md](references/review-worker.md) and [record-recovery.md](references/record-recovery.md). Duplicate callbacks reuse canonical records. Respect the host's actual end/tail and inline-display contract.
@@ -60,4 +66,4 @@ An explicit bye/end stops speech immediately; only that request authorizes the h
 
 `profile.json` owns adopted preferences; change through `set-preferences` with a fresh hash and a real user decision. `Sessions/`, `Evidence/`, `Archive/` hold selected learning facts; `Pending/` and runtime preserve recoverable work; web pages/indexes are derived. Private data must not be published. See [storage-and-library.md](references/storage-and-library.md), [data-schema.md](references/data-schema.md), [review-strategy.md](references/review-strategy.md) and [concept-progress.md](references/concept-progress.md) only for relevant maintenance. Caption recovery uses [live-companion.md](references/live-companion.md).
 
-Keep source, installed files and loaded Python revision consistent. Use the existing service manager for a necessary restart after checking no Voice is active; verify identity and page/API health. Follow [experience-validation.md](references/experience-validation.md): program tests, independent textual rehearsal and actual Voice each establish different things. Preserve failed trials, use fictional/isolated test archives, and report actual speech timing and behavior as unverified unless observed in a real practice.
+Keep source, installed files and loaded Go build revision consistent. Release programs and ordinary startup never call the legacy Python implementation; it is retained only as a developer comparison oracle. Use the existing service manager for a necessary restart after checking no Voice is active; verify identity and page/API health. Follow [experience-validation.md](references/experience-validation.md): program tests, independent textual rehearsal and actual Voice each establish different things. Preserve failed trials, use fictional/isolated test archives, and report actual speech timing and behavior as unverified unless observed in a real practice.

@@ -56,7 +56,7 @@ This example illustrates the schema, not a practice record to import. Replace it
 Do not rewrite a completed session merely to add this structure. Agent may extract only source-supported evidence into `Evidence/EVD-YYYYMMDD-NNN.md` through:
 
 ```sh
-python3 <skill>/scripts/practice_store.py add-evidence --input <evidence.json>
+<skill>/scripts/coach add-evidence --input <evidence.json>
 ```
 
 The input contains `id`, `session`, the original practice `date`, actual `source_ids`, `reason`, and `concept_observations`. A same-ID retry is idempotent; a conflict fails. The old session stays unchanged. If the original question, timing, assistance or audio was not saved, mark the limitation rather than reconstructing it from memory.

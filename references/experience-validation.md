@@ -51,9 +51,9 @@ For closeout, include an ended callback with a generic acknowledgement hint. Ver
 - Captions: test 40→41→42 utterances, delayed Chinese, viewport resize, explicit pause/resume and a run change. The document has no vertical overflow in live view; only the feed scrolls. Following stays on by default.
 - Review: exercise exact-Voice waiting, preparing, delayed and saved states; saved redirects once to the matching lesson. Distinguish total end-turn latency from local command duration.
 - Vocabulary: session card count, theme counts and pager share the same scope; all-history is one clear action away. Test rapid reverse flips and reduced motion; only one face is visible and no text is mirrored. Chinese prompts should not contain the English answer.
-- Runtime: compare source, installed files and loaded service revision after Python changes. Agent uses the existing owner/manager for a necessary restart after Voice ends. A page refresh alone is insufficient.
+- Runtime: compare source, installed files and loaded service revision after Go or embedded page changes. Agent uses the existing owner/manager for a necessary restart after Voice ends. A page refresh alone is insufficient.
 
-Run `python3 -m unittest discover -s tests`, `node tests/test_page_updates.cjs`, and `node tests/test_live_updates.cjs` from the skill source. These are Agent maintenance commands, not learner setup steps. Verify actual viewport/keyboard interactions with the available browser tools. An independent textual rehearsal checks the generated coaching responses; it does not certify native Voice latency or paraphrasing.
+Run `go test -race ./...`, `go vet ./...`, `node tests/test_page_updates.cjs`, and `node tests/test_live_updates.cjs` from the skill source. These are Agent maintenance commands, not learner setup steps. Verify actual viewport/keyboard interactions with the available browser tools. An independent textual rehearsal checks the generated coaching responses; it does not certify native Voice latency or paraphrasing.
 
 ## English form, continuity and closeout coverage / 英文句型、推进与复盘覆盖
 

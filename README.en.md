@@ -30,13 +30,17 @@ Codex automatically opens the local learning page at the start of every practice
 | Local learning data | Open the folder, download a full backup, restore a backup or use another copied archive |
 | Flashcards | Recall before flipping; expand saved reading and memory tips when useful |
 
+On first use, Codex downloads and verifies the standalone program for this computer, then reuses it. **No Python, Node.js or Go installation is required.** Desktop support and limits are described below.
+
 ## Before you use it
 
-- Use Codex with skill installation and local file access.
+- Use Codex on macOS, Windows or Linux with skill installation and local file access. Live bilingual captions additionally require the host to expose both sides of the transcript during a call; ordinary web chat and mobile apps do not automatically have this capability.
 - The bilingual companion and independent session reviews use your existing ChatGPT login and account quota, without a separate API key. Caption availability depends on the Voice transcript.
 - Learning records are separate from the Skill program. New users automatically start in `~/.codex/english-speaking-coach/data`, outside the Skill; installation does not require choosing a folder. Use “Open learning folder” to view the data. On a new computer, restore a backup or use the copied learning folder; Codex can handle this for you, and the old folder is retained. AI conversation and translation still use the connected model services; the bilingual companion temporarily keeps recent transcripts and translations.
 
 The local service generates reviews independently, so leaving the current chat does not interrupt them. The page first shows source-checked expression suggestions, then completes and saves the full review; failures can be retried. Model generation still takes time; there is no fixed-time guarantee.
+
+If translation disconnects, new original text still appears; the page explains the failure and offers retry. A healthy backend does not prove that the host exposes live transcripts, so Codex checks these separately.
 
 Native Voice can respond autonomously or paraphrase the Agent’s English. The Skill therefore cannot guarantee that Voice always speaks English or handles pauses correctly; captions cannot control speech either. This is a current host limitation.
 

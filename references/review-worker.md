@@ -4,7 +4,7 @@ The archive service owns one bounded worker per learning root. This avoids coupl
 
 ## Lifecycle / 生命周期
 
-- prepare_practice registers only the exact practice Voice and source file. A late Voice start gets a scoped watch. Ordinary maintenance never binds Voice.
+- `coach prepare` registers only the exact practice Voice and source file. A late Voice start gets a scoped watch. Ordinary maintenance never binds Voice.
 - The worker sees a confirmed close, queues that Voice, reads its unique public transcript, and makes one tool-disabled ephemeral model request through the existing ChatGPT login. It does not read hidden reasoning or arbitrary other tasks.
 - Current model: gpt-5.6-sol, low effort. Generation has a 120-second request timeout. One validation repair is allowed, not endless automatic retries. Connection/account failures preserve an actionable error; no API-key fallback.
 - Short temporary turn IDs reduce repeated output tokens; the program restores exact source IDs before validation and saving. The JSON schema fixes the transport. Deterministic checks require exact quotes, all learner turns accounted for, separate word-help assessments, and reading help or a reason to omit it for priorities. A short-question default avoids artificial internal pauses. Redundant omissions of already-selected turns are removed by code. Invalid optional reading annotations are withheld with an explicit note and omission reason; they do not trigger regenerating a correct core lesson. Semantic judgments are still model judgments.

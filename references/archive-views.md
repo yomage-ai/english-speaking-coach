@@ -8,6 +8,6 @@ Three layers answer different questions:
 
 词句包括有学习价值的词、短语、具体义项和句型。闪卡数、跟踪词句数和观察次数不是同一个指标，也不是已掌握词汇量。同一个词的不同义项使用不同 ID；原始整句卡和抽取短语可分别回顾。
 
-`progress_views.py` derives snapshots without mutating sources. API list and summary responses exclude full histories; `/api/progress/<id>` returns only the requested history page. Months are a compact index of available history. Raw records remain local. Period comparison is a product convention, not a proficiency score.
+`progress.go` derives snapshots without mutating sources. API list and summary responses exclude full histories; `/api/progress/<id>` returns only the requested history page. Months are a compact index of available history. Raw records remain local. Period comparison is a product convention, not a proficiency score.
 
 Tests use synthetic evidence to check a 1,201-item index and 1,500-event history, date boundaries, first observations, later difficulty, search and pagination. These are bounded-response checks, not a claim of production performance at every scale. The current source reader rebuilds an in-memory index when source files change. Add disk indexing only after a measured bottleneck justifies it.

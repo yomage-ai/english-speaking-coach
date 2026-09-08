@@ -24,3 +24,7 @@ workspace.json
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
+/bin/
+/dist/
+/english-coach
+/english-coach.exe

@@ -1,0 +1,33 @@
+#!/bin/sh
+# Agent entry point. Downloads a pinned standalone binary; never installs a runtime.
+set -eu
+coach_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+coach_version=$(tr -d '\r\n' < "$coach_root/runtime-version.txt")
+case "$coach_version" in v[0-9]*.[0-9]*.[0-9]*) ;; *) echo 'Invalid pinned runtime version' >&2; exit 1;; esac
+case "$(uname -s)" in Darwin) coach_os=darwin;; Linux) coach_os=linux;; *) echo 'Use scripts/coach.ps1 on Windows.' >&2; exit 1;; esac
+case "$(uname -m)" in arm64|aarch64) coach_arch=arm64;; x86_64|amd64) coach_arch=amd64;; *) echo 'Unsupported CPU architecture' >&2; exit 1;; esac
+coach_name="english-coach_${coach_version}_${coach_os}_${coach_arch}"
+coach_binary="$coach_root/bin/$coach_name"
+if [ ! -x "$coach_binary" ]; then
+  mkdir -p "$coach_root/bin"
+  coach_tmp=$(mktemp -d "$coach_root/bin/.download-XXXXXX")
+  trap 'rm -rf "$coach_tmp"' EXIT HUP INT TERM
+  coach_base="https://github.com/yomage-ai/english-speaking-coach/releases/download/$coach_version"
+  curl --fail --location --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 180 --retry 2 "$coach_base/$coach_name.tar.gz" -o "$coach_tmp/archive.tar.gz"
+  curl --fail --location --proto '=https' --tlsv1.2 --connect-timeout 15 --max-time 60 --retry 2 "$coach_base/SHA256SUMS" -o "$coach_tmp/SHA256SUMS"
+  coach_expected=$(awk -v name="$coach_name.tar.gz" '$2 == name {print $1}' "$coach_tmp/SHA256SUMS")
+  [ ${#coach_expected} -eq 64 ] || { echo 'Missing or duplicate release checksum' >&2; exit 1; }
+  if command -v sha256sum >/dev/null 2>&1; then coach_actual=$(sha256sum "$coach_tmp/archive.tar.gz" | awk '{print $1}'); else coach_actual=$(shasum -a 256 "$coach_tmp/archive.tar.gz" | awk '{print $1}'); fi
+  [ "$coach_actual" = "$coach_expected" ] || { echo 'Release checksum mismatch; nothing installed' >&2; exit 1; }
+  # The archive is produced by the pinned release workflow. Extract just the binary.
+  tar -xzf "$coach_tmp/archive.tar.gz" -C "$coach_tmp" english-coach LICENSE THIRD_PARTY_NOTICES.txt
+  chmod 755 "$coach_tmp/english-coach"
+  "$coach_tmp/english-coach" version > "$coach_tmp/version.json"
+  mv "$coach_tmp/LICENSE" "$coach_root/bin/$coach_name.LICENSE"
+  mv "$coach_tmp/THIRD_PARTY_NOTICES.txt" "$coach_root/bin/$coach_name.NOTICES.txt"
+  mv "$coach_tmp/english-coach" "$coach_binary"
+  rm -rf "$coach_tmp"
+  trap - EXIT HUP INT TERM
+fi
+export ENGLISH_COACH_SKILL_ROOT="$coach_root"
+exec "$coach_binary" "$@"
