@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,6 +14,27 @@ import (
 )
 
 const maxLine = 8 * 1024 * 1024
+
+type sourcePendingError struct{ reason string }
+
+func (e sourcePendingError) Error() string { return e.reason }
+
+// Shared by live ingestion and closed snapshots so review cannot silently cover
+// a different set of utterances. Empty interim text is not a completed utterance.
+func transcriptSegment(p, row M) M {
+	if !has(stringsA("user", "assistant"), p["role"]) {
+		return nil
+	}
+	text, ok := p["text"].(string)
+	require(ok, "Voice 片段缺少原话文本；读取已停止。")
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+	require(str(p["id"]) != "", "Voice 片段缺少标识；读取已停止。")
+	require(len([]rune(text)) <= 12000, "Voice 片段过长；读取已停止。")
+	stamp(str(row["timestamp"]))
+	return merge(pick(p, "id", "role", "text"), pick(row, "timestamp", "ordinal"))
+}
 
 // Complete JSONL lines only. The byte cursor never advances over a partial UTF-8 write.
 func scanLines(path string, cursor int64, budget int64, visit func(M)) (next int64, partial bool) {
@@ -39,12 +61,11 @@ func scanLines(path string, cursor int64, budget int64, visit func(M)) (next int
 			break
 		}
 		require(utf8.Valid(line), "Voice 日志不是有效 UTF-8。")
-		next += int64(len(line))
 		var row M
-		if json.Unmarshal(line, &row) != nil {
-			continue
-		}
+		err := json.Unmarshal(line, &row)
+		require(err == nil && str(row["type"]) != "", fmt.Sprintf("Voice 日志在字节 %d 有损坏的完整行；未跳过，已有原话保留。", next))
 		visit(row)
+		next += int64(len(line))
 	}
 	return
 }
@@ -113,12 +134,10 @@ func snapshotVoice(source, thread, voice string) M {
 		case "realtime_session_closed":
 			closed = str(row["timestamp"])
 		case "transcript_segment":
-			if !has(stringsA("user", "assistant"), p["role"]) {
+			s := transcriptSegment(p, row)
+			if s == nil {
 				return
 			}
-			require(str(p["id"]) != "" && strings.TrimSpace(str(p["text"])) != "", "指定 Voice 有无效片段。")
-			require(len([]rune(str(p["text"]))) <= 12000, "Voice 片段过长。")
-			s := merge(pick(p, "id", "role", "text"), pick(row, "timestamp", "ordinal"))
 			if i, ok := indices[str(s["id"])]; ok {
 				rows[i] = reconcileSegment(obj(rows[i]), s)
 			} else {
@@ -128,8 +147,13 @@ func snapshotVoice(source, thread, voice string) M {
 			require(len(rows) <= 2000, "单场 Voice 超过 2000 个片段。")
 		}
 	})
-	require(started != "" && closed != "" && !stamp(closed).Before(stamp(started)), "仅恢复有明确开始和结束的指定 Voice；未监听下一场。")
-	require(!partial, "源日志尾行尚未写完整，请稍后重试。")
+	if started == "" || closed == "" {
+		panic(sourcePendingError{"仅恢复有明确开始和结束的指定 Voice；未监听下一场。"})
+	}
+	require(!stamp(closed).Before(stamp(started)), "Voice 结束时间早于开始时间；未生成复盘。")
+	if partial {
+		panic(sourcePendingError{"源日志尾行尚未写完整，请稍后重试。"})
+	}
 	return M{"source": source, "thread_id": thread, "voice_id": voice, "voice_started_at": started, "voice_closed_at": closed, "snapshot_at": now(), "cursor": cursor, "segments": rows}
 }
 func annotateFragments(rows A) A {

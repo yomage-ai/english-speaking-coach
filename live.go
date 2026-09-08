@@ -191,6 +191,9 @@ func (l *Live) insertSegments(run string, rows A) bool {
 			merged := reconcileSegment(old, r)
 			if merged["text"] != old["text"] {
 				sqlExec(tx, "UPDATE segments SET text=?,chinese=NULL,status='pending',attempts=0,translated_at=NULL,latency=NULL WHERE run=? AND id=?", r["text"], run, r["id"])
+				state := parseObject(str(obj(query(tx, "SELECT state FROM runs WHERE id=?", run)[0])["state"]))
+				delete(obj(state["translation_rejected"]), str(r["id"]))
+				sqlExec(tx, "UPDATE runs SET state=? WHERE id=?", compact(state), run)
 				changed = true
 			}
 			continue
@@ -238,11 +241,9 @@ func (l *Live) readTail(s M) {
 			}
 			fields["voice_closed_at"] = row["timestamp"]
 		case "transcript_segment":
-			if !has(stringsA("user", "assistant"), p["role"]) || str(p["id"]) == "" || strings.TrimSpace(str(p["text"])) == "" {
-				return
+			if segment := transcriptSegment(p, row); segment != nil {
+				rows = append(rows, segment)
 			}
-			require(len([]rune(str(p["text"]))) <= 12000, "转写片段过长，读取已停止。")
-			rows = append(rows, merge(pick(p, "id", "role", "text"), pick(row, "timestamp", "ordinal")))
 		}
 	})
 	if l.insertSegments(str(s["id"]), rows) {
@@ -258,7 +259,16 @@ func (l *Live) readTail(s M) {
 	}
 	s = l.patch(str(s["id"]), fields)
 	if str(s["voice_id"]) != "" {
-		l.registerReview(s)
+		// Review metadata belongs to closeout, not source integrity. Its failure
+		// must not stop receiving the remaining conversation.
+		registrationError := attempt(func() { l.registerReview(s) })
+		var diagnostic any
+		if registrationError != nil {
+			diagnostic = registrationError.Error()
+		}
+		if s["review_error"] != diagnostic {
+			s = l.patch(str(s["id"]), M{"review_error": diagnostic})
+		}
 	}
 	end := num(s["close_epoch"])
 	if s["desired"] == "drain" && end == 0 {
@@ -320,13 +330,16 @@ func (l *Live) failBatch(run string, rows A) {
 		sqlExec(l.db, "UPDATE segments SET status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'pending' END WHERE run=? AND id=? AND text=? AND status='translating'", run, r["id"], r["text"])
 	}
 }
-func (l *Live) rememberTranslationErrors(run string, valid A, rejected M) {
+func (l *Live) rememberTranslationErrors(run string, valid A, rejected M, expected M) {
 	errors := copyM(obj(l.run(run)["translation_rejected"]))
 	for _, v := range valid {
 		delete(errors, str(obj(v)["id"]))
 	}
 	for id, reason := range rejected {
-		errors[id] = reason
+		rows := query(l.db, "SELECT text,status FROM segments WHERE run=? AND id=?", run, id)
+		if len(rows) > 0 && obj(rows[0])["text"] == expected[id] && obj(rows[0])["status"] != "translated" {
+			errors[id] = reason
+		}
 	}
 	l.patch(run, M{"translation_rejected": errors})
 }
@@ -350,6 +363,10 @@ func (l *Live) view(a M) M {
 	offset := max(0, total-40)
 	if str(a["page"]) != "" {
 		offset = (page - 1) * 40
+	}
+	if str(a["offset"]) != "" {
+		offset = clampInt(a["offset"], offset, 0, max(0, total-1))
+		page = min(pages, (offset+39)/40+1)
 	}
 	lookback := min(4, offset)
 	rows := query(l.db, "SELECT * FROM segments WHERE run=? ORDER BY seq LIMIT ? OFFSET ?", id, 40+lookback, offset-lookback)
@@ -375,7 +392,7 @@ func (l *Live) view(a M) M {
 		r := parseObject(str(obj(v)["state"]))
 		history = append(history, pick(r, "id", "created_at", "demo", "status", "thread_id", "recovery_mode", "voice_started_at"))
 	}
-	return M{"state": s, "items": rows, "teaching": hint, "total": total, "counts": counts, "page": page, "pages": pages, "enabled": l.enabled(), "server_time": now(), "history": history}
+	return M{"state": s, "items": rows, "teaching": hint, "total": total, "counts": counts, "page": page, "pages": pages, "offset": offset, "enabled": l.enabled(), "server_time": now(), "history": history}
 }
 func (l *Live) registerReview(s M) {
 	thread, voice := str(s["thread_id"]), str(s["voice_id"])
@@ -440,6 +457,7 @@ func runTranslations(ctx context.Context, root string) {
 		}
 	}()
 	current := ""
+	taught := ""
 	failures := 0
 	retryAt := 0.0
 	for {
@@ -459,12 +477,14 @@ func runTranslations(ctx context.Context, root string) {
 			continue
 		}
 		id := str(s["id"])
+		l.copyLocalTranscripts(id)
 		if id != current {
 			if client != nil {
 				client.close()
 			}
 			client = nil
 			current = id
+			taught = ""
 			failures = 0
 			retryAt = 0
 			sqlExec(l.db, "UPDATE segments SET status='pending' WHERE run=? AND status='translating'", id)
@@ -491,7 +511,9 @@ func runTranslations(ctx context.Context, root string) {
 				l.patch(id, M{"ready": true, "translation_status": "ready", "connection": M{"model": s["model"], "effort": "low", "auth": "chatgpt", "ephemeral": true}})
 			}
 			rows = l.batch(id)
-			if len(rows) == 0 {
+			teaching := l.teachingContext(id)
+			key := teachingKey(teaching)
+			if len(rows) == 0 && (key == "" || key == taught) {
 				return
 			}
 			l.patch(id, M{"translation_status": "translating"})
@@ -500,12 +522,13 @@ func runTranslations(ctx context.Context, root string) {
 				r := obj(v)
 				expected[str(r["id"])] = r["text"]
 			}
-			out, hint, rejected, latency := client.translate(ctx, rows, l.teachingContext(id), func(part A, seconds float64) { l.translated(id, part, seconds, expected) })
+			out, hint, rejected, latency := client.translate(ctx, rows, teaching, func(part A, seconds float64) { l.translated(id, part, seconds, expected) })
+			taught = key
 			l.translated(id, out, latency, expected)
 			// Semantic failures retry only their own rows, at most twice. They
 			// never trip the connection circuit breaker or discard valid rows.
 			l.failBatch(id, rows)
-			l.rememberTranslationErrors(id, out, rejected)
+			l.rememberTranslationErrors(id, out, rejected, expected)
 			if hint != nil {
 				l.setMeta("hint:"+id, compact(hint))
 			} else {

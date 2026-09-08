@@ -19,21 +19,21 @@ window.CoachLive = (() => {
   }
   function notice(text) {const el=get('#live-notice');if(el){el.hidden=!text;get('#live-notice-text').textContent=text;}}
   function hintCard(hint) {
-    if(!hint||options.page)return '';
+    if(!hint||options.page||options.offset!==undefined)return '';
     return `<aside class="live-hint" aria-label="当前表达提示"><div class="live-speaker"><strong>${hint.kind==='help'?'这一句可以这样说':'接下来可以聊'}</strong><span class="help"><button type="button" aria-label="表达提示说明" aria-expanded="false">?</button><span class="help-body" role="tooltip">这是根据最新发言生成的书面建议，不是 Voice 原话，也不代表已经掌握。一次保留一个说法；说顺后继续场景。断句按意思轻停，不必每块都停。</span></span></div>${hint.english?`<p class="live-english" lang="en">${e(hint.english)}</p><p class="live-translation">${e(hint.chinese)}</p>${hint.groups?.length>1?`<p class="live-groups"><span>轻停参考</span> ${hint.groups.map(e).join(' / ')}</p>`:''}`:''}${hint.next_cue?`<p class="live-next" lang="en">${e(hint.next_cue)}</p>`:''}</aside>`;
   }
   function utterance(x, open, state) {
     const fragment=x.fragment,tail=fragment?.kind==='word_tail';
     const annotation=tail?`<p class="live-fragment">转写续接 · 可能与前段连读 <strong lang="en">${e(fragment.joined_word)}</strong>，不是单独词条。</p>`:fragment?'<p class="live-fragment">前句续接 · 原始转写片段</p>':'';
     const translation=tail?'':x.status==='translated'?chinese?`<p class="live-translation" lang="zh-CN">${e(x.chinese)}</p>`:`<details class="live-answer" data-segment="${e(x.id)}" ${open.has(x.id)?'open':''}><summary>看中文</summary><p lang="zh-CN">${e(x.chinese)}</p></details>`:`<p class="live-pending">${x.status==='failed'?'这句中文待补，可重试':state?.translation_status==='unavailable'?'中文待补':['ended','error','expired','stopped'].includes(state?.status)?'中文尚未完成，原文已保留':'中文稍后出现…'}</p>`;
-    return `<article class="live-utterance ${x.role==='user'?'live-user':'live-coach'}"><div class="live-speaker"><span>${x.role==='user'?'你 · YOU':'教练 · COACH'}</span><time>${e(stamp(x.timestamp))}</time></div><p class="live-english" lang="en">${e(x.text)}</p>${annotation}${translation}</article>`;
+    return `<article data-row="${e(x.id)}" class="live-utterance ${x.role==='user'?'live-user':'live-coach'}"><div class="live-speaker"><span>${x.role==='user'?'你 · YOU':'教练 · COACH'}</span><time>${e(stamp(x.timestamp))}</time></div><p class="live-english" lang="en">${e(x.text)}</p>${annotation}${translation}</article>`;
   }
   function paint(data) {
     current = data;
     const s=data.state, feed=get('#live-feed');if(!feed)return;
     if(get('#live-scene'))get('#live-scene').textContent=s?.scene_introduction||'继续用英文聊。没听懂时，看一眼这里。';
     get('#sync').textContent='伴随检查于 '+stamp(data.server_time);get('#revision').textContent='双语伴随';
-    get('#live-status').textContent=s?.stale?'后台暂未响应':s?(s.translation_status==='unavailable'&&!['ended','error','expired','stopped'].includes(s.status)?'英文继续更新 · 中文暂不可用':s.status==='waiting_voice'&&!s.ready?'已绑定 · 等待本次 Voice':statusNames[s.status]||s.status):'尚未开始伴随';
+    get('#live-status').textContent=s?.stale?'后台暂未响应':s?(s.translation_status==='unavailable'&&!['ended','error','expired','stopped'].includes(s.status)?'原话继续更新 · 中文暂不可用':s.status==='waiting_voice'&&!s.ready?'已绑定 · 等待本次 Voice':statusNames[s.status]||s.status):'尚未开始伴随';
     get('#live-status').classList.toggle('live-error',!!(s?.stale||s?.error||s?.translation_error));
     let messages=[];
     if(s?.demo)messages.push('虚构测试演示 · 这里用于查看翻译效果，没有写入正式学习档案。');
@@ -41,22 +41,26 @@ window.CoachLive = (() => {
     if(s?.recovery_mode==='after_voice')messages.push('课后补译 · 原话保留');
     if(s?.stale)messages.push('最近未收到后台心跳，请让 Agent 检查伴随服务。页面仍可回看已有内容。');
     if(s?.error)messages.push('转写需要检查，已有内容可回看。');
-    if(s?.translation_error)messages.push(s.desired==='stopped'?'中文尚未补齐，原话已保留。':'中文连接暂不可用，原话继续更新。');
-    const failed=data.counts.failed||0;
+    if(s?.translation_error)messages.push(s.desired==='stopped'?'中文尚未补齐，原话已保留。':'中文暂不可用，原话继续更新。');
+    if(s?.review_error)messages.push('复盘登记需要检查，原话与翻译继续更新。');
+    const failed=data.counts.failed||0, pending=(data.counts.pending||0)+(data.counts.translating||0);
+    const ended=['ended','error','expired','stopped'].includes(s?.status);
     if(failed&&!s?.translation_error)messages.push(`${failed} 句中文待补，其余内容继续更新。`);
-    get('#live-diagnostic').textContent=[s?.error,s?.translation_error,...Object.values(s?.translation_rejected||{})].filter(Boolean).join(' · ')||'暂无异常';
-    const retry=get('#live-retry-translation');if(retry)retry.hidden=!((s?.translation_error||failed)&&s.status!=='recovering');
+    get('#live-diagnostic').textContent=[s?.error,s?.translation_error,s?.review_error,...Object.values(s?.translation_rejected||{})].filter(Boolean).join(' · ')||'暂无异常';
+    const retry=get('#live-retry-translation');if(retry){retry.hidden=!!s?.imported||!((s?.translation_error||failed||(ended&&pending))&&s.status!=='recovering');retry.disabled=!!s?.recovery_requested;retry.textContent=s?.recovery_requested?'补译已排队':'重试中文';}
     if(s?.invalid_lines)messages.push(`有 ${s.invalid_lines} 行日志未能读取，请让 Agent 检查遗漏。`);
     notice(messages.join(' '));
     const runOptions=[`<option value="">当前伴随</option>`,...data.history.map(r=>`<option value="${e(r.id)}">${e(new Date(r.voice_started_at||r.created_at).toLocaleString('zh-CN'))} · ${r.demo?'测试演示':r.recovery_mode==='after_voice'?'结束后恢复':'英语练习'}</option>`)].join('');
     if(get('#live-runs').innerHTML!==runOptions){get('#live-runs').innerHTML=runOptions;get('#live-runs').value=options.run||'';}
     get('#live-count').textContent=` · ${data.total} 句`;
-    const pending=(data.counts.pending||0)+(data.counts.translating||0);
     get('#live-time').textContent=s?`转写 ${stamp(s.last_transcript_at)}${pending?` · ${pending} 句待翻译`:''}`:'开始后自动绑定本次 Voice';
     const review=get('#live-review');if(review){review.hidden=!s?.voice_id;if(s?.voice_id)review.href='#review?'+new URLSearchParams({thread:s.thread_id,voice:s.voice_id});}
-    const signature=JSON.stringify([s?.id,s?.status,s?.translation_status,s?.ready,data.items.map(x=>[x.seq,x.text,x.status,x.chinese,x.fragment]),data.teaching,chinese]);
+    const signature=JSON.stringify([s?.id,s?.status,s?.translation_status,s?.ready,data.items.map(x=>[x.seq,x.text,x.status,x.chinese,x.fragment]),data.teaching,chinese,options.page,options.offset]);
     if(signature!==fingerprint) {
       const scroll=feed.scrollTop;
+      const top=feed.getBoundingClientRect?.().top;
+      const anchor=[...feed.querySelectorAll('[data-row]')].find(el=>el.getBoundingClientRect().bottom>top);
+      const anchorID=anchor?.dataset.row, anchorTop=anchor?.getBoundingClientRect().top;
       const open=new Set([...feed.querySelectorAll('details[open]')].map(x=>x.dataset.segment));
       if(s?.id!==shownRun){shownRun=s?.id;follow=true;}
       if(!data.items.length) {
@@ -66,7 +70,11 @@ window.CoachLive = (() => {
         feed.innerHTML=data.items.map(x=>utterance(x,open,s)).join('')+hintCard(data.teaching);
       }
       fingerprint=signature;
-      if(follow&&!options.page)feed.scrollTop=feed.scrollHeight;else feed.scrollTop=scroll;
+      if(follow&&!options.page)feed.scrollTop=feed.scrollHeight;else {
+        feed.scrollTop=scroll;
+        const restored=[...feed.querySelectorAll('[data-row]')].find(el=>el.dataset.row===anchorID);
+        if(restored)feed.scrollTop+=restored.getBoundingClientRect().top-anchorTop;
+      }
     }
     get('#live-page').textContent=!follow&&!options.page?`已暂停滚动 · 共 ${data.total} 句`:options.page?`第 ${data.page}/${data.pages} 页`:`最新 ${data.items.length} / ${data.total} 句`;
     get('#live-pause').hidden=!follow;
@@ -95,13 +103,13 @@ window.CoachLive = (() => {
     resizeObserver?.disconnect();
     resizeObserver=new ResizeObserver(()=>{if(follow&&!options.page){const f=get('#live-feed');if(f)f.scrollTop=f.scrollHeight;}});
     resizeObserver.observe(get('#live-feed'));
-    const retry=get('#live-retry-translation');if(retry)retry.addEventListener('click',async()=>{retry.disabled=true;try{const storage=await fetch('/api/storage',{cache:'no-store'});const info=await storage.json();if(!storage.ok)throw new Error(info.error||'读取失败');const response=await fetch('/api/live/retry',{method:'POST',headers:{'Content-Type':'application/json','X-Coach-Token':info.open_token},body:JSON.stringify({run:current.state.id})});const result=await response.json();if(!response.ok)throw new Error(result.error||'重试失败');refresh();}catch(error){notice(error.message);}finally{retry.disabled=false;}});
+    const retry=get('#live-retry-translation');if(retry)retry.addEventListener('click',async()=>{const run=current?.state?.id, token=generation;if(!run)return;retry.disabled=true;try{const storage=await fetch('/api/storage',{cache:'no-store'});const info=await storage.json();if(!storage.ok)throw new Error(info.error||'读取失败');const response=await fetch('/api/live/retry',{method:'POST',headers:{'Content-Type':'application/json','X-Coach-Token':info.open_token},body:JSON.stringify({run})});const result=await response.json();if(!response.ok)throw new Error(result.error||'重试失败');if(token===generation)refresh();}catch(error){if(token===generation)notice(error.message);}finally{if(token===generation)retry.disabled=false;}});
     get('#live-chinese').addEventListener('change',event=>{chinese=event.target.checked;localStorage.setItem('coach-live-chinese',chinese?'always':'on-demand');paint(current);});
     get('#live-runs').addEventListener('change',event=>{location.hash='#live'+(event.target.value?'?run='+event.target.value:'');});
-    get('#live-older').addEventListener('click',()=>{options.page=String(current.page-1);follow=false;refresh();get('#live-feed').scrollTop=0;});
-    get('#live-newer').addEventListener('click',()=>{options.page=String(current.page+1);follow=false;refresh();get('#live-feed').scrollTop=0;});
-    get('#live-follow').addEventListener('click',()=>{delete options.page;follow=true;refresh();const f=get('#live-feed');f.scrollTop=f.scrollHeight;});
-    get('#live-pause').addEventListener('click',()=>{follow=false;paint(current);});
+    get('#live-older').addEventListener('click',()=>{delete options.offset;options.page=String(Math.max(1,current.page-1));follow=false;refresh();get('#live-feed').scrollTop=0;});
+    get('#live-newer').addEventListener('click',()=>{delete options.offset;options.page=String(current.page+1);follow=false;refresh();get('#live-feed').scrollTop=0;});
+    get('#live-follow').addEventListener('click',()=>{delete options.page;delete options.offset;follow=true;refresh();const f=get('#live-feed');f.scrollTop=f.scrollHeight;});
+    get('#live-pause').addEventListener('click',()=>{options.offset=String(current.offset??Math.max(0,current.total-40));follow=false;paint(current);});
     timer=setTimeout(()=>tick(generation),1200);
   }
   return {shell,mount,unmount,state:()=>current?.state};

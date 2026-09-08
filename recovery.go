@@ -42,28 +42,38 @@ func recoverCaptionsContext(ctx context.Context, root, thread, voice, source, mo
 	id := str(s["id"])
 	old := query(l.db, "SELECT * FROM segments WHERE run=?", id)
 	wanted := M{}
+	unchanged := true
 	for _, v := range arr(snap["segments"]) {
 		wanted[str(obj(v)["id"])] = v
 	}
 	for _, v := range old {
 		r := obj(v)
 		require(wanted[str(r["id"])] != nil, "缓存有不在源快照中的片段。")
-		reconcileSegment(r, obj(wanted[str(r["id"])]))
+		fresh := obj(wanted[str(r["id"])])
+		merged := reconcileSegment(r, fresh)
+		require(merged["text"] == fresh["text"], "源快照比已保留的原话更旧；未采用过期快照。")
+		unchanged = unchanged && r["text"] == fresh["text"]
 	}
-	if !refresh && s["status"] == "ended" && len(old) == len(wanted) && integer(l.counts(id)["translated"]) == len(old) {
+	if !refresh && unchanged && s["status"] == "ended" && len(old) == len(wanted) && integer(l.counts(id)["translated"]) == len(old) {
 		return M{"status": "already_complete", "run_id": id, "segments": len(old), "model_batches": 0}
 	}
 	l.insertSegments(id, arr(snap["segments"]))
 	l.patch(id, merge(pick(snap, "voice_started_at", "voice_closed_at", "snapshot_at", "cursor"), M{"desired": "stopped", "status": "recovering", "translation_status": "translating", "translation_error": nil, "ready": false, "error": nil, "recovery_mode": "after_voice", "model": model, "heartbeat_epoch": epoch()}))
 	sqlExec(l.db, "UPDATE segments SET status='pending',attempts=0 WHERE run=? AND (status!='translated' OR ?)", id, refresh)
+	l.copyLocalTranscripts(id)
 	client := newModelClient(model, 45*time.Second)
 	defer client.close()
 	batches := 0
+	connectionFailures := 0
+	var connectionError error
 	failure := attempt(func() {
 		for {
 			must(ctx.Err())
 			rows := l.batch(id)
 			if len(rows) == 0 {
+				if connectionFailures > 0 {
+					panic(connectionError)
+				}
 				break
 			}
 			expected := M{}
@@ -75,7 +85,7 @@ func recoverCaptionsContext(ctx context.Context, root, thread, voice, source, mo
 				out, _, rejected, latency := client.translate(ctx, rows, nil, nil)
 				l.translated(id, out, latency, expected)
 				l.failBatch(id, rows)
-				l.rememberTranslationErrors(id, out, rejected)
+				l.rememberTranslationErrors(id, out, rejected, expected)
 				if latency > 0 {
 					batches++
 				}
@@ -83,7 +93,11 @@ func recoverCaptionsContext(ctx context.Context, root, thread, voice, source, mo
 			if err != nil {
 				client.close()
 				l.failBatch(id, rows)
-				require(integer(l.counts(id)["failed"]) == 0, err.Error())
+				connectionFailures++
+				connectionError = err
+				require(connectionFailures < 3, err.Error())
+			} else {
+				connectionFailures = 0
 			}
 		}
 	})

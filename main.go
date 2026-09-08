@@ -110,6 +110,7 @@ func runCLI(args []string) any {
 		if exists(filepath.Join(root, "profile.json")) {
 			result["archive"] = archiveCounts(root)
 		}
+		result["review_watch_diagnostics"] = glob(filepath.Join(root, "Runtime", "ReviewWatches", "*.error"))
 		if err := attempt(func() { result["codex_executable"] = codexExecutable() }); err != nil {
 			result["codex_error"] = err.Error()
 		}

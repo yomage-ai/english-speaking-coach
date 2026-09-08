@@ -26,7 +26,7 @@ Use temporary archives for closed/active Voice, two-worker exclusion, saved-draf
 
 ## Progressive delivery / 逐步展示
 
-The single model response puts expressions first. As soon as an expression's source IDs, exact original quote, usable English and Chinese meaning are complete, code checks those fields against this Voice and publishes up to three provisional suggestions. It does not wait for optional reading metadata. Full turn coverage, word checks and evidence validation continue; only a final validated commit changes learning history. Preview is cleared on a changed source or repair, retained with a visible error after interruption, and replaced by the saved lesson on success. Timing records first preview separately from full generation.
+The single model response puts expressions first. As soon as an expression's source IDs, exact original quote, usable English and Chinese meaning are complete, code checks those fields against this Voice and publishes up to three provisional suggestions. It does not wait for optional reading metadata. Full turn coverage, word checks and evidence validation continue; only a final validated commit changes learning history. Preview is rechecked against a changed source and retained when still source-valid during repair or interruption, and replaced by the saved lesson on success. Timing records first preview separately from full generation.
 
 Exact repeated English/Chinese entries are coalesced before ID allocation, retaining their linked quotes and an actual scored attempt if supplied. Priorities and concept links are remapped. This avoids a full regeneration for a duplicate canonical phrase; it never merges different meanings or invents a stronger score. Coach mistakes belong in coaching notes, not the learner's error count.
 
@@ -35,3 +35,7 @@ Exact repeated English/Chinese entries are coalesced before ID allocation, retai
 Review normalization conservatively changes a `success` with `model`/`keywords` support in meaning/use to `supported`, preserving its original quote and support. Other source, coverage and audio-evidence checks remain strict. If repair is still needed, keep source-checked expression previews visible instead of blanking them during regeneration. This removes a redundant full-generation retry; it does not guarantee a fixed model latency.
 
 含完整示范或关键词提示的词义/运用成功，保守记为“有提示完成”，不提升为独立掌握。来源、覆盖与音频证据仍须校验；需要重试时保留已核对的句子预览。
+
+Preview and new-expression saving share the same English/Chinese language check. Source corruption is distinct from a not-yet-closed Voice; a damaged complete JSONL line cannot be silently omitted from coverage. A corrupt review-watch file is preserved with a sibling `.error` diagnostic and does not stop other registrations; it is rechecked when repaired. See [pipeline-contract.md](pipeline-contract.md).
+
+预览和新表达保存使用同一套中英字段检查。损坏的完整日志行不会被静默漏掉；未结束与来源损坏分别处理。某个复盘登记损坏时，保留原文件及旁边的 `.error` 诊断，不阻断其他课次。

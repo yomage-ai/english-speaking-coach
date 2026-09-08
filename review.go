@@ -409,6 +409,7 @@ func normalizeReview(root string, d M, thread, voice string, snapshot, state M) 
 			for _, k := range []string{"english", "chinese"} {
 				require(strings.TrimSpace(str(x[k])) != "", "New expression needs "+k)
 			}
+			require(validExpressionLanguages(x), "表达需要英文原句与中文句意；未把错位语言保存为学习资料。")
 			ref = str(obj(byText[canonicalKey(str(x["english"]), str(x["chinese"]))])["id"])
 		}
 		if ref == "" {
@@ -591,7 +592,7 @@ func checkedPreview(expressions A, snapshot M) A {
 				linked = true
 			}
 		}
-		if good && linked && !hanRE.MatchString(str(x["english"])) && latinRE.MatchString(str(x["english"])) {
+		if good && linked && validExpressionLanguages(x) {
 			out = append(out, pick(x, "original", "english", "chinese", "note", "source_turn_ids"))
 		}
 	}
@@ -711,7 +712,7 @@ func runReviews(ctx context.Context, root string) {
 				if job["status"] == "practicing" {
 					err := attempt(func() { snapshotVoice(str(job["source"]), thread, voice) })
 					if err != nil {
-						if strings.Contains(err.Error(), "明确开始和结束") || strings.Contains(err.Error(), "尾行尚未") {
+						if _, waiting := err.(sourcePendingError); waiting {
 							return
 						}
 						panic(err)
@@ -739,39 +740,51 @@ func runReviews(ctx context.Context, root string) {
 // never removes the independent closeout path for this explicitly selected task.
 func registerReviewWatches(root string) {
 	for _, path := range glob(filepath.Join(root, "Runtime", "ReviewWatches", "*.json")) {
-		watch := obj(readJSON(path))
-		thread, source := str(watch["thread_id"]), str(watch["source"])
-		if watch["watch_only"] != true {
-			continue
-		}
-		if epoch()-num(watch["created_epoch"]) > 21600 {
-			_ = os.Remove(path)
-			continue
-		}
-		err := attempt(func() {
-			require(sourceIdentity(source) == thread, "Review source identity changed")
-			next, _ := scanLines(source, int64(num(watch["cursor"])), 2*maxLine, func(row M) {
-				if row["type"] != "realtime_item" {
-					return
-				}
-				p := obj(row["payload"])
-				if p["type"] == "realtime_session_started" && str(watch["voice_id"]) == "" {
-					watch["voice_id"] = p["realtime_session_id"]
-				}
-			})
-			watch["cursor"] = next
-			voice := str(watch["voice_id"])
-			if voice != "" {
-				setReviewStage(root, thread, voice, "practicing", M{"source": source, "title": watch["title"], "auto_review": true}, false)
-				must(os.Remove(path))
-			} else {
-				writeJSON(path, watch)
+		// A damaged registration must not kill every later review. Keep the
+		// original and a separate diagnostic; retry only after its bytes change.
+		fingerprint := ""
+		failure := attempt(func() {
+			fingerprint = hash(readFile(path))
+			if marker := obj(maybeJSON(path+".error", M{})); marker["source_hash"] == fingerprint {
+				return
 			}
+			registerReviewWatch(root, path)
+			_ = os.Remove(path + ".error")
 		})
-		if err != nil {
-			watch["error"] = err.Error()
-			watch["created_epoch"] = 0
-			writeJSON(path, watch)
+		if failure != nil {
+			writeJSON(path+".error", M{"error": failure.Error(), "source_hash": fingerprint, "at": now()})
 		}
+	}
+}
+
+func registerReviewWatch(root, path string) {
+	watch := obj(readJSON(path))
+	require(len(watch) > 0, "复盘登记内容无效；原文件保留。")
+	thread, source := str(watch["thread_id"]), str(watch["source"])
+	if watch["watch_only"] != true {
+		return
+	}
+	require(num(watch["created_epoch"]) > 0 && thread != "" && source != "", "复盘登记缺少来源或创建时间；原文件保留。")
+	if epoch()-num(watch["created_epoch"]) > 21600 {
+		_ = os.Remove(path)
+		return
+	}
+	require(sourceIdentity(source) == thread, "Review source identity changed")
+	next, _ := scanLines(source, int64(num(watch["cursor"])), 2*maxLine, func(row M) {
+		if row["type"] != "realtime_item" {
+			return
+		}
+		p := obj(row["payload"])
+		if p["type"] == "realtime_session_started" && str(watch["voice_id"]) == "" {
+			watch["voice_id"] = p["realtime_session_id"]
+		}
+	})
+	watch["cursor"] = next
+	voice := str(watch["voice_id"])
+	if voice != "" {
+		setReviewStage(root, thread, voice, "practicing", M{"source": source, "title": watch["title"], "auto_review": true}, false)
+		must(os.Remove(path))
+	} else {
+		writeJSON(path, watch)
 	}
 }

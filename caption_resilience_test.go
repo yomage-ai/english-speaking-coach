@@ -4,22 +4,30 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
 
-func TestMixedCaseNamesAndOrdinaryWords(t *testing.T) {
-	for _, text := range []string{"iPad", "eBay", "YouTube", "NASA", "London", "backpack", "work out"} {
+func TestNamePreservationDoesNotGuessFromCasing(t *testing.T) {
+	for _, text := range []string{"iPad", "eBay", "adidas", "St. Louis", "Bank of America", "NASA"} {
 		rows := A{M{"id": "u1", "text": "这个 " + text + " 多大？"}}
 		units := translationUnits(rows)
-		err := attempt(func() {
-			assembleTranslations(rows, units, A{M{"id": obj(units[0])["id"], "kind": "name", "chinese": text}})
-		})
-		want := text != "backpack" && text != "work out"
-		if (err == nil) != want {
-			t.Fatalf("%s: %v", text, err)
+		out := assembleTranslations(rows, units, A{M{"id": obj(units[0])["id"], "kind": "name", "chinese": text}})
+		if obj(out[0])["chinese"] != "这个 "+text+"（专名原文） 多大？" {
+			t.Fatal(out)
+		}
+		for _, changed := range []string{strings.ToUpper(text), text + "2", text + "解释"} {
+			if changed == text {
+				continue
+			}
+			reject(t, func() {
+				assembleTranslations(rows, units, A{M{"id": obj(units[0])["id"], "kind": "name", "chinese": changed}})
+			})
 		}
 	}
+	// Names are a semantic model judgment. Deterministic validation proves
+	// identity/coverage, not a dictionary classification based on letter case.
 }
 
 func TestDevelopmentExecutableFolderIsNotLegacySkillData(t *testing.T) {
@@ -46,7 +54,7 @@ func TestTranslationPoisonRowIsolation(t *testing.T) {
 		u := obj(v)
 		x := M{"id": u["id"], "kind": "translation", "chinese": "虚构测试译文"}
 		if u["segment_id"] == "bad" {
-			x["kind"], x["chinese"] = "name", "backpack"
+			x["kind"], x["chinese"] = "translation", "backpack"
 		}
 		translations = append(translations, x)
 	}

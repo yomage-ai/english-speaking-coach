@@ -256,7 +256,7 @@ func (c *ModelClient) generate(ctx context.Context, payload M, schema any, strea
 			if t["id"] == turn {
 				require(t["status"] == "completed", "模型生成未完成；原话和待办已保留。")
 				c.turns++
-				return parseObject(strings.Join(output, ""))
+				return decodeModelObject(strings.Join(output, ""))
 			}
 		}
 	}
@@ -292,15 +292,16 @@ func arrayPrefix(text, key string, limit int) (A, bool) {
 	return out, false
 }
 
-var hanRE = regexp.MustCompile(`[\x{3400}-\x{9fff}]`)
-var englishRE = regexp.MustCompile(`[A-Za-z][A-Za-z0-9\s’…'.,!?;:\-]*`)
-var latinRE = regexp.MustCompile(`[A-Za-z]+`)
+var hanRE = regexp.MustCompile(`\p{Han}`)
+var englishRE = regexp.MustCompile(`[\p{Latin}][\p{Latin}\p{M}0-9\s’…'.,!?;:\-]*`)
+var latinRE = regexp.MustCompile(`[\p{Latin}\p{M}]+`)
 
 func translationUnits(segments A) A {
 	units := A{}
 	for _, v := range segments {
 		s := obj(v)
 		text := str(s["text"])
+		require(!hasOtherLetters(text), "这句含有尚不支持的文字，未把原文冒充中文译文。")
 		offsets := [][2]int{}
 		if !hanRE.MatchString(text) && latinRE.MatchString(text) {
 			offsets = append(offsets, [2]int{0, len(text)})
@@ -339,12 +340,9 @@ func assembleTranslations(segments, units, translated A) A {
 		require(strings.TrimSpace(zh) != "" && len([]rune(zh)) <= 12000, "无效译文。")
 		ws := latinRE.FindAllString(str(u["text"]), -1)
 		if t["kind"] == "name" {
-			require(len(ws) >= 1 && len(ws) <= 3 && normalizeLatin(zh) == normalizeLatin(str(u["text"])), "Invalid proper-name translation")
-			for _, w := range ws {
-				// Names can have internal capitals (iPad, eBay). A casing signal is
-				// only a guard against ordinary lowercase words, not proof of a name.
-				require(strings.IndexFunc(w, unicode.IsUpper) >= 0, "Ordinary vocabulary is not a proper name")
-			}
+			// Casing cannot establish whether a word is a name (adidas/iPad).
+			// Preserve exact spelling and disclose this semantic model decision.
+			require(len(ws) >= 1 && len(ws) <= 3 && zh == str(u["text"]) && !strings.ContainsAny(zh, "!?;:\n"), "专名保留必须与原文完全一致，不能增删文字。")
 		} else {
 			require(t["kind"] == "translation" && hanRE.MatchString(zh), "译文未给出中文句意。")
 			if len(ws) >= 2 {
@@ -359,7 +357,12 @@ func assembleTranslations(segments, units, translated A) A {
 		for _, v := range reverse(units) {
 			u := obj(v)
 			if u["segment_id"] == s["id"] {
-				zh = zh[:integer(u["start"])] + str(obj(byID[str(u["id"])])["chinese"]) + zh[integer(u["end"]):]
+				t := obj(byID[str(u["id"])])
+				meaning := str(t["chinese"])
+				if t["kind"] == "name" {
+					meaning += "（专名原文）"
+				}
+				zh = zh[:integer(u["start"])] + meaning + zh[integer(u["end"]):]
 			}
 		}
 		require(len([]rune(zh)) <= 24000, "译文过长。")
@@ -428,7 +431,7 @@ func validateHint(value M, conversation A) M {
 		}
 	}
 	en, cue := strings.TrimSpace(str(value["english"])), strings.TrimSpace(str(value["next_cue"]))
-	if hanRE.MatchString(en+cue) || len(strings.Fields(en)) > 25 || len(strings.Fields(cue)) > 12 {
+	if hanRE.MatchString(en+cue) || hasOtherLetters(en+cue) || (cue != "" && !latinRE.MatchString(cue)) || len(strings.Fields(en)) > 25 || len(strings.Fields(cue)) > 12 {
 		return nil
 	}
 	groups := arr(value["groups"])
@@ -443,7 +446,7 @@ func validateHint(value M, conversation A) M {
 		parts = append(parts, str(v))
 	}
 	if value["kind"] == "help" {
-		if en == "" || strings.TrimSpace(str(value["chinese"])) == "" || !equal(words(strings.Join(parts, " ")), words(en)) {
+		if !validExpressionLanguages(value) || !equal(words(strings.Join(parts, " ")), words(en)) {
 			return nil
 		}
 		if len(words(en)) <= 7 {
@@ -454,10 +457,39 @@ func validateHint(value M, conversation A) M {
 	}
 	return merge(pick(value, "kind", "source_id", "quote", "english", "chinese", "next_cue", "groups"), M{"source_text": latest["text"]})
 }
-func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, publish func(A, float64)) (A, M, M, float64) {
-	units := translationUnits(segments)
+func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, publish func(A, float64)) (out A, hint M, rejected M, latency float64) {
+	// Retain already source-checked streamed rows even if the final envelope is bad.
+	visible := A{}
+	defer func() {
+		if p := recover(); p != nil {
+			if err, ok := p.(translationContentError); ok {
+				out, rejected = visible, M{}
+				for _, v := range segments {
+					rejected[str(obj(v)["id"])] = err.Error()
+				}
+				for _, v := range visible {
+					delete(rejected, str(obj(v)["id"]))
+				}
+			} else {
+				panic(p)
+			}
+		}
+	}()
+	return c.translateBatch(ctx, segments, teaching, func(part A, seconds float64) {
+		visible = part
+		if publish != nil {
+			publish(part, seconds)
+		}
+	})
+}
+
+func (c *ModelClient) translateBatch(ctx context.Context, segments A, teaching M, publish func(A, float64)) (A, M, M, float64) {
+	segments, units, invalid := planTranslations(segments)
+	if len(segments) == 0 && len(invalid) > 0 {
+		return A{}, nil, invalid, 0
+	}
 	if len(units) == 0 && teaching == nil {
-		return assembleTranslations(segments, units, A{}), nil, M{}, 0
+		return assembleTranslations(segments, units, A{}), nil, invalid, 0
 	}
 	start := time.Now()
 	payloadRows, unitRows := A{}, A{}
@@ -492,6 +524,9 @@ func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, pub
 		}
 	})
 	out, rejected := partialTranslations(segments, units, arr(answer["translations"]))
+	for id, reason := range invalid {
+		rejected[id] = reason
+	}
 	// Returned to the worker separately from connection failures. Valid rows and
 	// the current teaching cue can still be used when one sentence is rejected.
 	var hint M

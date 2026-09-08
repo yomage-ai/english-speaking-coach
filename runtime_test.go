@@ -556,18 +556,25 @@ func fakeModelServer() {
 				continue
 			}
 			answer := "{}"
-			if mode == "translation-poison" {
+			if mode == "translation-poison" || mode == "content-malformed" {
 				payload := parseObject(str(obj(arr(obj(row["params"])["input"])[0])["text"]))
 				translations := A{}
 				for _, v := range arr(payload["units"]) {
 					u := obj(v)
 					x := M{"id": u["id"], "kind": "translation", "chinese": "虚构测试译文"}
 					if u["text"] == "backpack" {
-						x["kind"], x["chinese"] = "name", "backpack"
+						x["kind"], x["chinese"] = "translation", "backpack"
 					}
 					translations = append(translations, x)
 				}
 				answer = compact(M{"translations": translations})
+				if mode == "content-malformed" {
+					for _, unit := range arr(payload["units"]) {
+						if obj(unit)["text"] == "broken" {
+							answer = "{broken"
+						}
+					}
+				}
 			}
 			send(M{"method": "item/completed", "params": M{"turnId": "test-turn", "item": M{"type": "agentMessage", "phase": "final_answer", "text": answer}}})
 			send(M{"method": "turn/completed", "params": M{"turn": M{"id": "test-turn", "status": "completed"}}})

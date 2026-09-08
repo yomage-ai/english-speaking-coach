@@ -65,6 +65,8 @@ An explicit bye/end stops speech immediately; only that request authorizes the h
 
 ## Maintenance
 
+For ingestion, translation, review or live-page changes, follow the shared [pipeline correctness contract](references/pipeline-contract.md). Check failure isolation and recovery with both valid and invalid inputs; a rejected input alone is not an end-to-end validation.
+
 `profile.json` owns adopted preferences; change through `set-preferences` with a fresh hash and a real user decision. `Sessions/`, `Evidence/`, `Archive/` hold selected learning facts; `Pending/` and runtime preserve recoverable work; web pages/indexes are derived. Private data must not be published. See [storage-and-library.md](references/storage-and-library.md), [data-schema.md](references/data-schema.md), [review-strategy.md](references/review-strategy.md) and [concept-progress.md](references/concept-progress.md) only for relevant maintenance. Caption recovery uses [live-companion.md](references/live-companion.md).
 
 Keep source, installed files and loaded Go build revision consistent. Release programs and ordinary startup never call the legacy Python implementation; it is retained only as a developer comparison oracle. Use the existing service manager for a necessary restart after checking no Voice is active; verify identity and page/API health. Follow [experience-validation.md](references/experience-validation.md): program tests, independent textual rehearsal and actual Voice each establish different things. Preserve failed trials, use fictional/isolated test archives, and report actual speech timing and behavior as unverified unless observed in a real practice.
