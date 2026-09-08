@@ -100,6 +100,18 @@ func TestRecordMarkupEscaped(t *testing.T) {
 	}
 }
 
+func TestArchiveUpdateTimeReflectsSourcesNotPageVisit(t *testing.T) {
+	root := testRoot(t)
+	fixed := time.Date(2025, 4, 1, 12, 30, 0, 0, time.UTC)
+	for _, p := range archiveSourceFiles(root) {
+		must(os.Chtimes(p, fixed, fixed))
+	}
+	data := newArchive(root).query("/api/overview", M{})
+	if !stamp(str(data["source_updated_at"])).Equal(fixed) {
+		t.Fatal("Opening a page must not claim the learning records were just updated")
+	}
+}
+
 func TestSourceReplacementRewindsWithoutDuplicateSegments(t *testing.T) {
 	root, source := testRoot(t), voiceLog(t, false)
 	l := openLive(root)

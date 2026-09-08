@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Archive struct {
@@ -17,13 +19,27 @@ type Archive struct {
 }
 
 func newArchive(root string) *Archive { return &Archive{root: absolute(root), token: token()} }
-func fingerprint(root string) string {
-	parts := []string{}
+func archiveSourceFiles(root string) []string {
 	files := []string{filepath.Join(root, "Archive", "legacy-v1.md"), filepath.Join(root, "profile.json")}
 	for _, d := range []string{"Sessions", "Evidence"} {
 		files = append(files, glob(filepath.Join(root, d, "*.md"))...)
 	}
-	for _, p := range files {
+	return files
+}
+func sourceUpdatedAt(root string) string {
+	var latest time.Time
+	for _, p := range archiveSourceFiles(root) {
+		s, e := os.Stat(p)
+		must(e)
+		if s.ModTime().After(latest) {
+			latest = s.ModTime()
+		}
+	}
+	return latest.Local().Format(time.RFC3339)
+}
+func fingerprint(root string) string {
+	parts := []string{}
+	for _, p := range archiveSourceFiles(root) {
 		parts = append(parts, p+"/"+hash(readFile(p)))
 	}
 	return hash([]byte(strings.Join(parts, "\n")))
@@ -188,7 +204,7 @@ func (a *Archive) load() M {
 			continue
 		}
 		a.signature = sig
-		a.data = M{"sessions": sessions, "details": details, "terms": terms, "books": books, "concepts": get(state, "concepts", A{}), "profile": state["profile"], "revision": sig[:12], "source_updated_at": now()}
+		a.data = M{"sessions": sessions, "details": details, "terms": terms, "books": books, "concepts": get(state, "concepts", A{}), "profile": state["profile"], "revision": sig[:12], "source_updated_at": sourceUpdatedAt(a.root)}
 		return a.data
 	}
 	panic(fmt.Errorf("学习记录正在保存，请稍后刷新。"))
