@@ -30,6 +30,7 @@ func TestCaptionContextReusesThenReleasesConversation(t *testing.T) {
 	t.Setenv("CODEX_HOME", t.TempDir())
 	fakeCodex(t, "translation-poison")
 	trace := filepath.Join(t.TempDir(), "requests.jsonl")
+	atomicWrite(trace, nil)
 	t.Setenv("ENGLISH_COACH_TEST_REQUESTS", trace)
 	c := newModelClient(defaultModel, 3*time.Second)
 	c.maxTurns = 2
