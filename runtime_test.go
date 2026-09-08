@@ -129,6 +129,26 @@ func TestSourceReplacementRewindsWithoutDuplicateSegments(t *testing.T) {
 	}
 }
 
+func TestSQLiteUsesChosenFolderWithURISymbols(t *testing.T) {
+	name := "English #1 %25 & 中文"
+	if runtime.GOOS != "windows" {
+		name += " ? why"
+	}
+	root := filepath.Join(t.TempDir(), name)
+	initialize(root)
+	l := openLive(root)
+	l.setMeta("path-check", "preserved")
+	l.close()
+	if !exists(filepath.Join(root, "Live", "companion.sqlite3")) {
+		t.Fatal("SQLite opened a different path instead of the selected folder")
+	}
+	l = openLive(root)
+	defer l.close()
+	if l.meta("path-check") != "preserved" {
+		t.Fatal("Selected cache did not reopen")
+	}
+}
+
 func TestManagedRecoveryBackupPreservesSavedLesson(t *testing.T) {
 	t.Setenv("CODEX_HOME", t.TempDir())
 	root := defaultRoot()
