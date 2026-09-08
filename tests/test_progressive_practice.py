@@ -86,6 +86,9 @@ class ProgressiveTests(unittest.TestCase):
         hint={'kind':'help','source_id':'u','quote':'maybe go shop','english':'Maybe we could go shopping.',
               'chinese':'也许我们可以去购物。','next_cue':'','groups':['Maybe we could go shopping.']}
         self.assertEqual(validate_hint(hint,rows)['source_text'],rows[0]['text'])
+        english_only={**hint,'chinese':'','next_cue':'Have I understood you correctly?'}
+        self.assertEqual(validate_hint(english_only,rows)['chinese'],'')
+        self.assertEqual(validate_hint(english_only,rows)['source_text'],rows[0]['text'])
         for changed in [{'source_id':'old'},{'quote':'invented'},{'english':'我们去 shopping'},
                         {'groups':['Maybe we can go shopping.']},{'english':'word '*26}]:
             self.assertIsNone(validate_hint({**hint,**changed},rows))

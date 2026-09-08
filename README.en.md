@@ -2,9 +2,9 @@ Copy this request to Codex to install:
 
 > Install english-speaking-coach from https://github.com/yomage-ai/english-speaking-coach, complete the initial setup, and confirm it appears in the skill list.
 
-[简体中文](README.md)
-
 # English Speaking Coach
+
+Practice coaching uses English only. Non-English input receives an English meaning check. The coach asks open questions without supplied choices so the learner can formulate their own responses.
 
 Practice English in travel, restaurant, interview and other everyday situations. Afterward, review useful expressions, flashcards and your progress. Tell Codex what you want to practice; it handles preparation and saves your records.
 

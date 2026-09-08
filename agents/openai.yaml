@@ -1,6 +1,6 @@
 interface:
-  display_name: "English Speaking Coach / 英语口语教练"
-  short_description: "自动打开学习页，介绍新场景再练英语；结束后保存书面复盘"
-  default_prompt: "Use $english-speaking-coach to practice English with me in a fresh scene and save a written review."
+  display_name: "English Speaking Coach"
+  short_description: "English-only practice with open questions and saved reviews"
+  default_prompt: "Use $english-speaking-coach to practice using only English, confirm any non-English input in English, ask open questions without offering answers or choices, and save a written review."
 policy:
   allow_implicit_invocation: true

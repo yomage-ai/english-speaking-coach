@@ -76,10 +76,7 @@ func chooseScene(root string, context M) M {
 	}
 	sort.SliceStable(scenes, func(i, j int) bool { return score(scenes[i]) < score(scenes[j]) })
 	x := arr(scenes[0])
-	intro := str(x[6])
-	if profile["help_language"] != "zh-CN" {
-		intro = fmt.Sprintf("We are at %s. You are %s, and I am %s. Your goal: %s.", strings.ToLower(str(x[1])), strings.ToLower(str(x[2])), strings.ToLower(str(x[3])), strings.ToLower(str(x[4])))
-	}
+	intro := fmt.Sprintf("We are at %s. You are %s, and I am %s. Your goal: %s.", strings.ToLower(str(x[1])), strings.ToLower(str(x[2])), strings.ToLower(str(x[3])), strings.ToLower(str(x[4])))
 	return M{"setting": x[1], "learner_role": x[2], "partner_role": x[3], "goal": x[4], "introduction": intro, "opening_line": x[5]}
 }
 func validateScene(scene M) {
@@ -120,8 +117,8 @@ func speakingContext(profile M, companion bool, phase string, scene M) M {
 	roleplay := phase == "scene" && profile["mode"] == "roleplay"
 	deferred, inCharacter := profile["correction"] == "after_scene", profile["correction"] == "in_character"
 	prose := speakingTemplates
-	language := strings.ReplaceAll(str(obj(prose["language"])[str(profile["practice_language"])]), "{help_language}", str(profile["help_language"]))
-	if profile["practice_language"] == "english_first" && companion {
+	language := str(obj(prose["language"])["english_only"])
+	if companion {
 		language += str(prose["companion"])
 	}
 	role, behavior := "", ""
@@ -156,16 +153,12 @@ func speakingContext(profile M, companion bool, phase string, scene M) M {
 	brief := "Local reminder for the responding Agent, not a policy update for another model.\n" + language + role + behavior + str(prose["reading"]) + str(arr(prose["ending"])[0])
 	if roleplay && scene != nil {
 		intro := str(scene["introduction"])
-		lang := str(profile["help_language"])
-		if profile["practice_language"] == "english_first" {
-			lang = "English"
-			if hanRE.MatchString(intro) {
-				intro = fmt.Sprintf("We are at %s. You are %s. I am %s. Your goal: %s.", str(scene["setting"]), str(scene["learner_role"]), str(scene["partner_role"]), str(scene["goal"]))
-			}
+		if hanRE.MatchString(intro) {
+			intro = fmt.Sprintf("We are at %s. You are %s. I am %s. Your goal: %s.", str(scene["setting"]), str(scene["learner_role"]), str(scene["partner_role"]), str(scene["goal"]))
 		}
-		brief += "\nIntroduce this fresh scene once in " + lang + ": " + intro + "\nThen mark the English conversation boundary and open: " + str(scene["opening_line"]) + "\n"
+		brief += "\nIntroduce this fresh scene once in English; translate any non-English preparation data before speaking: " + intro + "\nThen open in English with an open question, adapting any closed prompt without adding candidate answers: " + str(scene["opening_line"]) + "\n"
 		if len(arr(scene["key_terms"])) > 0 {
-			brief += "Use scene.key_terms as preparation candidates: briefly preview only one or two useful items before the role opening, then let the learner respond. Do not read the whole plan or assume the terms are unknown.\n"
+			brief += "Use scene.key_terms as preparation candidates: preview only a necessary comprehension word in English before the role opening, then let the learner respond. Do not prefill the learner answer, read the whole plan or assume the terms are unknown.\n"
 		}
 	}
 	var voiceBrief any = brief
@@ -190,7 +183,7 @@ func speakingContext(profile M, companion bool, phase string, scene M) M {
 	if roleplay {
 		displayScene = scene
 	}
-	return M{"phase": phase, "voice_brief": voiceBrief, "scene": displayScene, "startup": M{"scene_required": roleplay, "scene_selected": roleplay && scene != nil, "history_use": "learning_only", "next_action": next}, "policy": M{"role": policyRole, "correction_timing": profile["correction"], "review_delivery": get(profile, "review_delivery", "spoken"), "input_support": get(profile, "input_support", "adaptive"), "history_continuation": false, "proactive_teaching": phase == "review" || !(deferred || inCharacter), "missing_expression_help": "immediate_before_content", "english_structure_help": structureHelp, "scene_completion": "offer_next_scene_or_finish", "next_action": "make_relevant_next_step_visible", "unsolicited_drills": false, "embedded_recasts": phase == "scene" && inCharacter, "learner_expansion": phase == "scene" && inCharacter, "guided_drills": phase == "review" && profile["drills"] == "guided"}}
+	return M{"phase": phase, "voice_brief": voiceBrief, "scene": displayScene, "startup": M{"scene_required": roleplay, "scene_selected": roleplay && scene != nil, "history_use": "learning_only", "next_action": next}, "policy": M{"role": policyRole, "correction_timing": profile["correction"], "review_delivery": get(profile, "review_delivery", "spoken"), "input_support": get(profile, "input_support", "adaptive"), "history_continuation": false, "response_language": "english_only", "non_english_input": "confirm_in_english_once", "question_style": "open_without_supplied_choices", "proactive_teaching": phase == "review" || !(deferred || inCharacter), "missing_expression_help": "immediate_before_content", "english_structure_help": structureHelp, "scene_completion": "ask_open_next_step", "next_action": "make_relevant_next_step_visible", "unsolicited_drills": false, "embedded_recasts": phase == "scene" && inCharacter, "learner_expansion": phase == "scene" && inCharacter, "guided_drills": phase == "review" && profile["drills"] == "guided"}}
 }
 
 func resumeContext(root, day, phase string, scene M) M {
@@ -268,7 +261,7 @@ func transitionContext(c M, event string) M {
 		move["phase"] = "review"
 		c = merge(c, speakingContext(obj(c["profile"]), truth(obj(c["companion"])["enabled"]), "review", nil))
 	case "scene_complete_and_continuing":
-		action = "offer_next_scene_or_finish"
+		action = "ask_open_next_step"
 	default:
 		actions := M{"continue": "respond", "help_requested": "brief_help", "word_help_requested": "supply_word", "missing_expression": "supply_phrase", "meaning_unclear": "clarify", "english_structure_help": "model_usable_phrase", "next_action_unclear": "give_next_action", "meaning_confirmed": "respond", "content_clear": "respond", "coaching_feedback": "address_feedback"}
 		action = str(actions[event])

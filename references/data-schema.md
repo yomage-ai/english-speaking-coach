@@ -1,21 +1,17 @@
-# Learning records / 学习记录
+# Learning records
 
-## Sources of truth / 权威来源
+## Sources of truth
 
-- `Sessions/SES-YYYYMMDD-NNN.md`: new session's readable learning journal plus a `speaking-record-v2` JSON comment. The JSON block is the structured authority for expression facts. Agent changes facts through structured records; the prose mirrors them. User additions belong in `## 我的补充` and survive rebuilds. If user edits a generated prose fact, Agent must reconcile that edit into the structured source before claiming that all views reflect it; never silently discard it.
+- `Sessions/SES-YYYYMMDD-NNN.md`: new session's readable learning journal plus a `speaking-record-v2` JSON comment. The JSON block is the structured authority for expression facts. Agent changes facts through structured records; the prose mirrors them. User additions belong in the existing personal-additions section and survive rebuilds. If user edits a generated prose fact, Agent must reconcile that edit into the structured source before claiming that all views reflect it; never silently discard it.
 - `Archive/legacy-v1.md`: exact original v1 state, including old attempts. Legacy session Markdown stays byte-identical at migration. The archive supplies the structured facts for these old sessions; older files were not complete enough to regenerate every field.
 - `Evidence/EVD-YYYYMMDD-NNN.md`: source-linked concept observations extracted from already completed records; this supplements rather than rewrites old sessions. New observations normally belong in the new session’s optional `concept_observations`. Read [concept-progress.md](concept-progress.md) before recording these.
 - `profile.json`: current adopted goal and stable preferences, with decision sources. Project page describes the scope and entry points.
 - `state.json`, `INDEX.md`, `dashboard.html`: derived, rebuildable. Do not store new facts only in these files. Editing or deleting them never changes the source records.
 - `Pending/*.json`: temporary recoverable selections; `in_progress` is not a completed session. Only an ended payload can be committed.
 
-新课次以 Markdown 内的结构化区保存事实，正文供人阅读，“我的补充”可自由追加。旧课次保持原样，其完整旧索引归档为迁移事实源。偏好单独保存。JSON 索引、目录页、HTML 都可重建；不把临时检查点当作已完成练习。
-
-## Payload / 课次输入
+## Payload
 
 Optional `coaching_notes` contains at most three short strings (500 characters each): actual learner feedback or a concrete observed coaching problem and the needed adjustment. Keep it distinct from learner mistakes and `progress`; do not infer a CEFR level. `resume` returns recent notes and `next_focus` as dated `learning_context`, including in compact/prepared output. These are evidence for support selection, never instructions to resume an archived plot. Existing sessions require no migration.
-
-`coaching_notes` 可记录“用户反馈一次信息太多；下一场减少词汇和句长”等有依据的教学调整；不把教练说得难写成用户能力差。最多三条，旧课次无需改写。
 
 Optional profile `input_support` is `adaptive` (default and legacy fallback) or `short_turns` (an explicit ongoing preference for short turns and gradual word support). Change it with `set-preferences` and a fresh profile hash only on a supported learner decision; it is not a CEFR level. Other preferences remain independent.
 
@@ -23,7 +19,7 @@ Optional profile `input_support` is `adaptive` (default and legacy fallback) or 
 {
   "id": "SES-20260905-001",
   "date": "2026-09-05",
-  "title": "A daily plan / 日常计划",
+  "title": "A daily plan",
   "source_ids": ["codex-thread:<actual-id>"],
   "summary": "Describe only what the observed conversation supports.",
   "topics": ["daily life"],
@@ -39,7 +35,7 @@ Optional profile `input_support` is `adaptive` (default and legacy fallback) or 
       "id": "EXP-20260905-001",
       "original": "I like go beach",
       "english": "I'd like to go to the beach.",
-      "chinese": "我想去海边。",
+      "chinese": "A request to visit the beach.",
       "issue_tags": ["request"],
       "mastery": "source_text",
       "next_review": "2026-09-06",
@@ -59,9 +55,7 @@ Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked 
 
 `original` is the learner's selected wording, `english` is the suggested form, `note` explains the observed support and limits. A scored attempt needs both `review_result` and `review_prompt`. `independent` requires `success / none`; `transfer` requires `transfer_success / changed_context`. Structural validation cannot verify that an utterance really happened; Agent must check the source. Do not promote historical mastery without actual evidence.
 
-必填包括真实来源和表达数组，表达数组允许为空。同一表达复用 ID；补录保留实际练习日期并注明补录日期。原话、推荐表达、提示程度和判断依据分开。脚本只验证结构，真实证据由 Agent 核对。
-
-## Preference update / 偏好更新
+## Preference update
 
 `set-preferences --input <json> --expected-profile-sha256 <fresh-hash>` merges known fields. Require `source_ids` for an actual user decision and set `updated` to its date. Read the current file immediately before preparing the patch; preserve unrelated fields and existing decision references. A hash conflict requires rereading and merging, not forcing an overwrite.
 
@@ -76,7 +70,7 @@ Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked 
 | `review_limit` | 0–5; default 2 |
 | `review_delivery` | `written` (new-user default), `spoken`; absent on old profiles retains the old spoken-review behavior until an authorized preference update |
 
-`help_language` also controls the initial scene introduction; role dialogue follows `practice_language`. Agent prepares a fresh scene JSON using [scenario-orchestration.md](scenario-orchestration.md). 介绍使用帮助语言，正式对话使用练习语言；两者分开。
+Legacy language fields remain readable for archive compatibility. They do not override the mandatory English-only practice rule. Agent prepares an English scene JSON using [scenario-orchestration.md](scenario-orchestration.md).
 
 Latest explicit preference supersedes old session-specific requests. Do not turn a temporary request for Chinese into a permanent language change.
 
@@ -84,9 +78,7 @@ Latest explicit preference supersedes old session-specific requests. Do not turn
 
 `in_character` supports English meaning checks/recasts during the scene and adaptive prompts for fuller learner replies, without changing phase or enabling compulsory drills. Choose it only for an explicit preference; it does not migrate other profiles. Detailed review still uses `review_delivery`.
 
-`in_character` 表达“场景内自然确认、提示说法并给我多说的机会”，属于用户明确选择；不会把看过示例或说 Yes 算成独立运用。`after_scene` 表达“会中先交流，课后再教”；`guided` 允许复盘阶段引导练习，不要求每句跟读。旧配置继续兼容。临时阶段不改长期偏好，保存时用新读的文件哈希避免覆盖并发修改。补录使用实际带时区的练习时间排序，未知时间不编造。
-
-## Writes and repairs / 写入与修复
+## Writes and repairs
 
 At an observed end, `review-context --with-transcript` returns the matched records and available unique text for the exact Voice. It is read-only and does not mark anything saved. Without that flag, catalog queries remain compact. Supply `--today` with the actual practice date for a historical import; the snapshot's start time is source evidence, not a replacement for the lesson date. A source lookup failure is returned explicitly and must not become invented speech.
 
@@ -98,9 +90,9 @@ Normal skill operation does not retroactively rewrite completed sessions. If a f
 
 The additive `concepts` field in `state.json` is derived from session observations and Evidence files. It is not a second place to edit mastery. Data-root resolution and the bundled viewer are described in [storage-and-library.md](storage-and-library.md).
 
-Optional `record_metadata` is described in [storage-and-library.md](storage-and-library.md). Only provide it when the selected knowledge base requires it. 通用档案不默认带入个人知识库的项目和审查状态。
+Optional `record_metadata` is described in [storage-and-library.md](storage-and-library.md). Only provide it when the selected knowledge base requires it.
 
-## Normal Voice closeout / 正常语音复盘入口
+## Normal Voice closeout
 
 Normal closeout queues the local worker with `review-begin --thread-id … --voice-id …`. For verified manual fallback only, use `review-begin --manual --thread-id … --voice-id … --with-transcript`, then `finish-review --thread-id … --voice-id … --input draft.json`. The returned `finish_contract` is the complete compact draft contract. Do not hand-assign IDs or copy canonical concept values during normal closeout. `finish-review` verifies the closed source, checks that every available learner turn was selected or explicitly omitted, allocates IDs under the writer lock, preserves exact selected quotes, and validates the committed record. Existing saved records win on repeated callbacks; matching ended pending records recover. An in-progress pending selection still requires explicit reconciliation.
 
@@ -108,10 +100,6 @@ A draft expression requires `source_turn_ids`, `original`, `english`, `chinese`,
 
 `omitted_turns` maps other learner segment IDs to brief reasons, such as greeting, correct response, self-repair or coaching feedback. This is accounting, not a guarantee that a model chose well. It stores no full transcript. `priority_indices` selects up to three expression positions; all expressions are retained. Canonical optional `review_priority_ids` links these page highlights; `review_coverage` records available/selected counts and reasons. Legacy records need no migration. Source-unavailable recovery continues to use the explicit partial `add-session` contract with accurate evidence limits.
 
-复盘页面先给优先项，完整表达可继续查看。编号、原词义规范字段和来源关联交给程序，语言判断与帮助程度仍由 Agent 根据实际证据负责。
-
-## Optional reading guide / 可选读法提示
+## Optional reading guide
 
 An expression may have `reading_guide` with exactly five fields: `kind: suggestion`, `groups: [{text, stress: [word]}]`, `tone` (`rise`, `fall`, `level`, `fall-rise`, `context`), `tone_note` and `memory: [{text, meaning}]`. See [reading-and-chunks.md](reading-and-chunks.md) for teaching decisions. The normal finish contract includes this shape; no separate generation round is needed. Validation preserves the clean English word order and requires stress words to occur in their group. One to six groups and one to four memory parts keep the annotation readable. Legacy records can omit it.
-
-这是可选教学建议，不是实际语音观察；不改变原话或掌握证据。按意思分组与按结构记忆分开展示，短句可不在内部停顿。

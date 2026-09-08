@@ -404,7 +404,7 @@ func validateHint(value M, conversation A) M {
 		parts = append(parts, str(v))
 	}
 	if value["kind"] == "help" {
-		if en == "" || strings.TrimSpace(str(value["chinese"])) == "" || !equal(words(strings.Join(parts, " ")), words(en)) {
+		if en == "" || !equal(words(strings.Join(parts, " ")), words(en)) {
 			return nil
 		}
 		if len(words(en)) <= 7 {

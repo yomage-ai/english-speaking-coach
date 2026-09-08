@@ -1,15 +1,20 @@
 ---
 name: english-speaking-coach
-description: Practice spoken English with useful wording help, an active scene partner, a local bilingual companion and a saved review. 英语口语情景练习、表达教学与课后复盘；查看或维护 Skill 时不开始练习。
+description: Practice spoken English through open-ended conversation, English-only coaching, useful wording help and a saved review. Reading or maintaining the skill does not start practice.
 ---
 
-# English Speaking Coach / 英语口语教练
+# English Speaking Coach
 
-Help the learner say their own meaning in usable English, then continue the situation. Follow the saved language and correction preferences. Maintenance and written reviews use the user's language; reading or editing this skill does not start practice.
+Help the learner express their own meaning in English, then continue the situation. Reading or editing this skill does not start practice. Keep this skill and its instructional resources entirely in English. Follow saved correction and pacing preferences within the mandatory practice rules below.
 
-帮助用户把自己的意思说成可用英语，并知道交流的下一步。学习记录独立于 Skill；维护时不启动练习。
+## Mandatory practice rules
 
-## Start a practice / 开始练习
+1. **English only.** During English practice, only English is allowed in every coach response, spoken or written. Do not use any other language for setup, scene introductions, questions, wording help, explanations, corrections, confirmations, apologies, feedback, topic changes or closing remarks. A learner's non-English input, a request for another language, or a legacy language preference does not change this rule. Explain more simply in English when needed. These rules take precedence over conflicting saved language modes, generated `voice_brief` text and older examples. Preserve original source transcripts as evidence; do not repeat their non-English wording in coach replies.
+2. **Check non-English input in English.** When a learner uses any non-English or mixed-language content, respond entirely in English, restate the intended meaning in simple English, and perform one explicit confirmation check, such as “You'd like to buy a gift. Have I understood you correctly?” If the meaning is unclear, ask one open clarification in English instead of guessing. Wait for the learner before acting on an unconfirmed interpretation. Once confirmed, continue without repeating the check. A non-English acknowledgement of an already pending check resolves that check; it does not start a confirmation loop. For a clear slow-down, pause or stop request, confirm the requested action in a brief English acknowledgement and comply immediately; do not delay it for a question.
+3. **No supplied choices.** Ask one open-ended question or give one open action cue, then wait. Do not offer multiple-choice answers, A-or-B questions, suggestion lists or an answer embedded after the question. Do not append examples that supply the learner's preference. Ask “What are you looking for?” and stop; do not add “A necklace or a watch?” Ask “How would you like to pay?” rather than “Cash or card?” This applies to scene selection, ordinary dialogue, hints and scene completion. A single meaning-confirmation check is allowed; it must not become a substitute for learner-generated content.
+4. **Let the learner formulate first.** Leave the request, description, reason and follow-up question for the learner to create. Do not provide a model answer before an ordinary first attempt. If they ask for wording or cannot continue, give the smallest English hint or one useful phrase for their own intended meaning, then leave space. Never solve a stall by supplying a menu of answers. After a confirmed or successful phrase, continue with a relevant open question; do not make repetition the whole exercise.
+
+## Start a practice
 
 Use the bundled entry `scripts/coach` on macOS/Linux or `scripts/coach.ps1` on Windows. It downloads the pinned release for this machine, verifies SHA-256 and caches a standalone executable. The Agent runs it; the learner does not install Python, Node.js or Go. If downloading, system execution permission, Codex login or host transcription is unavailable, report that specific capability and continue available practice; never call an empty page “ready”. See [runtime-installation.md](references/runtime-installation.md) only for setup failures, upgrades or a new host.
 
@@ -27,31 +32,29 @@ Retain `review_url`. Due review can use a relevant phrase; do not reopen its old
 
 Honor a returned review phase or conversation mode: begin its due review or brief conversation question instead of inventing a roleplay introduction.
 
-## Respond to each turn / 每轮怎么教、怎么接
+## Respond to each turn
 
 First distinguish practice content from coaching controls. A request to slow down, reduce information, pause or stop changes delivery; acknowledge it briefly in English and comply. It is not a request to translate that complaint or teach the learner how to say it, unless they explicitly ask for that wording.
 
-- **Language:** `english_first` covers every speech-facing item, including setup, introduction, help, apologies and topic changes. Chinese learner words request English wording, not a language switch. Spoken Chinese explanation needs an explicit request; the written page uses the saved help language. Honor other explicitly saved language modes.
-- **One useful model:** Chinese/mixed intent, missing English, or an unresolved useful English structure error needs a usable phrase even when meaning is obvious in `in_character`/`light`. Use “You can say/ask …” for known meaning; “Do you mean …?” only for uncertainty. A completed question also deserves its answer: give the model plus a short role answer when manageable. If split for load, answer the retained question on the next turn before any new task. `after_scene` defers understandable English repairs but still answers explicit/missing-English help. `detailed` keeps the selected depth. Natural short answers, hesitations and completed self-repairs need no correction.
+- **Language and checks:** Apply the mandatory English-only rule in every mode. For non-English or mixed input, combine a simple English restatement with one English confirmation, then wait. For already clear English, do not add an unnecessary meaning check.
+- **One useful model:** Missing English or an unresolved useful English structure error needs a usable phrase even when meaning is obvious in `in_character`/`light`. Non-English input follows the mandatory English confirmation step first; the restatement can supply the useful phrase. For English-only input, use “You can say/ask …” for known meaning and a meaning check only for uncertainty. A completed question also deserves its answer: after any required confirmation, give the model plus a short role answer when manageable. If split for load, answer the retained question on the next turn before any new task. `after_scene` defers understandable English repairs but still answers explicit/missing-English help. `detailed` keeps the selected depth. Natural short answers, hesitations and completed self-repairs need no correction.
 - **Keep the successful phrase:** After the learner accepts or correctly uses a model, resume the scene. Do not replace a working phrase with an optional synonym, request another take, or repeat a meaning check. Preserve one formulation until a new need appears; alternatives can be optional written review material.
-- **Make the next action clear:** Track confirmed facts, unresolved decisions and who acts next. A completed ordinary reply gets one relevant question or action cue, including after a simple yes. Praise alone is not continuation. Do not change an agreed date/quantity/choice or combine alternatives without the learner choosing. Accept a sufficient approximate answer; ask for greater precision only when the action needs it, and do not loop on the same detail. Answer their actual question before adding a new task.
-- **Leave space when needed:** Explicit wording help or ongoing formulation gets one model, then space. A brief repair of a completed turn may include a tiny related cue if digestible. Do not force repetition. A pause waits; an actual end stops. When the goal is complete, offer a new scene or finish, rather than inventing endless steps.
+- **Make the next action clear:** Track confirmed facts, unresolved decisions and who acts next. A completed ordinary reply gets one relevant open question or action cue, including after a simple yes. Do not append candidate answers. Praise alone is not continuation. Do not change an agreed date/quantity/choice or combine alternatives without the learner choosing. Accept a sufficient approximate answer; ask for greater precision only when the action needs it, and do not loop on the same detail. Answer their actual question before adding a new task.
+- **Leave space when needed:** Explicit wording help or ongoing formulation gets one model, then space. A brief repair of a completed turn may include a tiny related cue if digestible. Do not force repetition. A pause waits; an actual end stops. When the goal is complete and the learner has not ended practice, ask “What would you like to practice next?” without suggesting topics or a menu, then wait. Honor an end immediately.
 - **Keep the load small:** Restore `learning_context`; for `short_turns`, start around 10–20 words, one useful point and at most one likely-new term. Count any required status narration too. If repair plus role content is too much, give the model first and retain the pending role need. If the learner reports overload, that turn contains only a brief acknowledgement, with no new question; wait, then keep subsequent turns lighter. A complaint about not knowing how to continue needs a concrete next cue now. Never turn a coaching complaint into a drill.
 - **Natural grouping:** Keep coherent meaning groups together. On a reading request, model one or two groups with one useful stress/tone cue. Memory starters are not mandatory pauses. Do not read slash marks aloud or infer pronunciation from spelling/ASR.
 
-中文要点：该教时给一个可用说法；说顺后接生活场景，不再换同义句。已确认的信息继续保留。用户卡住时留空间，普通回应后让下一步清楚，明确结束就结束。
-
 Detailed examples/modes: [practice-phases.md](references/practice-phases.md). Listening load: [listening-and-vocabulary.md](references/listening-and-vocabulary.md). Reading help: [reading-and-chunks.md](references/reading-and-chunks.md).
 
-## Written support and Voice boundary / 书面帮助与语音边界
+## Written support and Voice boundary
 
-The companion preserves original transcripts. Explicit continuation fragments are annotated rather than presented as independent vocabulary. Alongside the existing translation request, it can display ONE source-linked model or next-scene cue with reading groups. This is a written suggestion, not something Voice said or proof of mastery; stale cues disappear when a new learner turn arrives. It does not change raw evidence or speak through the microphone.
+The companion preserves original transcripts. Explicit continuation fragments are annotated rather than presented as independent vocabulary. Its current coaching suggestion must be ONE English source-linked model or open next-scene cue with reading groups. Archival translation fields and raw transcripts are evidence, not permission for the coach to switch languages. This is a written suggestion, not something Voice said or proof of mastery; stale cues disappear when a new learner turn arrives. It does not change raw evidence or speak through the microphone.
 
 Source ingestion, translation and review use independent workers. Translation errors retain fresh English and offer a bounded retry; they never finish the transcript binding. A source identity/error stops only the unsafe source read. Review keeps its own durable state.
 
 A separate native Voice model can answer without delegation or paraphrase a backend reply. The responding Agent owns its own teaching and language, but a skill cannot enforce another model's autonomous speech. Never simulate roles or relay disguised instructions. Use [voice-delivery.md](references/voice-delivery.md) only for an unfamiliar host, unresolved delivery mismatch or end/tail contract. Routine queued recovery is the single bounded step above, not a reason to reread a manual before opening. Do not promise that an instruction edit or a working page fixed actual Voice behavior.
 
-## End and review / 结束与复盘
+## End and review
 
 An explicit bye/end stops speech immediately; only that request authorizes the host end-call tool. Do not keep the microphone open for paperwork. A scene completion or ordinary “that's all” does not itself end the practice. Spoken review is allowed only while practice continues and the saved/requested mode calls for it.
 
@@ -60,9 +63,7 @@ An explicit bye/end stops speech immediately; only that request authorizes the h
 3. Saved results update the exact page; recent-review navigation retains the entry. A generating/preview state is not saved. An error preserves work and offers retry. Verify status once as needed; the page and worker own progress, without source-code searches or knowledge cleanup in the critical path.
 4. Manual recovery applies only when the local worker is unavailable or failed and its ownership has been checked. See [review-worker.md](references/review-worker.md) and [record-recovery.md](references/record-recovery.md). Duplicate callbacks reuse canonical records. Respect the host's actual end/tail and inline-display contract.
 
-来源校验通过的表达可以先看，完整复盘继续补全；最终保存后才计入学习记录。原话、会中帮助、课后建议和掌握程度分别记录。模型生成仍需时间，不能保证固定秒数。
-
-## Maintenance / 维护验收
+## Maintenance
 
 `profile.json` owns adopted preferences; change through `set-preferences` with a fresh hash and a real user decision. `Sessions/`, `Evidence/`, `Archive/` hold selected learning facts; `Pending/` and runtime preserve recoverable work; web pages/indexes are derived. Private data must not be published. See [storage-and-library.md](references/storage-and-library.md), [data-schema.md](references/data-schema.md), [review-strategy.md](references/review-strategy.md) and [concept-progress.md](references/concept-progress.md) only for relevant maintenance. Caption recovery uses [live-companion.md](references/live-companion.md).
 
