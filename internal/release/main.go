@@ -68,7 +68,12 @@ func main() {
 	must(e)
 	dec := json.NewDecoder(bytes.NewReader(modules))
 	var notices strings.Builder
-	fmt.Fprintf(&notices, "===== Go runtime / LICENSE =====\n%s\n", read(filepath.Join(runtime.GOROOT(), "LICENSE")))
+	goLicense := filepath.Join(runtime.GOROOT(), "LICENSE")
+	if _, e := os.Stat(goLicense); os.IsNotExist(e) {
+		// Homebrew keeps the upstream license beside libexec instead of inside it.
+		goLicense = filepath.Join(filepath.Dir(runtime.GOROOT()), "LICENSE")
+	}
+	fmt.Fprintf(&notices, "===== Go runtime / LICENSE =====\n%s\n", read(goLicense))
 	for {
 		var module struct{ Path, Version, Dir string }
 		e := dec.Decode(&module)
