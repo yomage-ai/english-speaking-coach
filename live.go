@@ -292,7 +292,8 @@ func (l *Live) batch(run string) A {
 	tx, e := l.db.Begin()
 	must(e)
 	defer tx.Rollback()
-	rows := query(tx, "SELECT * FROM segments WHERE run=? AND status='pending' ORDER BY seq LIMIT 3", run)
+	// New sentences precede retries, so a poison sentence cannot hold the queue.
+	rows := query(tx, "SELECT * FROM segments WHERE run=? AND status='pending' ORDER BY attempts,seq LIMIT 3", run)
 	selected := A{}
 	size := 0
 	for _, v := range rows {
@@ -318,6 +319,16 @@ func (l *Live) failBatch(run string, rows A) {
 		r := obj(v)
 		sqlExec(l.db, "UPDATE segments SET status=CASE WHEN attempts>=2 THEN 'failed' ELSE 'pending' END WHERE run=? AND id=? AND text=? AND status='translating'", run, r["id"], r["text"])
 	}
+}
+func (l *Live) rememberTranslationErrors(run string, valid A, rejected M) {
+	errors := copyM(obj(l.run(run)["translation_rejected"]))
+	for _, v := range valid {
+		delete(errors, str(obj(v)["id"]))
+	}
+	for id, reason := range rejected {
+		errors[id] = reason
+	}
+	l.patch(run, M{"translation_rejected": errors})
 }
 func (l *Live) teachingContext(run string) M {
 	rows := reverse(query(l.db, "SELECT id,role,text,timestamp FROM segments WHERE run=? ORDER BY seq DESC LIMIT 30", run))
@@ -489,14 +500,18 @@ func runTranslations(ctx context.Context, root string) {
 				r := obj(v)
 				expected[str(r["id"])] = r["text"]
 			}
-			out, hint, latency := client.translate(ctx, rows, l.teachingContext(id), func(part A, seconds float64) { l.translated(id, part, seconds, expected) })
+			out, hint, rejected, latency := client.translate(ctx, rows, l.teachingContext(id), func(part A, seconds float64) { l.translated(id, part, seconds, expected) })
 			l.translated(id, out, latency, expected)
+			// Semantic failures retry only their own rows, at most twice. They
+			// never trip the connection circuit breaker or discard valid rows.
+			l.failBatch(id, rows)
+			l.rememberTranslationErrors(id, out, rejected)
 			if hint != nil {
 				l.setMeta("hint:"+id, compact(hint))
 			} else {
 				sqlExec(l.db, "DELETE FROM meta WHERE key=?", "hint:"+id)
 			}
-			l.patch(id, M{"translation_status": "ready", "translation_error": nil, "ready": true})
+			l.patch(id, M{"translation_status": "ready", "translation_error": nil, "translation_failures": 0, "translation_retry_at": 0, "ready": true})
 		})
 		if err != nil {
 			l.failBatch(id, rows)
@@ -518,7 +533,13 @@ func runTranslations(ctx context.Context, root string) {
 func (l *Live) retry(id string) {
 	s := l.run(id)
 	require(s != nil, "Unknown binding")
-	require(s["desired"] != "stopped" && !terminal(s["status"]), "本场已结束；请使用明确的课后字幕恢复。")
+	if s["desired"] == "stopped" || terminal(s["status"]) {
+		// Validate the exact closed source before queueing, without taking over
+		// an unrelated active binding or silently creating a new practice.
+		snapshotVoice(str(s["source"]), str(s["thread_id"]), str(s["voice_id"]))
+		l.patch(id, M{"recovery_requested": true})
+		return
+	}
 	l.patch(id, M{"translation_retry": true})
 }
 func liveURL(base, run string) string {

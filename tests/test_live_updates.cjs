@@ -13,7 +13,8 @@ assert.equal(feed.scrollTop,3000);assert.match(feed.innerHTML,/Synthetic line 41
 feed.scrollTop=0;feed.scrollHeight=3500;observer();assert.equal(feed.scrollTop,3500,'Panel resizing retains latest content');
 response=data(41,'translated','测试句');const [id,tick]=[...timers][0];timers.delete(id);await tick();assert.match(feed.innerHTML,/测试句/);assert.equal(feed.scrollTop,3500);
 response=data(42);await el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/Synthetic line 42/);
-el('#live-pause').handlers.click();assert.equal(timers.size,0,'An explicit pause freezes the current window');feed.scrollTop=100;observer();assert.equal(feed.scrollTop,100);
+el('#live-pause').handlers.click();assert.ok(timers.size>0,'Pausing scrolling keeps new captions polling');feed.scrollTop=100;observer();assert.equal(feed.scrollTop,100);
+response=data(42,'translated','稍后补到的中文');const [pauseId,pauseTick]=[...timers][0];timers.delete(pauseId);await pauseTick();assert.match(feed.innerHTML,/稍后补到的中文/);assert.equal(feed.scrollTop,100,'Delayed translations preserve manual position');
 response=data(43);el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/Synthetic line 43/);assert.equal(feed.scrollTop,3500);
 response={...data(44,'translated','错误的独立词义'),items:[{id:'tail',seq:44,role:'user',text:'- buster',status:'translated',chinese:'错误的独立词义',fragment:{kind:'word_tail',joined_word:'blockbuster'}}],teaching:{kind:'help',english:'Could we see a movie?',chinese:'可以看电影吗？',groups:['Could we see a movie?'],next_cue:''}};
 el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/blockbuster/);assert.doesNotMatch(feed.innerHTML,/错误的独立词义/);assert.match(feed.innerHTML,/这一句可以这样说/);
@@ -22,6 +23,6 @@ assert.equal(el('#live-retry-translation').hidden,true,'Healthy captions must no
 response={...data(46),state:{...data(46).state,translation_status:'unavailable',translation_error:'Fictional connection failure',desired:'running'}};
 el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.equal(el('#live-retry-translation').hidden,false);assert.match(feed.innerHTML,/Synthetic line 46/);
 response={...response,state:{...response.state,status:'stopped',desired:'stopped',imported:true}};
-el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.equal(el('#live-retry-translation').hidden,true);assert.match(el('#live-status').textContent,/可回看/);
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.equal(el('#live-retry-translation').hidden,false,'Closed captions retain their targeted retry');assert.match(el('#live-status').textContent,/可回看/);
 live.unmount();assert.equal(timers.size,0);console.log('Passed live behavior: initial follow, resize, delayed translation, next segment, pause and resume.');
 })().catch(e=>{console.error(e);process.exitCode=1});

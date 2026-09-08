@@ -248,6 +248,20 @@ func coalesceExpressions(d M) M {
 }
 func reconcileReview(d M, language string) M {
 	d = coalesceExpressions(d)
+	for _, v := range arr(d["concept_observations"]) {
+		o := obj(v)
+		// A supplied wording model can support completion, never independent
+		// mastery. Downgrade this contradiction without changing its source,
+		// quote or support. Other invalid evidence still fails normal checks.
+		if o["result"] == "success" && has(stringsA("meaning", "use"), o["dimension"]) && has(stringsA("model", "keywords"), o["support"]) {
+			o["result"] = "supported"
+			note := "Supplied wording is recorded as supported completion, not independent mastery."
+			if language == "zh-CN" {
+				note = "当时有语言提示，记为有提示完成，不代表独立掌握。"
+			}
+			o["note"] = strings.TrimSpace(str(o["note"]) + " " + note)
+		}
+	}
 	selected := M{}
 	for _, v := range append(arr(d["expressions"]), arr(d["concept_observations"])...) {
 		for _, id := range arr(obj(v)["source_turn_ids"]) {
@@ -663,7 +677,8 @@ func processReview(ctx context.Context, root string, job M) {
 				return
 			}
 			require(trial == 0 && (client != nil || truth(job["retry_requested"])), failure.Error())
-			setReviewStage(root, thread, voice, "generating", M{"repair_reason": failure.Error(), "preview": A{}}, false)
+			// Keep source-checked suggestions visible while the same draft is repaired.
+			setReviewStage(root, thread, voice, "generating", M{"repair_reason": failure.Error(), "preview": checkedPreview(arr(draft["expressions"]), snapshot)}, false)
 			draft = generate(merge(payload, M{"prior_draft": draft, "validation_error": failure.Error()}))
 			writeJSON(draftFile, draft)
 		}

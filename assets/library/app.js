@@ -231,7 +231,7 @@ function reviewMessage(data) {
   if(data.status==='needs_attention')return {title:'整理比预期更久',body:'本次复盘尚未完成。可以先看其他页面；这里会继续检查，保存后提供入口。'};
   if(data.status==='saving')return {title:'正在保存并核对记录',body:'正在关联词句、保存来源并检查学习档案。'};
   if(data.status==='preparing')return {title:'正在整理本次表达',body:'正在核对对话中的表达问题、词义和优先练习点。'};
-  if(data.status==='practicing')return {title:'练习进行中',body:'语音结束后会整理本次表达。'};
+  if(data.status==='practicing')return {title:'等待 Voice 关闭',body:'关闭 Voice 语音窗口后，后台才会收到结束信号并自动整理。只说“结束”而窗口仍开着时，可能尚未启动复盘。'};
   return {title:'正在等待课后整理开始',body:'语音已结束或等待结束确认；收到整理进度后会在这里更新。'};
 }
 function reviewPreview(data) {
@@ -267,6 +267,12 @@ function paintReviewNotice() {
   const rows=all.filter(x=>x.status!=='practicing'||x===exact);
   const item=exact||rows[0];
   panel.hidden=!item||(current.path==='live'&&!exact);if(panel.hidden)return;
+  if(current.path==='live') {
+    panel.hidden=true;
+    const link=$('#live-review');
+    if(exact&&link){link.hidden=false;link.href=reviewLink(exact);link.textContent=exact.status==='saved'?'复盘已保存 ↗':exact.status==='practicing'?'本次复盘 ↗':exact.status==='error'?'复盘待重试 ↗':exact.preview?.length?'复盘可先看 ↗':'复盘整理中 ↗';link.title=reviewMessage(exact).body;}
+    return;
+  }
   const message=reviewMessage(item),other=rows.filter(x=>x!==item);
   const title=exact?message.title:message.title.replace('本次','最近').replace('练习进行中','另一场练习进行中');
   const markup=`<div class="review-notice-main"><div><strong>${esc(title)}</strong><span>${esc(reviewLabel(item))}</span></div><a class="button small" href="${esc(reviewLink(item))}">${item.status==='saved'?'打开复盘':'查看整理进度'} ↗</a></div>${other.length?`<details><summary>其他最近复盘（${other.length}）</summary>${other.map(x=>`<a href="${esc(reviewLink(x))}">${esc(reviewLabel(x))} · ${esc(reviewMessage(x).title.replace('本次','该次'))} ↗</a>`).join('')}</details>`:''}`;
@@ -317,6 +323,7 @@ document.addEventListener('submit', event => {
 });
 document.addEventListener('click', event => {
   if(event.target.closest('.skip')){event.preventDefault();main.focus();main.scrollIntoView();return;}
+  const menu=$('#live-details');if(menu?.open&&!event.target.closest('#live-details'))menu.open=false;
   const help=event.target.closest('.help>button');
   if(help){const parent=help.parentElement;parent.classList.toggle('open');help.setAttribute('aria-expanded',parent.classList.contains('open'));return;}
   if(!event.target.closest('.help'))document.querySelectorAll('.help.open').forEach(el=>{el.classList.remove('open');$('button',el).setAttribute('aria-expanded','false');});
@@ -369,3 +376,5 @@ async function retryReview(button) {
     toast('本地复盘任务已接收。');scheduleReviews(0);
   }catch(error){toast(error.message);}finally{button.disabled=false;}
 }
+
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){const menu=$('#live-details');if(menu?.open){menu.open=false;$('summary',menu)?.focus();}}});

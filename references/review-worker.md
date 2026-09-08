@@ -31,3 +31,7 @@ The single model response puts expressions first. As soon as an expression's sou
 Exact repeated English/Chinese entries are coalesced before ID allocation, retaining their linked quotes and an actual scored attempt if supplied. Priorities and concept links are remapped. This avoids a full regeneration for a duplicate canonical phrase; it never merges different meanings or invents a stronger score. Coach mistakes belong in coaching notes, not the learner's error count.
 
 页面先展示最多三条来源校验后的表达建议，完整检查继续进行；这三条不是复盘总量上限，也还没有计入正式学习记录。同一句的求助和后续尝试保留证据后合并，避免编号冲突造成整份重做。首批出现时间与完整完成时间分开记录；不承诺固定秒数。
+
+Review normalization conservatively changes a `success` with `model`/`keywords` support in meaning/use to `supported`, preserving its original quote and support. Other source, coverage and audio-evidence checks remain strict. If repair is still needed, keep source-checked expression previews visible instead of blanking them during regeneration. This removes a redundant full-generation retry; it does not guarantee a fixed model latency.
+
+含完整示范或关键词提示的词义/运用成功，保守记为“有提示完成”，不提升为独立掌握。来源、覆盖与音频证据仍须校验；需要重试时保留已核对的句子预览。

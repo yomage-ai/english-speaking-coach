@@ -78,7 +78,10 @@ func TestRealMixedInputBilingualHint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
 	defer cancel()
 	rows := A{M{"id": "u1", "role": "user", "text": "I want some 车厘子."}}
-	out, hint, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A grocery store"}, "profile": M{"practice_language": "bilingual", "correction": "in_character", "help_language": "zh-CN"}}, nil)
+	out, hint, rejected, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A grocery store"}, "profile": M{"practice_language": "bilingual", "correction": "in_character", "help_language": "zh-CN"}}, nil)
+	if len(rejected) > 0 {
+		t.Fatalf("Rejected translations: %v", rejected)
+	}
 	if len(out) != 1 || hint == nil || hint["kind"] != "help" || !hanRE.MatchString(str(hint["chinese"])) || hanRE.MatchString(str(hint["english"])+str(hint["next_cue"])) || str(hint["next_cue"]) == "" {
 		t.Fatal("Bilingual meaning or English confirmation missing", out, hint)
 	}
@@ -95,7 +98,10 @@ func TestRealUncertainObjectHint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
 	defer cancel()
 	rows := A{M{"id": "u1", "role": "user", "text": "I want buy two bread for breakfast."}}
-	out, hint, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A bakery"}, "profile": M{"correction": "in_character", "help_language": "zh-CN"}}, nil)
+	out, hint, rejected, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A bakery"}, "profile": M{"correction": "in_character", "help_language": "zh-CN"}}, nil)
+	if len(rejected) > 0 {
+		t.Fatalf("Rejected translations: %v", rejected)
+	}
 	if len(out) != 1 || hint == nil || hint["kind"] != "continue" || str(hint["next_cue"]) == "" {
 		t.Fatal("Uncertain item was silently chosen instead of clarified", out, hint)
 	}

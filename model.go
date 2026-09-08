@@ -341,7 +341,9 @@ func assembleTranslations(segments, units, translated A) A {
 		if t["kind"] == "name" {
 			require(len(ws) >= 1 && len(ws) <= 3 && normalizeLatin(zh) == normalizeLatin(str(u["text"])), "Invalid proper-name translation")
 			for _, w := range ws {
-				require(w[0] >= 'A' && w[0] <= 'Z', "Ordinary vocabulary is not a proper name")
+				// Names can have internal capitals (iPad, eBay). A casing signal is
+				// only a guard against ordinary lowercase words, not proof of a name.
+				require(strings.IndexFunc(w, unicode.IsUpper) >= 0, "Ordinary vocabulary is not a proper name")
 			}
 		} else {
 			require(t["kind"] == "translation" && hanRE.MatchString(zh), "译文未给出中文句意。")
@@ -364,6 +366,43 @@ func assembleTranslations(segments, units, translated A) A {
 		out = append(out, M{"id": s["id"], "chinese": strings.TrimSpace(zh)})
 	}
 	return out
+}
+
+// Validate whole utterances independently. A malformed unit with a known ID
+// invalidates its utterance only; unknown IDs invalidate the response envelope.
+// Never splice a partial translation into a sentence and mark it complete.
+func partialTranslations(segments, units, translated A) (A, M) {
+	known, bySegment := M{}, M{}
+	for _, v := range units {
+		u := obj(v)
+		known[str(u["id"])] = u["segment_id"]
+		id := str(u["segment_id"])
+		bySegment[id] = append(arr(bySegment[id]), u)
+	}
+	values := M{}
+	for _, v := range translated {
+		t := obj(v)
+		segment := str(known[str(t["id"])])
+		if segment == "" {
+			rejected := M{}
+			for _, v := range segments {
+				rejected[str(obj(v)["id"])] = "Unknown translation ID"
+			}
+			return A{}, rejected
+		}
+		values[segment] = append(arr(values[segment]), t)
+	}
+	out, rejected := A{}, M{}
+	for _, v := range segments {
+		id := str(obj(v)["id"])
+		var rows A
+		if err := attempt(func() { rows = assembleTranslations(A{v}, arr(bySegment[id]), arr(values[id])) }); err != nil {
+			rejected[id] = err.Error()
+		} else {
+			out = append(out, rows...)
+		}
+	}
+	return out, rejected
 }
 func validateHint(value M, conversation A) M {
 	var latest M
@@ -415,10 +454,10 @@ func validateHint(value M, conversation A) M {
 	}
 	return merge(pick(value, "kind", "source_id", "quote", "english", "chinese", "next_cue", "groups"), M{"source_text": latest["text"]})
 }
-func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, publish func(A, float64)) (A, M, float64) {
+func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, publish func(A, float64)) (A, M, M, float64) {
 	units := translationUnits(segments)
 	if len(units) == 0 && teaching == nil {
-		return assembleTranslations(segments, units, A{}), nil, 0
+		return assembleTranslations(segments, units, A{}), nil, M{}, 0
 	}
 	start := time.Now()
 	payloadRows, unitRows := A{}, A{}
@@ -446,19 +485,21 @@ func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, pub
 		part, complete := arrayPrefix(raw, "translations", 200)
 		if complete {
 			var visible A
-			if attempt(func() { visible = assembleTranslations(segments, units, part) }) == nil {
+			if attempt(func() { visible, _ = partialTranslations(segments, units, part) }) == nil && len(visible) > 0 {
 				publish(visible, time.Since(start).Seconds())
 				published = true
 			}
 		}
 	})
-	out := assembleTranslations(segments, units, arr(answer["translations"]))
+	out, rejected := partialTranslations(segments, units, arr(answer["translations"]))
+	// Returned to the worker separately from connection failures. Valid rows and
+	// the current teaching cue can still be used when one sentence is rejected.
 	var hint M
 	if teaching != nil {
 		hint = validateHint(obj(answer["teaching"]), arr(teaching["conversation"]))
 	}
 	c.contextTail = tail(append(c.contextTail, payloadRows...), 4)
-	return out, hint, time.Since(start).Seconds()
+	return out, hint, rejected, time.Since(start).Seconds()
 }
 
 // Publish four complete phrase fields before optional notes/groups have finished.

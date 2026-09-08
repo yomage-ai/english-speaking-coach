@@ -9,6 +9,9 @@ import (
 )
 
 func recoverCaptions(root, thread, voice, source, model string, refresh bool) M {
+	return recoverCaptionsContext(context.Background(), root, thread, voice, source, model, refresh)
+}
+func recoverCaptionsContext(ctx context.Context, root, thread, voice, source, model string, refresh bool) M {
 	require(exists(filepath.Join(root, "profile.json")), "学习档案不可用，未创建空替代。")
 	if source == "" {
 		source = findSource(thread)
@@ -51,13 +54,14 @@ func recoverCaptions(root, thread, voice, source, model string, refresh bool) M 
 		return M{"status": "already_complete", "run_id": id, "segments": len(old), "model_batches": 0}
 	}
 	l.insertSegments(id, arr(snap["segments"]))
-	l.patch(id, merge(pick(snap, "voice_started_at", "voice_closed_at", "snapshot_at", "cursor"), M{"desired": "stopped", "status": "recovering", "ready": false, "error": nil, "recovery_mode": "after_voice", "model": model, "heartbeat_epoch": epoch()}))
+	l.patch(id, merge(pick(snap, "voice_started_at", "voice_closed_at", "snapshot_at", "cursor"), M{"desired": "stopped", "status": "recovering", "translation_status": "translating", "translation_error": nil, "ready": false, "error": nil, "recovery_mode": "after_voice", "model": model, "heartbeat_epoch": epoch()}))
 	sqlExec(l.db, "UPDATE segments SET status='pending',attempts=0 WHERE run=? AND (status!='translated' OR ?)", id, refresh)
 	client := newModelClient(model, 45*time.Second)
 	defer client.close()
 	batches := 0
 	failure := attempt(func() {
 		for {
+			must(ctx.Err())
 			rows := l.batch(id)
 			if len(rows) == 0 {
 				break
@@ -68,8 +72,10 @@ func recoverCaptions(root, thread, voice, source, model string, refresh bool) M 
 			}
 			l.patch(id, M{"heartbeat": now(), "heartbeat_epoch": epoch()})
 			err := attempt(func() {
-				out, _, latency := client.translate(context.Background(), rows, nil, nil)
+				out, _, rejected, latency := client.translate(ctx, rows, nil, nil)
 				l.translated(id, out, latency, expected)
+				l.failBatch(id, rows)
+				l.rememberTranslationErrors(id, out, rejected)
 				if latency > 0 {
 					batches++
 				}
@@ -82,9 +88,51 @@ func recoverCaptions(root, thread, voice, source, model string, refresh bool) M 
 		}
 	})
 	if failure != nil {
+		if ctx.Err() != nil {
+			panic(failure)
+		}
 		l.patch(id, M{"status": "error", "ready": false, "translation_error": failure.Error(), "error": fmt.Sprint(failure)})
 		panic(failure)
 	}
-	l.patch(id, M{"status": "ended", "ready": false, "error": nil, "translation_error": nil, "recovery_finished_at": now()})
-	return M{"status": "recovered_after_voice", "run_id": id, "segments": len(wanted), "model_batches": batches, "prior_binding_existed": len(matches) > 0}
+	failed := integer(l.counts(id)["failed"])
+	status := "recovered_after_voice"
+	if failed > 0 {
+		status = "partially_recovered_after_voice"
+	}
+	l.patch(id, M{"status": "ended", "translation_status": "ready", "ready": false, "error": nil, "translation_error": nil, "recovery_finished_at": now()})
+	return M{"status": status, "run_id": id, "segments": len(wanted), "untranslated_segments": failed, "model_batches": batches, "prior_binding_existed": len(matches) > 0}
+}
+
+// Explicit browser retries are durable and scoped to an already closed Voice.
+// This worker owns neither the microphone nor the active transcript binding.
+func runCaptionRecoveries(ctx context.Context, root string) {
+	lock, ok := tryLock(filepath.Join(root, "Runtime", ".caption-recovery-worker.lock"))
+	if !ok {
+		return
+	}
+	defer lock.Unlock()
+	l := openLive(root)
+	defer l.close()
+	for ctx.Err() == nil {
+		for _, v := range query(l.db, "SELECT * FROM runs") {
+			s := stateRow(obj(v))
+			if !truth(s["recovery_requested"]) {
+				continue
+			}
+			err := attempt(func() {
+				recoverCaptionsContext(ctx, root, str(s["thread_id"]), str(s["voice_id"]), str(s["source"]), textOr(s["model"], defaultModel), false)
+			})
+			if ctx.Err() != nil {
+				return // keep request for restart
+			}
+			fields := M{"recovery_requested": false}
+			if err != nil {
+				fields["translation_error"] = err.Error()
+			}
+			l.patch(str(s["id"]), fields)
+		}
+		if !sleepContext(ctx, 500*time.Millisecond) {
+			return
+		}
+	}
 }

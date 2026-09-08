@@ -1,22 +1,13 @@
-v0.2.2 — English-only practice and open questions / 全英文口语与开放提问
+v0.2.3 — 双语页更好读，翻译恢复更可靠 / Clearer captions and reliable recovery
 
-- Every coaching response during practice stays in English, including explanations and confirmations after non-English input.
-- The coach asks open questions without answer choices and waits for the learner to formulate an answer.
-- Meaning checks resolve once; clear pause and stop requests are acknowledged in English and followed immediately.
-- Useful English structure errors still receive the selected correction style. No answer menus does not mean no wording help.
-- Chinese page translations, written model meanings and bilingual installation instructions remain available. Private learning records and saved preferences are unchanged.
-- The standalone runtime and Skill instructions use the same coaching policy; existing learning records remain compatible.
+- 优化：双语页压缩顶部区域，将场景、场次和学习目录收入“更多”，保留更多对话与译文。
+- 修复：iPad 等专名误报导致中文中断；单句失败单独重试，后续句子继续翻译。
+- 新增：已结束场次可在网页重试补译；暂停滚动时仍继续接收新内容。
+- 优化：复盘保留已核对的预览，有提示的表达不再误记独立掌握并触发整份重做，入口直接显示整理状态。
+- 修复：开发测试目录不会覆盖正式自动备份。
 
-练习对话全英文，用开放问题引导用户自己组织表达；需要时保留纠错与说法帮助。网页中文翻译和书面复盘继续保留，暂停、结束立即执行。
-
-Standalone local companion
-
-v0.2.1 also preserves literal `#`, `%` and other supported filename characters in a chosen learning directory. v0.2.0 is superseded and should not be used for custom paths containing URI syntax.
-
-- No Python, Node.js or Go installation is needed to use the Skill. The Agent downloads the pinned, checksum-verified program for the user's OS and CPU.
-- Source transcripts, translation and written reviews run independently. A translation outage preserves new English and offers retry.
-- Existing selected Markdown/JSON learning records and SQLite caption caches remain compatible. Backup/restore retains original sources and detaches machine-specific work.
-- Full reviews retain source checks, per-turn word assessment, optional reading guidance and early provisional expression previews.
-- Runtime/platform tests cover macOS, Windows and Linux; six release targets build without cgo. Native Voice behavior and availability still depend on the host and the user's account.
-
-Binaries include Go and SQLite. macOS executables are not Developer ID notarized; Windows executables are not Authenticode signed. System execution prompts, if shown, require the user's normal OS approval; the Skill does not bypass them.
+- Improved: More room for conversation and translations; scene, history and archive links move into More.
+- Fixed: Mixed-case names such as iPad no longer interrupt Chinese captions. Failed sentences retry independently.
+- Added: Retry captions after Voice ends; pausing scrolling keeps receiving new content.
+- Improved: Reviews retain checked previews and conservatively record supplied wording without regenerating the entire draft. The review link shows progress.
+- Fixed: Development fixtures cannot overwrite the managed recovery backup.

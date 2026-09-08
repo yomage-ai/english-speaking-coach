@@ -555,7 +555,21 @@ func fakeModelServer() {
 				send(M{"id": 99, "method": "item/commandExecution/requestApproval", "params": M{}})
 				continue
 			}
-			send(M{"method": "item/completed", "params": M{"turnId": "test-turn", "item": M{"type": "agentMessage", "phase": "final_answer", "text": "{}"}}})
+			answer := "{}"
+			if mode == "translation-poison" {
+				payload := parseObject(str(obj(arr(obj(row["params"])["input"])[0])["text"]))
+				translations := A{}
+				for _, v := range arr(payload["units"]) {
+					u := obj(v)
+					x := M{"id": u["id"], "kind": "translation", "chinese": "虚构测试译文"}
+					if u["text"] == "backpack" {
+						x["kind"], x["chinese"] = "name", "backpack"
+					}
+					translations = append(translations, x)
+				}
+				answer = compact(M{"translations": translations})
+			}
+			send(M{"method": "item/completed", "params": M{"turnId": "test-turn", "item": M{"type": "agentMessage", "phase": "final_answer", "text": answer}}})
 			send(M{"method": "turn/completed", "params": M{"turn": M{"id": "test-turn", "status": "completed"}}})
 			continue
 		default:
@@ -638,7 +652,10 @@ func TestRealModelTranslation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
 	defer cancel()
 	rows := A{M{"id": "u1", "role": "user", "text": "I want buy two bread rolls for breakfast."}}
-	out, hint, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A bakery"}, "profile": M{"correction": "in_character", "help_language": "zh-CN", "input_support": "short_turns"}}, nil)
+	out, hint, rejected, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A bakery"}, "profile": M{"correction": "in_character", "help_language": "zh-CN", "input_support": "short_turns"}}, nil)
+	if len(rejected) > 0 {
+		t.Fatalf("Rejected translations: %v", rejected)
+	}
 	if len(out) != 1 || !hanRE.MatchString(str(obj(out[0])["chinese"])) || hint == nil || hint["kind"] != "help" {
 		t.Fatal("Unexpected translation/teaching", out, hint)
 	}

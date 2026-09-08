@@ -19,7 +19,8 @@ const maxFiles = 20000
 // Run after releasing the writer lock. Preserve the legacy automatic-backup
 // scope; explicit external archives keep their existing backup policy.
 func recoveryBackup(root string) M {
-	if absolute(root) != absolute(defaultRoot()) && !within(root, skillRoot()) {
+	legacySkillData := exists(filepath.Join(skillRoot(), "SKILL.md")) && within(root, skillRoot())
+	if absolute(root) != absolute(defaultRoot()) && !legacySkillData {
 		return M{}
 	}
 	destination := filepath.Join(filepath.Dir(configPath()), "backups", "latest.zip")
