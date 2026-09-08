@@ -736,6 +736,10 @@ func TestRuntimeBuildWithoutLanguageInterpreters(t *testing.T) {
 	must(e)
 	cmd.Stderr = os.Stderr
 	must(cmd.Start())
+	t.Cleanup(func() {
+		cancel()
+		_ = cmd.Wait()
+	})
 	scanner := bufio.NewScanner(stdout)
 	line := make(chan string, 1)
 	go func() {
@@ -750,14 +754,31 @@ func TestRuntimeBuildWithoutLanguageInterpreters(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("Standalone service did not start")
 	}
-	identity := fetchJSON(base + "/api/identity")
-	overview := fetchJSON(base + "/api/overview")
-	live := fetchJSON(base + "/api/live")
+	// The listening announcement precedes lazy SQLite initialization. A cold
+	// Windows runner can exceed the CLI's two-second probe while this finishes.
+	// Wait for actual API readiness within a bounded startup budget; validate
+	// response contents below so retries cannot conceal a wrong response.
+	ready := func(path string) M {
+		t.Helper()
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			var data M
+			err := attempt(func() { data = fetchJSON(base + path) })
+			if err == nil {
+				return data
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("Standalone API %s did not become ready: %v", path, err)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	identity := ready("/api/identity")
+	overview := ready("/api/overview")
+	live := ready("/api/live")
 	if identity["runtime"] != "go" || integer(obj(overview["counts"])["sessions"]) != 0 || integer(live["total"]) != 0 {
 		t.Fatal(identity, overview, live)
 	}
-	cancel()
-	_ = cmd.Wait()
 }
 
 func TestReviewWatchWorksWithCaptionsDisabled(t *testing.T) {
