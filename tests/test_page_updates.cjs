@@ -95,6 +95,13 @@ const lesson = {...meta,id:'SES-20260101-002',date:'2026-01-01',title:'Synthetic
   assert.match(durable.elements.get('#review-notice').innerHTML,/练习进行中/);
   assert.match(durable.elements.get('#review-notice').innerHTML,/Current bus/);
   assert.doesNotMatch(durable.elements.get('#review-notice').innerHTML,/本次复盘已保存/);
+  durable.location.hash='#live';
+  vm.runInContext('paintReviewNotice()',durable.context);
+  assert.equal(durable.elements.get('#review-notice').hidden,true,'Missing run IDs must not match an unrelated saved review');
+  durable.context.window.CoachLive={state:()=>({thread_id:'current',voice_id:'voice'})};
+  vm.runInContext('paintReviewNotice()',durable.context);
+  assert.equal(durable.elements.get('#review-notice').hidden,false);
+  assert.match(durable.elements.get('#review-notice').innerHTML,/Current bus/);
   durable.location.hash='#sessions/'+lesson.id;
   const richer={...lesson,coaching_notes:['Give a relevant next step.'],excerpts:Array.from({length:5},(_,i)=>({id:'e'+i,original:'learner '+i,english:'Model '+i,chinese:'含义 '+i,note:'Untested review advice'})),review_priority_ids:['e0','e2'],card_count:6};
   durable.context.richer=richer;

@@ -260,8 +260,9 @@ function reviewLabel(item) {
 function paintReviewNotice() {
   const panel=$('#review-notice');if(!panel)return;
   const current=route(),all=[...trackedReviews.values()].sort((a,b)=>(b.created_epoch||0)-(a.created_epoch||0));
+  const live=current.path==='live'?window.CoachLive?.state?.():null;
   const exact=all.find(x=>(current.path==='review'&&x.thread_id===current.args.thread&&x.voice_id===current.args.voice)
-    ||(current.path==='live'&&x.run_id===current.args.run)
+    ||(current.path==='live'&&((current.args.run&&x.run_id===current.args.run)||(live?.voice_id&&x.thread_id===live.thread_id&&x.voice_id===live.voice_id)))
     ||(current.path==='sessions/'+x.session_id));
   const rows=all.filter(x=>x.status!=='practicing'||x===exact);
   const item=exact||rows[0];

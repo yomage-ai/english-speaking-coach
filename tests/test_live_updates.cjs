@@ -18,5 +18,10 @@ response=data(43);el('#live-follow').handlers.click();await new Promise(r=>setIm
 response={...data(44,'translated','错误的独立词义'),items:[{id:'tail',seq:44,role:'user',text:'- buster',status:'translated',chinese:'错误的独立词义',fragment:{kind:'word_tail',joined_word:'blockbuster'}}],teaching:{kind:'help',english:'Could we see a movie?',chinese:'可以看电影吗？',groups:['Could we see a movie?'],next_cue:''}};
 el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/blockbuster/);assert.doesNotMatch(feed.innerHTML,/错误的独立词义/);assert.match(feed.innerHTML,/这一句可以这样说/);
 response=data(45);el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.doesNotMatch(feed.innerHTML,/这一句可以这样说/,'A new turn cannot retain an old hint');
+assert.equal(el('#live-retry-translation').hidden,true,'Healthy captions must not offer an irrelevant retry');
+response={...data(46),state:{...data(46).state,translation_status:'unavailable',translation_error:'Fictional connection failure',desired:'running'}};
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.equal(el('#live-retry-translation').hidden,false);assert.match(feed.innerHTML,/Synthetic line 46/);
+response={...response,state:{...response.state,status:'stopped',desired:'stopped',imported:true}};
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.equal(el('#live-retry-translation').hidden,true);assert.match(el('#live-status').textContent,/可回看/);
 live.unmount();assert.equal(timers.size,0);console.log('Passed live behavior: initial follow, resize, delayed translation, next segment, pause and resume.');
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -38,7 +38,7 @@
 .storage-transfer form {display:grid;gap:10px;max-width:680px;margin-top:24px}
 .storage-transfer select,.storage-transfer input[type=text] {width:100%;box-sizing:border-box;min-height:44px;padding:10px;border:1px solid var(--line,#d6d8dd);border-radius:8px;background:var(--surface,#fff);color:inherit;font:inherit}
 .storage-transfer input[type=file] {max-width:100%;margin:8px 0}
-.storage-transfer [hidden] {display:none!important}
+[hidden] {display:none!important}
 #storage-plan {margin-top:20px;padding:18px;background:var(--soft,#f3f6f3);border-radius:12px}
 #storage-plan code {display:block;overflow-wrap:anywhere}
 #storage-result {min-height:1.5em;overflow-wrap:anywhere}
