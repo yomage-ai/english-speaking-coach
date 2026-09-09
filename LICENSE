@@ -1,3 +1,110 @@
+English Speaking Coach — Personal Noncommercial License 1.0
+个人非商业使用许可 1.0
+
+Copyright (c) 2026 yomage-ai
+Effective for releases v0.2.10 and later, subject to the prior-license and
+third-party exclusions below. This is a source-available license, not an
+OSI-approved open-source license. The English terms govern; the Chinese
+translation below explains the same terms.
+
+1. Scope and permission
+“Software” means the project-owned code, Skill instructions, documentation,
+web assets and compiled programs distributed with this license. Subject to
+sections 3 and 4, the copyright holder grants individuals a worldwide,
+non-exclusive, royalty-free license to use, copy and modify the Software for
+personal noncommercial purposes, including personal English learning and
+private study. Personal interview preparation or learning work-related
+English does not, by itself, make an individual's independent study commercial.
+Anyone may inspect the publicly available source to understand the project.
+
+Individuals may redistribute the Software and modifications only without
+charge and for personal noncommercial purposes. Such copies must retain this
+license, copyright and third-party notices, identify modifications, and offer
+no broader rights to project-owned material covered by this license. No right
+to sublicense that material under different terms is granted.
+
+2. Commercial authorization
+Commercial use requires a separate written license from yomage-ai before
+that use begins. Commercial use includes selling or licensing the Software;
+using it to provide paid, advertising-supported or revenue-generating
+services; integrating it into commercial products; and deploying or using it
+on behalf of a business for internal operations, employee training or client
+work. Noncommercial use of an organization's product or service is not
+personal use under section 1 merely because its end users pay nothing.
+
+Request commercial authorization through the repository's Issues contact:
+https://github.com/yomage-ai/english-speaking-coach/issues
+Submitting a request, receiving no reply, downloading a release, or making
+a donation does not itself grant commercial authorization. Only an express
+written agreement from the copyright holder does so.
+
+3. Prior MIT rights remain
+Versions v0.2.9 and earlier were released under the MIT License reproduced
+below. This license does not revoke, replace or restrict permissions already
+granted for that material, including when it remains in a later release.
+New original material released under this license is subject to sections 1
+and 2. Merely changing the release number or this license does not turn
+previously MIT-licensed code into exclusively noncommercial code. Recipients
+may continue to exercise MIT rights for the material covered by MIT.
+
+4. Third-party material, learning data and names
+Third-party components remain under their own licenses. Their notices are
+included with release programs in THIRD_PARTY_NOTICES.txt or *.NOTICES.txt;
+this license imposes no additional restrictions on those components.
+This license does not claim ownership of a learner's data or impose these
+Software-use restrictions on their own practice records or learning output.
+It grants no trademark or endorsement rights. Access to Codex, model services
+and operating-system features remains subject to their respective terms.
+
+5. Termination and disclaimer
+Rights granted under this license terminate if you breach its conditions.
+Termination does not revoke independent prior MIT or third-party rights.
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. TO THE EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDERS ARE
+NOT LIABLE FOR CLAIMS, DAMAGES OR OTHER LIABILITY ARISING FROM THE SOFTWARE
+OR ITS USE, WHETHER IN CONTRACT, TORT OR OTHERWISE.
+
+中文对应条款
+
+1. 范围与许可：本许可覆盖项目自身拥有版权的代码、Skill 指令、文档、网页
+资源与编译程序，但须遵守下述历史许可和第三方例外。个人可免费使用、复制、
+修改这些内容，用于个人非商业学习。个人独立准备面试、学习工作英语，本身
+不视为商用。任何人可查看公开源码以了解项目。
+个人可为个人非商业目的免费分发原件或修改件，但必须保留本许可、版权和
+第三方声明，标明修改，不得对本许可覆盖的项目自有内容授予更宽的权限或
+改用其他许可再授权。
+
+2. 商业授权：销售或授权软件、提供收费/广告支持/产生收入的服务、集成到
+商业产品，以及代表企业用于内部运营、员工培训或客户工作，均须事先取得
+yomage-ai 的单独书面授权。机构产品或服务即使不向最终用户收费，也不因此
+成为第 1 条中的个人使用。
+商业授权通过上述仓库 Issues 入口联系。提出申请、未收到回复、下载或捐赠
+都不等于获准商用，须取得版权所有者明确的书面协议。
+
+3. 历史 MIT 权利：v0.2.9 及更早版本已按下方 MIT 许可发布。这次变更不撤销、
+替换或限制这些内容已有的 MIT 权利，即使历史内容继续包含在后续版本中。
+按本许可发布的新原创内容适用第 1、2 条。仅修改版本号或许可证，不能将
+既有 MIT 代码变为只能非商业使用；使用者仍可行使相应 MIT 权利。
+
+4. 第三方、学习数据与名称：第三方依赖继续遵循各自许可，其声明随程序
+提供，本许可不额外限制这些依赖。本许可不主张拥有学习者的数据，也不把
+上述软件使用限制附加到其个人练习记录或学习产出上。本许可不授予商标或
+背书权利；Codex、模型服务和系统功能仍遵守各自条款。
+
+5. 终止与免责：违反本许可条件时，本许可授予的权利终止，但不撤销独立的
+历史 MIT 或第三方权利。软件按原样提供，不作适销性、特定用途适用性或
+不侵权等明示或默示保证；在法律允许的范围内，版权所有者不对使用本软件
+产生的索赔、损害或其他责任承担责任。
+
+本许可自 v0.2.10 起随新版本提供，源码继续公开，但不是 OSI 定义的开源
+许可。如中英文存在解释差异，以英文条款为准。
+
+Historical MIT License / 历史 MIT 许可原文
+The following applies to previously MIT-licensed material, not a second
+license option for new material covered only by the license above.
+以下文本适用于历史 MIT 内容，不构成新增内容可任选 MIT 的双重许可。
+
 MIT License
 
 Copyright (c) 2026 yomage-ai

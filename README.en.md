@@ -53,4 +53,8 @@ If translation disconnects, new original text still appears; the page explains t
 
 Native Voice can respond autonomously or paraphrase the Agent’s English. The Skill therefore cannot guarantee that Voice always speaks English or handles pauses correctly; captions cannot control speech either. This is a current host limitation.
 
-[MIT License](LICENSE)
+## License
+
+Source is publicly available. Personal noncommercial learning is free; selling the software, paid services, commercial product integration, employer-provided training and other commercial uses require a separate written license. Independent personal interview preparation or learning work-related English remains free. [Full license](LICENSE) · [Commercial licensing contact](https://github.com/yomage-ai/english-speaking-coach/issues)
+
+The new license is supplied from v0.2.10 onward. It does not revoke MIT rights in v0.2.9 and earlier releases or previously MIT-licensed code. Third-party components retain their own licenses.
