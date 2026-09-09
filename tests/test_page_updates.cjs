@@ -138,5 +138,20 @@ const lesson = {...meta,id:'SES-20260101-002',date:'2026-01-01',title:'Synthetic
   progress={...progress,status:'error',error:'Synthetic unfinished request'};await vm.runInContext('refreshReviews()',preview.context);
   assert.match(preview.elements.get('#review-preview').innerHTML,/暂未完成/);assert.equal(preview.redirects.length,0);
   progress={...progress,status:'saved',session_id:lesson.id,preview:[]};await vm.runInContext('refreshReviews()',preview.context);assert.deepEqual(preview.redirects,['#sessions/'+lesson.id]);
+  const sample={id:'test',english:'Could I try this on?',chinese:'可以试穿吗？',original:'try clothes me',date:'2026-01-01',source_session:lesson.id};
+  preview.context.sample=sample;
+  for(const mode of ['speak','meaning','read']) {
+    const html=vm.runInContext(`expressionCard(sample,'${mode}')`,preview.context);
+    assert.match(html,/data-speak-english="Could I try this on\?"/);
+    assert.doesNotMatch(html,/data-speak-english="try clothes me"/);
+    const flip=html.match(/<button[^>]*class="flip-control"[\s\S]*?<\/button>/)?.[0]||'';
+    assert.doesNotMatch(flip,/data-speak-english/,'Playback must not nest in the flip button');
+  }
+  const excerptHtml=vm.runInContext('excerpt(sample)',preview.context);
+  assert.match(excerptHtml,/data-speak-english="Could I try this on\?"/);
+  assert.doesNotMatch(excerptHtml,/data-speak-english="try clothes me"/);
+  const previewHtml=vm.runInContext("reviewPreview({preview:[sample]})",preview.context);
+  assert.match(previewHtml,/data-speak-english="Could I try this on\?"/);
+  assert.equal(vm.runInContext("speechButton('')",preview.context),'');
   console.log('Passed page checks: exact review, stale response, nonblocking lesson, rapid flip reversals, reduced motion, persistent review navigation, full coverage and coach feedback.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

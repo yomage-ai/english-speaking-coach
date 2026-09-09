@@ -21,6 +21,7 @@ jobs:
           node-version: '22'
       - run: node tests/test_page_updates.cjs
       - run: node tests/test_live_updates.cjs
+      - run: node tests/test_speech.cjs
   builds:
     runs-on: ubuntu-latest
     steps:

@@ -32,9 +32,13 @@ Codex automatically opens the local learning page at the start of every practice
 | Session review | Read expressions, suggestions and priorities; find the review again after switching pages |
 | Learning home / Review | Start the next activity on Home; inspect changes over time in Review |
 | Local learning data | Open the folder, download a full backup, restore a backup or use another copied archive |
-| Flashcards | Recall before flipping; expand saved reading and memory tips when useful |
+| Flashcards | Recall before flipping; hear standard English with system speech or expand reading and memory tips |
 
 On first use, Codex downloads and verifies the standalone program for this computer, then reuses it. **No Python, Node.js or Go installation is required.** Desktop support and limits are described below.
+
+System speech reads only flashcard English and suggested expressions in reviews, never your original wording. Select “Read English” to play or stop; “Slow” selects a slower rate. It uses local English voices exposed by the browser, with no API key, paid speech service or microphone access. Availability, pronunciation and volume depend on your system and browser. If unavailable, the page suggests opening the local URL in Safari, Chrome or Edge. The current archive interface labels these controls “朗读英文” and “慢速”.
+
+Speech is independent of Voice and is not a replay of the original practice. Flipping, listening and reading along do not create practice evidence or change mastery. This release does not add Web recording, speech recognition or a new practice log.
 
 ## Before you use it
 
