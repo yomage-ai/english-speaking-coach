@@ -1,3 +1,8 @@
+# v0.2.13 — One-pass review normalization / 单次复盘归一化
+
+- 模型偶尔多返回一条“后续重点”或“教练建议”时，程序按已约定的优先级保留前几项，不再为纯数量超限发起第二次完整模型生成。
+- If a model returns one extra focus or coaching note, keep the already-prioritized leading items in code instead of issuing a second full model repair call.
+
 # v0.2.12 — Reliable review and reading / 稳定复盘与朗读
 
 - 复盘模型只生成需要语义判断的内容；程序补齐并校验逐回合覆盖和词义记账，显著缩短长对话复盘，保留来源与完整性检查。

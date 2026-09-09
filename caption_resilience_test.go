@@ -178,6 +178,20 @@ func TestReviewSuppliedSuccessIsConservativeAndIdempotent(t *testing.T) {
 	// The reading claim is untouched: downstream audio validation must still reject it.
 }
 
+func TestReconcileReviewTrimsMechanicalListOverflow(t *testing.T) {
+	d := M{
+		"next_focus":     stringsA("first", "second", "third"),
+		"coaching_notes": stringsA("one", "two", "three", "four"),
+	}
+	out := reconcileReview(d, "en")
+	if got := arr(out["next_focus"]); len(got) != 2 || got[0] != "first" || got[1] != "second" {
+		t.Fatalf("next_focus should retain the first two items, got %#v", got)
+	}
+	if got := arr(out["coaching_notes"]); len(got) != 3 || got[0] != "one" || got[2] != "three" {
+		t.Fatalf("coaching_notes should retain the first three items, got %#v", got)
+	}
+}
+
 func TestRealMixedNameTranslation(t *testing.T) {
 	if os.Getenv("ENGLISH_COACH_REAL_MODEL_TEST") != "1" {
 		t.Skip("Explicit development opt-in required")

@@ -255,6 +255,12 @@ func coalesceExpressions(d M) M {
 }
 func reconcileReview(d M, language string) M {
 	d = coalesceExpressions(d)
+	// The prompt asks for the strongest items first. A model occasionally
+	// returns one extra focus or coaching note; that is a mechanical size
+	// violation, not a reason to spend another full model call repairing an
+	// otherwise valid review.
+	d["next_focus"] = head(arr(d["next_focus"]), 2)
+	d["coaching_notes"] = head(arr(d["coaching_notes"]), 3)
 	for _, v := range arr(d["concept_observations"]) {
 		o := obj(v)
 		// A supplied wording model can support completion, never independent
