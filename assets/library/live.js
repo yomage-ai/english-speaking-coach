@@ -5,7 +5,7 @@ window.CoachLive = (() => {
   const e = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const get = s => document.querySelector(s);
   const stamp = s => s ? new Date(s).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
-  const statusNames = {starting:'正在连接翻译',translating:'正在补充中文',recovering:'正在恢复已结束的对话',draining:'正在处理最后几句',waiting_voice:'字幕已就绪 · 等待本次 Voice',waiting_transcript:'正在等待新转写',ended:'本次伴随已结束',stopped:'伴随已停止 · 可回看',expired:'已暂停伴随',error:'伴随需要检查'};
+  const statusNames = {starting:'正在连接翻译',translating:'正在补充中文',recovering:'正在恢复已结束的对话',draining:'正在处理最后几句',waiting_voice:'尚未绑定活动 Voice',waiting_transcript:'正在等待新转写',ended:'本次伴随已结束',stopped:'伴随已停止 · 可回看',expired:'已暂停伴随',error:'伴随需要检查'};
   function shell() {
     return `<section class="live-panel" aria-label="双方原话与中文翻译">
         <div class="live-toolbar"><div><strong>双语伴随</strong><span class="help"><button type="button" aria-label="双语伴随说明" aria-expanded="false">?</button><span class="help-body" role="tooltip">原话来自本次 Voice 转写，中文由后台翻译。失败不会停止接收原话，可重试补充。关闭 Voice 后自动整理复盘；口头说结束不一定会关闭语音窗口。</span></span><span class="fine" id="live-count"></span></div>
@@ -33,7 +33,7 @@ window.CoachLive = (() => {
     const s=data.state, feed=get('#live-feed');if(!feed)return;
     if(get('#live-scene'))get('#live-scene').textContent=s?.scene_introduction||'继续用英文聊。没听懂时，看一眼这里。';
     get('#sync').textContent='伴随检查于 '+stamp(data.server_time);get('#revision').textContent='双语伴随';
-    get('#live-status').textContent=s?.stale?'后台暂未响应':s?(s.translation_status==='unavailable'&&!['ended','error','expired','stopped'].includes(s.status)?'原话继续更新 · 中文暂不可用':s.status==='waiting_voice'&&!s.ready?'已绑定 · 等待本次 Voice':statusNames[s.status]||s.status):'尚未开始伴随';
+    get('#live-status').textContent=s?.stale?'后台暂未响应':s?(!s.voice_id&&!data.total?'尚未绑定活动 Voice':s.translation_status==='unavailable'&&!['ended','error','expired','stopped'].includes(s.status)?'原话继续更新 · 中文暂不可用':statusNames[s.status]||s.status):'尚未开始伴随';
     get('#live-status').classList.toggle('live-error',!!(s?.stale||s?.error||s?.translation_error));
     let messages=[];
     if(s?.demo)messages.push('虚构测试演示 · 这里用于查看翻译效果，没有写入正式学习档案。');
@@ -48,7 +48,8 @@ window.CoachLive = (() => {
     if(failed&&!s?.translation_error)messages.push(`${failed} 句中文待补，其余内容继续更新。`);
     const timing=s?.translation_timing;
     const speed=timing?`最近一批 ${timing.segments} 句${Number.isFinite(timing.first_sentence_seconds)?` · 首句 ${timing.first_sentence_seconds.toFixed(1)} 秒`:''}${Number.isFinite(timing.request_seconds)?` · 请求完成 ${timing.request_seconds.toFixed(1)} 秒`:''}`:'';
-    get('#live-diagnostic').textContent=[s?.error,s?.translation_error,s?.review_error,s?.teaching_error?`书面提示：${s.teaching_error}`:'',...Object.values(s?.translation_rejected||{}),speed].filter(Boolean).join(' · ')||'暂无异常';
+    const sourceState=s?(s.voice_id?`Voice 已绑定；收到 ${data.total} 句原话`:'没有活动 Voice 身份；尚无可翻译的原话'):'';
+    get('#live-diagnostic').textContent=[sourceState,s?.error,s?.translation_error,s?.review_error,s?.teaching_error?`书面提示：${s.teaching_error}`:'',...Object.values(s?.translation_rejected||{}),speed].filter(Boolean).join(' · ')||'暂无异常';
     const retry=get('#live-retry-translation');if(retry){retry.hidden=!!s?.imported||!((s?.translation_error||failed||(ended&&pending))&&s.status!=='recovering');retry.disabled=!!s?.recovery_requested;retry.textContent=s?.recovery_requested?'补译已排队':'重试中文';}
     if(s?.invalid_lines)messages.push(`有 ${s.invalid_lines} 行日志未能读取，请让 Agent 检查遗漏。`);
     notice(messages.join(' '));
@@ -57,7 +58,7 @@ window.CoachLive = (() => {
     get('#live-count').textContent=` · ${data.total} 句`;
     get('#live-time').textContent=s?`转写 ${stamp(s.last_transcript_at)}${pending?` · ${pending} 句待翻译`:''}`:'开始后自动绑定本次 Voice';
     const review=get('#live-review');if(review){review.hidden=!s?.voice_id;if(s?.voice_id)review.href='#review?'+new URLSearchParams({thread:s.thread_id,voice:s.voice_id});}
-    const signature=JSON.stringify([s?.id,s?.status,s?.translation_status,s?.ready,data.items.map(x=>[x.seq,x.text,x.status,x.chinese,x.fragment]),data.teaching,chinese,options.page,options.offset]);
+    const signature=JSON.stringify([s?.id,s?.voice_id,s?.status,s?.translation_status,s?.ready,data.items.map(x=>[x.seq,x.text,x.status,x.chinese,x.fragment]),data.teaching,chinese,options.page,options.offset]);
     if(signature!==fingerprint) {
       const scroll=feed.scrollTop;
       const top=feed.getBoundingClientRect?.().top;
@@ -67,7 +68,8 @@ window.CoachLive = (() => {
       if(s?.id!==shownRun){shownRun=s?.id;follow=true;}
       if(!data.items.length) {
         const ended=['ended','stopped','expired','error'].includes(s?.status);
-        feed.innerHTML=`<div class="live-empty"><span aria-hidden="true">Aa ↗</span><h2>${!s?'让对话留在英文里':ended?'这次没有收到双方转写':'可以继续说英语了'}</h2><p>${!s?'对 Agent 说“开双语伴随，继续练英语”。Agent 会负责绑定与打开；你不需要找文件。':ended?'可以继续正常练习。需要双语伴随时，让 Agent 检查日志并重新绑定。':'收到本场转写后，英文会先出现。中文翻译在后台单独连接，练习不需要等它。'}</p>${s?.ready?'<p class="fine">如果已经说了几句仍是空白，让 Agent 检查 Voice 是否在会中写出转写。</p>':''}</div>`;
+        const unbound=s&&!s.voice_id;
+        feed.innerHTML=`<div class="live-empty"><span aria-hidden="true">Aa ↗</span><h2>${!s?'尚未开始双语伴随':unbound?'尚未绑定活动 Voice':ended?'这次没有收到双方转写':'已绑定 Voice，等待原话'}</h2><p>${!s||unbound?'实时双语需要活动 Voice。打开 Voice 后，Agent 会核对本场身份并绑定；文字练习可直接在聊天中继续。':ended?'Agent 需要检查本场转写来源；刷新页面或重试翻译不能补出缺失的原话。':'收到本场转写后，英文会先出现，中文随后补充。如果已经说了几句仍是空白，Agent 需要检查宿主是否提供会中转写。'}</p></div>`;
       } else {
         feed.innerHTML=data.items.map(x=>utterance(x,open,s)).join('')+hintCard(data.teaching);
       }

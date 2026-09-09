@@ -55,7 +55,7 @@ Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `e
 
 Each expression requires nonempty `id`, `english`, `chinese`, `mastery`, `next_review` (YYYY-MM-DD), and `note`. Include `original` for selected learner wording. Inspect `add-session --check` itself before running dependent cleanup; a later successful command must not mask a failed save.
 
-Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked need and later attempt when duplicate canonical expressions are coalesced. Each quote is checked against this Voice before saving; it does not create extra attempts or promote mastery.
+Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked need and later attempt when duplicate canonical expressions are coalesced. For Voice, the writer checks each quote against that closed Voice before saving; for text practice, the Agent checks it against the cited chat turns under the text closeout contract. This evidence does not create extra attempts or promote mastery.
 
 `original` is the learner's selected wording, `english` is the suggested form, `note` explains the observed support and limits. A scored attempt needs both `review_result` and `review_prompt`. `independent` requires `success / none`; `transfer` requires `transfer_success / changed_context`. Structural validation cannot verify that an utterance really happened; Agent must check the source. Do not promote historical mastery without actual evidence.
 
@@ -71,7 +71,7 @@ Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked 
 | `practice_language` | `english_first`, `bilingual` |
 | `help_language` | `zh-CN`, `en` |
 | `mode` | `conversation`, `roleplay` (new-user default), `focused` |
-| `correction` | `after_scene` (new-user default), `in_character`, `light`, `detailed` |
+| `correction` | `in_character` (new-user default), `after_scene`, `light`, `detailed`; preserve existing explicit choices |
 | `drills` | `on_request`, `guided` (new-user default; guided work is in review) |
 | `review_limit` | 0–5; default 2 |
 | `review_delivery` | `written` (new-user default), `spoken`; absent on old profiles retains the old spoken-review behavior until an authorized preference update |
@@ -82,9 +82,9 @@ Latest explicit preference supersedes old session-specific requests. Do not turn
 
 `after_scene` defers proactive language teaching until review while still allowing minimal explicit help and natural clarification. `mode: focused` starts in review; conversation/roleplay start in scene. `resume --phase review` changes only this invocation. Old profiles retain their existing `light`/`detailed` and drill choices. See [practice-phases.md](practice-phases.md).
 
-`in_character` supports English meaning checks/recasts during the scene and adaptive prompts for fuller learner replies, without changing phase or enabling compulsory drills. Choose it only for an explicit preference; it does not migrate other profiles. Detailed review still uses `review_delivery`.
+`in_character` supports English meaning checks/recasts during the scene and adaptive prompts for fuller learner replies, without changing phase or enabling compulsory drills. It is the new-user default; changing an existing profile still requires an explicit preference and does not migrate other profiles. Detailed review still uses `review_delivery`.
 
-`in_character` 表达“场景内自然确认、提示说法并给我多说的机会”，属于用户明确选择；不会把看过示例或说 Yes 算成独立运用。`after_scene` 表达“会中先交流，课后再教”；`guided` 允许复盘阶段引导练习，不要求每句跟读。旧配置继续兼容。临时阶段不改长期偏好，保存时用新读的文件哈希避免覆盖并发修改。补录使用实际带时区的练习时间排序，未知时间不编造。
+`in_character` 表达“场景内自然确认、提示说法并给我多说的机会”，是新用户默认值，已有用户仍保持各自明确选择；不会把看过示例或说 Yes 算成独立运用。`after_scene` 表达“会中先交流，课后再教”；`guided` 允许复盘阶段引导练习，不要求每句跟读。旧配置继续兼容。临时阶段不改长期偏好，保存时用新读的文件哈希避免覆盖并发修改。补录使用实际带时区的练习时间排序，未知时间不编造。
 
 ## Writes and repairs / 写入与修复
 
@@ -115,3 +115,12 @@ A draft expression requires `source_turn_ids`, `original`, `english`, `chinese`,
 An expression may have `reading_guide` with exactly five fields: `kind: suggestion`, `groups: [{text, stress: [word]}]`, `tone` (`rise`, `fall`, `level`, `fall-rise`, `context`), `tone_note` and `memory: [{text, meaning}]`. See [reading-and-chunks.md](reading-and-chunks.md) for teaching decisions. The normal finish contract includes this shape; no separate generation round is needed. Validation preserves the clean English word order and requires stress words to occur in their group. One to six groups and one to four memory parts keep the annotation readable. Legacy records can omit it.
 
 这是可选教学建议，不是实际语音观察；不改变原话或掌握证据。按意思分组与按结构记忆分开展示，短句可不在内部停顿。
+
+<a id="text-closeout"></a>
+## Text practice closeout / 文字练习收尾
+
+On the user's explicit text-practice end, the Agent uses the observed chat, not a Voice snapshot. Read current records and Pending to find a matching practice before saving. Identify this practice with `codex-thread:<actual-task-id>` plus `text-session:<actual-task-id>:<first-practice-turn-id>`; preserve that identity on retries. If the host does not expose turn IDs, use the actual first-practice timestamp as the suffix and state the source limit. Several practices in one task must not collapse into one lesson.
+
+Prepare the ordinary session payload above from selected actual utterances. Use unused SES/EXP IDs after reading current state; reuse a matching existing expression where appropriate. Preserve source locators and distinguish model-supplied wording from independent use. `modality` for concept evidence is `text`. Technical maintenance turns are not language mistakes, word needs or practice achievements; note a relevant coach fault separately, and preserve a brief coverage explanation without copying technical logs. A pure maintenance task saves no lesson.
+
+Run `sh "<skill>/scripts/coach" add-session --input <selected.json> --check`. The writer checks and commits under its archive lock; a conflicting ID is rejected rather than overwritten. Inspect any collision, retain the exact practice identity, and select unused IDs only if this is not already saved. Verify saved/already_saved and validation before claiming completion. Obtain the overview origin with `open --page overview --no-browser`, then open `/#sessions/<saved-id>` and inspect the matching lesson. An unavailable page does not undo a successful save, and a page alone is not proof of saving. Never invent a voice-id or feed text dialogue into the closed-Voice worker.

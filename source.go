@@ -78,8 +78,14 @@ func sourceIdentity(path string) string {
 	require(len(line) <= maxLine && utf8.Valid(line), "Voice 日志头不完整。")
 	var row M
 	must(json.Unmarshal(line, &row))
-	require(row["type"] == "session_meta" && str(obj(row["payload"])["id"]) != "", "这不是可识别的 Codex 任务日志。")
-	return str(obj(row["payload"])["id"])
+	p := obj(row["payload"])
+	id, session := str(p["id"]), str(p["session_id"])
+	require(id == "" || session == "" || id == session, "任务日志的 id 与 session_id 冲突；未绑定。")
+	if id == "" {
+		id = session
+	}
+	require(row["type"] == "session_meta" && id != "", "这不是可识别的 Codex 任务日志。")
+	return id
 }
 func findSource(thread string) string {
 	require(regexp.MustCompile(`^[0-9a-f-]{36}$`).MatchString(thread), "需要明确的当前 Codex 任务 ID。")
@@ -89,6 +95,11 @@ func findSource(thread string) string {
 }
 func lifecycle(path string) (voice string, cursor int64) {
 	cursor, _ = scanLines(path, 0, 0, func(row M) {
+		// A current host state can disprove a stale start event. It cannot
+		// supply a Voice identity or prove that a closed transcript is complete.
+		if row["type"] == "world_state" && obj(obj(obj(row["payload"])["state"])["realtime"])["active"] == false {
+			voice = ""
+		}
 		if row["type"] != "realtime_item" {
 			return
 		}
@@ -100,6 +111,29 @@ func lifecycle(path string) (voice string, cursor int64) {
 		}
 	})
 	return
+}
+
+// Read-only preflight shared by prepare and doctor. No binding, scene history,
+// review watcher, model request or service is created for an ordinary text task.
+func inspectVoiceSource(thread, source string) M {
+	result := M{"status": "waiting_voice", "thread_id": thread, "voice_id": nil, "active": false}
+	err := attempt(func() {
+		require(thread != "", "缺少当前任务 ID；Agent 需要读取宿主提供的当前任务身份。")
+		if source == "" {
+			source = findSource(thread)
+		}
+		source = absolute(source)
+		require(sourceIdentity(source) == thread, "源文件身份与指定任务不一致；未绑定。")
+		voice, _ := lifecycle(source)
+		result["source"] = source
+		if voice != "" {
+			result["status"], result["voice_id"], result["active"] = "active_voice", voice, true
+		}
+	})
+	if err != nil {
+		result["status"], result["error"] = "source_unavailable", err.Error()
+	}
+	return result
 }
 
 // Cumulative transcript revisions are accepted only if one text extends the other.

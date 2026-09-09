@@ -26,6 +26,24 @@ response={...response,state:{...response.state,status:'stopped',desired:'stopped
 el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.equal(el('#live-retry-translation').hidden,true,'Imported captions cannot retry an unavailable old-machine source');assert.match(el('#live-status').textContent,/可回看/);
 response={...data(47),state:{...data(47).state,status:'ended',desired:'stopped'}};
 el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.equal(el('#live-retry-translation').hidden,false,'Ended pending rows offer recovery even without a connection error');
+// A legacy empty binding never claims readiness, even if a model connected.
+response={...data(0),total:0,items:[],counts:{},state:{id:'empty',status:'waiting_voice',ready:true,thread_id:'one',voice_id:null}};
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));
+assert.match(el('#live-status').textContent,/尚未绑定活动 Voice/);
+assert.doesNotMatch(feed.innerHTML,/已就绪|可以继续说英语了/);
+assert.match(el('#live-diagnostic').textContent,/没有活动 Voice 身份/);
+// Receiving a Voice identity with otherwise unchanged empty state repaints the cue.
+response={...response,state:{...response.state,voice_id:'two',status:'waiting_transcript'}};
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));
+assert.match(feed.innerHTML,/已绑定 Voice，等待原话/);
+assert.doesNotMatch(feed.innerHTML,/尚未绑定活动 Voice/);
+response={...response,state:{...response.state,status:'error',error:'源日志在字节 120 有损坏的完整行'}};
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));
+assert.match(el('#live-diagnostic').textContent,/字节 120/);
+assert.match(feed.innerHTML,/不能补出缺失的原话/);
+// Restore a pending closed run for the existing scoped-retry test below.
+response={...data(47),state:{...data(47).state,status:'ended',desired:'stopped'}};
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));
 // Navigating during token lookup cannot retarget a retry to another Voice.
 let releaseStorage,posted;
 ctx.fetch=async(url,options)=>{if(url==='/api/storage')return await new Promise(resolve=>{releaseStorage=()=>resolve({ok:true,json:async()=>({open_token:'test-token'})})});posted=JSON.parse(options.body);return {ok:true,json:async()=>({status:'retry_requested'})}};

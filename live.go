@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"log"
 	_ "modernc.org/sqlite"
 	"net/url"
 	"os"
@@ -126,6 +127,7 @@ func (l *Live) bind(thread, source, model string, demo bool) M {
 	source = absolute(source)
 	require(sourceIdentity(source) == thread, "源文件身份与指定任务不一致；未绑定。")
 	voice, cursor := lifecycle(source)
+	require(voice != "", "没有活动 Voice，未创建伴随。文字练习使用 resume；语音开启后 Agent 再绑定当前场次。")
 	tx, e := l.db.Begin()
 	must(e)
 	defer tx.Rollback()
@@ -438,6 +440,7 @@ func runTailer(ctx context.Context, root string) {
 		s := l.active()
 		if s != nil && s["desired"] != "stopped" && !terminal(s["status"]) {
 			if err := attempt(func() { l.readTail(s) }); err != nil {
+				log.Printf("caption source read failed run=%s thread=%s voice=%s cursor=%.0f: %v", str(s["id"]), str(s["thread_id"]), str(s["voice_id"]), num(s["cursor"]), err)
 				l.patch(str(s["id"]), M{"status": "error", "transcript_status": "error", "desired": "stopped", "ready": false, "error": err.Error()})
 			}
 		}

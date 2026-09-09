@@ -6,11 +6,9 @@ Prepare this built-in companion automatically for every Voice practice, includin
 
 ## Agent preparation / Agent 启动准备
 
-1. Run `resume --compact --with-project` once to read current preferences, learning evidence and the project page together. `paths` is only needed for location diagnostics. Keep the same authoritative archive and current learning thread. Voice practice includes bounded translation requests through the learner's existing ChatGPT login; do not ask them to enable this built-in feature. A missing saved preference means captions are on. Respect an explicit request to stop using them via `disable`; never silently purchase credits, consume a reset or fall back to an API key. Reading records or installing the skill alone does not bind Voice or start translation.
-2. Resolve the **actual Voice task ID**, using the current task identity or the explicit source task when handling a delegation. Do not bind the implementation task or a translator task. `start` can resolve an exact UUID filename under the local Codex sessions tree; it never chooses the newest arbitrary task. Verify the source header. A currently active Voice is continued; otherwise bind the **next** Voice in that task, without replaying closed sessions.
-3. Choose the fresh scene using [scenario-orchestration.md](scenario-orchestration.md), then use `coach prepare --thread-id <voice-task-id> --scene <scene.json>` (add `--source <verified-jsonl>` when needed). Normal startup needs no `--companion` flag; that flag only restores a saved disable at the learner's request. This restores context, reads the project page, binds the exact source, reuses the existing service and checks its identity and live API. It waits finitely, preserves another task's active Voice, and returns the exact run URL. Do not stop at `paths`/`resume` and start an exercise before executing this entry. If an older installed implementation requires a restart, inspect identity and wait until no unrelated Voice is active; never launch a competing manager.
-4. `backend_ready` requires the matching run/task/Voice, `ready=true`, and `stale=false`. Agent must then open and inspect the returned `/#live?run=…` in the host browser; the command reports `page_display: not_verified` because an HTTP response cannot prove a visible preview. Check `transcript_observed` separately. `waiting_backend`, `other_voice_active`, `ended` and errors do not count as ready. If tools are available but these steps were skipped, report an execution omission; only report a host limitation when the required tools/callback actually were unavailable. `probe` remains a separate login/model check, not a page or speech check.
-5. Complete speech and visible-page delivery through [voice-delivery.md](voice-delivery.md). Keep source IDs and file operations with the Agent. The learner does not operate terminals, forward sentences or supervise setup.
+1. Route the current request using `SKILL.md`. A text practice uses `resume --compact --with-project` and the overview page; a maintenance request uses the user's current language and does not begin a scene. Actual Voice practice uses the single `sh "<skill>/scripts/coach" prepare --auto-scene --opening --with-project` entry. It restores preferences, learning evidence and the project page; no separate resume call is needed. A saved caption disable remains respected.
+2. Preparation verifies the **current task and active Voice** before any binding, watcher, scene-history write or service startup. It never binds a text task to a future Voice. `waiting_voice` and `source_unavailable` return no live URL. The Agent handles a source error directly; if the user wants Voice, they open the native call and the Agent reruns preparation in its actual task. For a requested topic, use a verified six-field `--scene` file instead of `--auto-scene`. A retry reuses the exact scene and binding; other active tasks are preserved.
+3. Open the returned exact URL once through a callable, permitted browser route and inspect it. `backend_ready` describes a model connection, while `companion_ready` additionally requires source segments and a nonterminal run; neither proves visible-page delivery or actual speech. Do not block conversation on subtitles. An empty page must report waiting for source, never captions ready. Use `doctor --thread-id <current-task>` and `live status --run <exact-run>` for a requested diagnosis; keep original error details and inspect the owning service log. Complete speech and page delivery through [voice-delivery.md](voice-delivery.md). The Agent handles setup; the learner does not operate terminals or forward sentences.
 
 <a id="handoff-boundary"></a>
 ## Delivery responsibility / 交付职责
@@ -60,15 +58,15 @@ Local tests cover incremental reading, deduplication, half UTF-8 lines, finite e
 
 ```bash
 # Agent-only commands; the companion is prepared as part of Voice practice.
-<skill>/scripts/coach live probe
-<skill>/scripts/coach prepare --thread-id <actual-voice-task-id>
-<skill>/scripts/coach live start --thread-id <actual-voice-task-id>
-<skill>/scripts/coach open --page live --no-browser
-<skill>/scripts/coach live status
-<skill>/scripts/coach live stop --run <binding-id>
-<skill>/scripts/coach live resume --run <binding-id>
-<skill>/scripts/coach recover-voice --thread-id <verified-task-id> --voice-id <closed-voice-id> --source <verified-jsonl>
-<skill>/scripts/coach live disable
+sh "<skill>/scripts/coach" live probe
+sh "<skill>/scripts/coach" prepare --thread-id <actual-voice-task-id>
+sh "<skill>/scripts/coach" live start --thread-id <actual-voice-task-id>
+sh "<skill>/scripts/coach" open --page live --no-browser
+sh "<skill>/scripts/coach" live status
+sh "<skill>/scripts/coach" live stop --run <binding-id>
+sh "<skill>/scripts/coach" live resume --run <binding-id>
+sh "<skill>/scripts/coach" recover-voice --thread-id <verified-task-id> --voice-id <closed-voice-id> --source <verified-jsonl>
+sh "<skill>/scripts/coach" live disable
 ```
 
 正常新 Voice 用统一准备入口，底层 start/status/stop 保留给诊断与收尾。入口输出后台核验和页面地址，Agent 仍须实际打开并检查。没有可见预览就说“后台已就绪，页面尚未核验”；没有实际转写就说“等待转写”，不冒充字幕已同步。这个入口不主动开启用户麦克风，也不安装全局监控。

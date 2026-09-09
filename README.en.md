@@ -16,7 +16,9 @@ After installation, open Voice, then send this message to start practicing Engli
 
 > /$english-speaking-coach Help me practice English.
 
-You can also select **English Speaking Coach** from the skill picker in the message box.
+You can also select **English Speaking Coach** from the skill picker in the message box. An ordinary text task starts text practice; live bilingual captions require an active Voice call.
+
+For troubleshooting, ask directly, for example: “Check why the bilingual page has no translations.” Codex pauses practice, handles the issue in your current language and resumes practice when you ask.
 
 Each practice introduces the setting, both roles and your goal before the dialogue begins. The AI helps you form useful expressions according to your chosen correction style and guides the next step, with opportunities to explain needs, give reasons and ask questions. New practices use your learning history to choose a fresh scene.
 

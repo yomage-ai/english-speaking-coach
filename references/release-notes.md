@@ -1,9 +1,11 @@
-- 优化实时翻译：字幕与书面教学独立处理，减少后续句子的排队等待。
-- 优化中文显示：每句校验完成立即展示，无需等待同批其他句子。
-- 优化当前提示：取消过期教学请求，限制重复上下文。
-- 新增翻译耗时诊断，可在“更多”查看最近一批的首句和完成时间。
+- 修复中文报障被当作英语练习：排查问题时暂停场景，用用户当前语言处理。
+- 修复文字任务创建空字幕页面：仅在活动 Voice 已核实时建立实时伴随。
+- 改进字幕诊断：分别显示 Voice 绑定、原文数量和具体读取错误。
+- 修复 Mac 复制后执行权限丢失：校验程序后自动恢复执行位。
+- 改进词语求助与文字练习收尾，保留实际表达意图和真实课次证据。
 
-- Process captions separately from written coaching to reduce queueing.
-- Show each validated translation as soon as it is complete.
-- Cancel obsolete coaching requests and bound repeated context.
-- Show first-caption and request timing under More for diagnosis.
+- Pause practice for troubleshooting and respond in the user's current language.
+- Create live captions only after verifying an active Voice call.
+- Distinguish Voice binding, transcript count and specific source errors.
+- Restore lost executable permissions on Mac after verifying the program checksum.
+- Preserve the learner's meaning in word help and save text lessons from actual evidence.

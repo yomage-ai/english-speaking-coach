@@ -286,6 +286,11 @@ func rememberScene(root, run string, scene M) {
 }
 func preparePractice(args M) M {
 	started := epoch()
+	sourceState := inspectVoiceSource(str(args["thread-id"]), str(args["source"]))
+	if !truth(sourceState["active"]) {
+		return M{"status": sourceState["status"], "source_check": sourceState, "conversation_may_start": false, "companion_ready": false, "next_action": "No active source-bound Voice was verified; no live binding or service was created. For text practice, use resume --compact --with-project and begin text dialogue. For requested Voice practice, the learner opens Voice and the Agent reruns prepare in that active task. For troubleshooting, use the user's current language; do not start a scene or translate the fault report as practice."}
+	}
+	args = merge(args, M{"source": sourceState["source"]})
 	w := workspace(str(args["root"]))
 	ensureWorkspace(w)
 	root := str(w["data_root"])
@@ -324,6 +329,7 @@ func preparePractice(args M) M {
 		prior := l.active()
 		binding = l.bind(thread, source, defaultModel, false)
 		newBinding = prior == nil || prior["id"] != binding["id"]
+		require(binding["voice_id"] == sourceState["voice_id"], "Voice 在准备期间已切换；Agent 需要重新核对当前场次。")
 		if str(args["scene"]) == "" {
 			if prior := sceneFor(root, str(binding["id"])); prior != nil {
 				scene = prior
@@ -344,13 +350,9 @@ func preparePractice(args M) M {
 		}
 		source = absolute(source)
 		require(sourceIdentity(source) == thread, "Source identity mismatch")
-		voice, cursor := lifecycle(source)
-		if voice != "" {
-			setReviewStage(root, thread, voice, "practicing", M{"source": source, "auto_review": true, "title": textOr(scene["setting"], "本次英语练习")}, false)
-		} else {
-			path := filepath.Join(root, "Runtime", "ReviewWatches", "task-"+hash([]byte(thread))[:24]+".json")
-			writeJSON(path, M{"watch_only": true, "thread_id": thread, "source": source, "cursor": cursor, "created_epoch": epoch(), "title": textOr(scene["setting"], "本次英语练习")})
-		}
+		voice, _ := lifecycle(source)
+		require(voice == sourceState["voice_id"], "Voice 已结束或切换；Agent 需要重新核对当前场次。")
+		setReviewStage(root, thread, voice, "practicing", M{"source": source, "auto_review": true, "title": textOr(scene["setting"], "本次英语练习")}, false)
 	}
 	if base == "" {
 		base = str(serviceStart(root, str(args["root"]) == "")["url"])
@@ -359,12 +361,19 @@ func preparePractice(args M) M {
 	}
 	c = merge(c, speakingContext(obj(c["profile"]), enabled, str(args["phase"]), scene))
 	result := M{"status": "conversation_only", "url": strings.TrimRight(base, "/") + "/#overview", "context": c, "workspace": w, "conversation_may_start": true, "timing": M{"local_preparation_ms": int((epoch() - started) * 1000), "scope": "Local preparation; excludes Agent/browser delivery"}, "delivery": M{"page": "not_verified", "spoken_opening": "not_verified"}}
+	result["review_url"] = strings.TrimRight(base, "/") + "/" + reviewRoute(str(sourceState["thread_id"]), str(sourceState["voice_id"]))
+	result["companion_ready"] = false
 	if enabled {
 		state := l.run(str(binding["id"]))
+		result["source_check"] = omit(sourceState, "source")
+		result["companion_ready"] = truth(state["ready"]) && integer(l.view(M{"run": state["id"]})["total"]) > 0 && !terminal(state["status"])
 		result["binding"] = pick(state, "id", "thread_id", "voice_id")
 		result["url"] = liveURL(base, str(binding["id"]))
 		status := "waiting_backend"
-		if truth(state["ready"]) {
+		if terminal(state["status"]) {
+			status = "source_unavailable"
+			result["source_error"] = state["error"]
+		} else if truth(state["ready"]) {
 			status = "backend_ready"
 		} else if str(state["translation_error"]) != "" {
 			status = "translation_unavailable"

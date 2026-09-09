@@ -107,6 +107,9 @@ func runCLI(args []string) any {
 	}
 	if cmd == "doctor" {
 		result := M{"runtime": "go", "version": version, "code_revision": revision, "workspace": w, "archive_available": exists(filepath.Join(root, "profile.json"))}
+		if thread != "" || source != "" {
+			result["source_check"] = inspectVoiceSource(thread, source)
+		}
 		if exists(filepath.Join(root, "profile.json")) {
 			result["archive"] = archiveCounts(root)
 		}

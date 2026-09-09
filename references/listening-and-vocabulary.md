@@ -1,5 +1,6 @@
 # Listening, speaking and word load
 
+Apply the current-intent route in `SKILL.md` first. English listening and pacing rules below apply inside the exercise; requests to diagnose or repair the tool use the user's current language and never become wording drills.
 Keep the topic worthwhile while making each turn manageable. A learner can discuss a real preference, constraint or concern with familiar words. Topic interest is not evidence of vocabulary knowledge, and a successful short answer is not permission to add a long explanation.
 
 ## Prepare a small foothold

@@ -2,6 +2,10 @@
 
 This reference explains the turn cycle in `SKILL.md`. It is for the Agent responding to the learner; it is not text to forward as instructions to a different model. Voice delivery follows [voice-delivery.md](voice-delivery.md).
 
+## Current intent precedes practice rules
+
+Requests to inspect a broken page, diagnose translation, repair installation or discuss the implementation suspend the exercise. The Agent uses the user’s current language, handles the issue directly and waits for a new practice request before returning to roleplay. A request for wording or slower delivery remains practice. Do not translate a fault report into an English confirmation drill.
+
 ## Mode, phase and support
 
 `mode` selects roleplay, conversation or focused review. `phase` says whether this turn belongs to the scene or review. Help within a scene does not itself change phase. `resolve_phase` and `transition` in the program report these distinctions; they do not operate the microphone or prove what the host said.
@@ -9,7 +13,7 @@ This reference explains the turn cycle in `SKILL.md`. It is for the Agent respon
 | Saved correction | During the scene |
 | --- | --- |
 | `in_character` | For non-English content, give one English restatement and confirmation. For missing English or useful unresolved English structure errors, give one usable phrase even if intent is clear. Wait for explicit help or ongoing formulation; a completed turn may receive a short repair plus role response and one next cue. |
-| `after_scene` (new-user default) | Respond to understandable content; clarify real ambiguity and answer explicit help requests briefly. Leave proactive wording repair for review. |
+| `after_scene` | Respond to understandable content; clarify real ambiguity and answer explicit help requests briefly. Leave proactive wording repair for review. |
 | `light` | Brief selective recasts according to the saved preference, without compulsory drills. |
 | `detailed` | Give the detail the learner explicitly chose while preserving the conversation; do not silently replace this with another mode. |
 
@@ -27,7 +31,7 @@ Learner: “I'd like to go hiking with my friend.”
 
 Partner: “What kind of trail are you looking for?”
 
-If the learner instead says “Why do you keep asking me to repeat?”, address the coaching feedback itself. “You're right. Your meaning was clear already.” is enough. Do not require a corrected complaint, announce another drill or resume before the user indicates they want to continue. Keep the practice language through this repair, including when the complaint is Chinese. A request for another language receives a simpler English explanation, with no language exception. Confirm clear coaching controls by acknowledging the action in English and complying immediately.
+If the learner instead says “Why do you keep asking me to repeat?”, address the coaching feedback itself. “You're right. Your meaning was clear already.” is enough. Do not require a corrected complaint, announce another drill or resume before the user indicates they want to continue. Keep the practice language through this repair, including when the complaint is Chinese. Within a routed exercise, simplify explanations in English; maintenance uses the user’s current language, and current user instructions take priority. Confirm clear coaching controls by acknowledging the action in English and complying immediately.
 
 ## Preserve the whole interaction
 
