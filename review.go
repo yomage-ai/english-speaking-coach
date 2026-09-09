@@ -135,6 +135,13 @@ func mapTurnIDs(value any, mapping map[string]string, field string) any {
 }
 func unpackReview(d M) M {
 	d = copyM(d)
+	if d["summary_points"] != nil {
+		parts := []string{}
+		for _, v := range arr(d["summary_points"]) {
+			parts = append(parts, str(obj(v)["text"]))
+		}
+		d["summary"] = strings.Join(parts, " ")
+	}
 	if a, ok := d["omitted_turns"].([]any); ok {
 		out := M{}
 		for _, v := range a {
@@ -318,6 +325,7 @@ func learnerTurns(snapshot M) M {
 	return out
 }
 func qualityCheck(d, snapshot M) {
+	checkSummaryEvidence(d, snapshot)
 	turns := learnerTurns(snapshot)
 	checks := arr(d["word_checks"])
 	require(len(checks) == len(turns), "word_checks must assess every learner turn exactly once")
@@ -347,7 +355,45 @@ func qualityCheck(d, snapshot M) {
 		require(obj(expressions[i])["reading_guide"] != nil || str(obj(d["reading_omissions"])[strconv.Itoa(i)]) != "", "Each priority needs reading guidance or an omission reason")
 	}
 }
+
+// Quote/role checks establish provenance, not semantic truth. Model evaluation
+// still assesses whether the actual words support each summary observation.
+func checkSummaryEvidence(d, snapshot M) {
+	if d["summary_points"] == nil {
+		return // Legacy/manual drafts remain readable and recoverable.
+	}
+	points := arr(d["summary_points"])
+	require(len(points) > 0 && len(points) <= 3, "Summary needs one to three source-linked observations")
+	segments := M{}
+	for _, v := range arr(snapshot["segments"]) {
+		segments[str(obj(v)["id"])] = v
+	}
+	parts := []string{}
+	for _, v := range points {
+		p := obj(v)
+		shortText(p["text"], "Summary observation", 600)
+		require(has(stringsA("conversation_event", "received_help", "demonstrated_use"), p["kind"]), "Unknown summary observation kind")
+		refs := arr(p["evidence"])
+		require(len(refs) > 0, "Summary observation needs transcript evidence")
+		roles := M{}
+		for _, ref := range refs {
+			e := obj(ref)
+			s := obj(segments[str(e["segment_id"])])
+			quote := str(e["quote"])
+			require(s != nil && strings.TrimSpace(quote) != "" && strings.Contains(str(s["text"]), quote), "Summary evidence must quote an exact available transcript segment")
+			roles[str(s["role"])] = true
+		}
+		if p["kind"] == "received_help" {
+			require(truth(roles["assistant"]), "Received teaching needs the coach's actual words, not a review suggestion")
+		} else {
+			require(truth(roles["user"]), "Conversation or demonstrated use needs learner evidence")
+		}
+		parts = append(parts, str(p["text"]))
+	}
+	require(str(d["summary"]) == strings.Join(parts, " "), "Summary contains text outside its source-linked observations")
+}
 func normalizeReview(root string, d M, thread, voice string, snapshot, state M) M {
+	checkSummaryEvidence(d, snapshot)
 	require(snapshot["thread_id"] == thread && snapshot["voice_id"] == voice, "Review snapshot belongs to another Voice")
 	for _, k := range []string{"title", "summary", "expressions", "omitted_turns"} {
 		_, ok := d[k]
@@ -362,7 +408,7 @@ func normalizeReview(root string, d M, thread, voice string, snapshot, state M) 
 		}
 	}
 	sid := nextID("SES-"+strings.ReplaceAll(day, "-", "")+"-", used)
-	r := merge(pick(d, "title", "summary", "topics", "scenarios", "progress", "next_focus", "coaching_notes", "unfinished"), M{"id": sid, "date": day, "practiced_at": dateTime.Format(time.RFC3339Nano), "source_ids": voiceSources(thread, voice), "end_status": "ended", "evidence_status": "selected", "evidence_note": "核对本场可用的去重转写后精选；转写不是发音证据。课后新增说法不代表会中已教学或已掌握。", "expressions": A{}, "concept_observations": A{}})
+	r := merge(pick(d, "title", "summary", "summary_points", "topics", "scenarios", "progress", "next_focus", "coaching_notes", "unfinished"), M{"id": sid, "date": day, "practiced_at": dateTime.Format(time.RFC3339Nano), "source_ids": voiceSources(thread, voice), "end_status": "ended", "evidence_status": "selected", "evidence_note": "核对本场可用的去重转写后精选；转写不是发音证据。课后新增说法不代表会中已教学或已掌握。", "expressions": A{}, "concept_observations": A{}})
 	turns := learnerTurns(snapshot)
 	covered := M{}
 	sourceTurns := func(x M, quote string) {

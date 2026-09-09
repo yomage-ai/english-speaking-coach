@@ -352,8 +352,11 @@ func (l *Live) rememberTranslationErrors(run string, valid A, rejected M, expect
 	}
 	l.patch(run, M{"translation_rejected": errors})
 }
+func (l *Live) teachingRows(run string) A {
+	return reverse(query(l.db, "SELECT id,role,text,timestamp FROM segments WHERE run=? ORDER BY seq DESC LIMIT 30", run))
+}
 func (l *Live) teachingContext(run string) M {
-	rows := reverse(query(l.db, "SELECT id,role,text,timestamp FROM segments WHERE run=? ORDER BY seq DESC LIMIT 30", run))
+	rows := l.teachingRows(run)
 	profile := obj(readJSON(filepath.Join(l.root, "profile.json")))
 	return M{"conversation": annotateFragments(rows), "scene": sceneFor(l.root, run), "profile": pick(profile, "correction", "input_support", "help_language")}
 }
@@ -384,8 +387,8 @@ func (l *Live) view(a M) M {
 	if raw := str(l.meta("hint:" + id)); raw != "" {
 		hint = parseObject(raw)
 	}
-	latest := query(l.db, "SELECT id,text FROM segments WHERE run=? AND role='user' ORDER BY seq DESC LIMIT 1", id)
-	if len(latest) == 0 || obj(hint)["source_id"] != obj(latest[0])["id"] || obj(hint)["source_text"] != obj(latest[0])["text"] {
+	key := teachingKey(M{"conversation": l.teachingRows(id)})
+	if key == "" || obj(hint)["context_key"] != key {
 		hint = nil
 	}
 	if s != nil {

@@ -1,9 +1,14 @@
-# v0.2.10 — Personal use and commercial authorization / 个人使用与商业授权
+# v0.2.11 — Practice flow and grounded reviews / 练习衔接与复盘准确性
 
-- 调整后续新增内容的许可：个人非商业学习免费，商业用途须另行取得书面授权；源码继续公开。
-- 更新中英文许可说明与商业授权联系入口，正式插件包和各平台程序包随附完整条款。
-- 保留 v0.2.9 及更早版本、历史代码已有的 MIT 权利，以及第三方依赖原有许可。本次没有更改练习、字幕或朗读功能。
+- 优化开场：精简启动保留教学策略，统一为一次简短介绍，并核对页面实际显示状态。
+- 优化即时帮助：强调先给必要表达，再推进场景；控制商品名称与描述的信息量。
+- 修复过期提示：教练回应或转写修订后取消旧提示，避免重复已完成的对话步骤。
+- 改进复盘摘要：逐点关联本场原话，区分实际练习、已给帮助与后续建议，校验后保存。
 
-New original material is offered for free personal noncommercial use; commercial use requires separate written authorization. Source remains publicly available. Bilingual licensing details and a commercial contact are included in the plugin and program packages.
+- Streamline the opening while retaining teaching policy and checking actual page visibility.
+- Prioritize concise wording help and manageable product descriptions during practice.
+- Invalidate stale written hints after coach replies or transcript revisions.
+- Build review summaries from source-linked observations, separating actual practice from future suggestions.
 
-Prior MIT rights in v0.2.9 and earlier releases and previously MIT-licensed code remain intact, as do third-party licenses. This release changes licensing documentation and packaging metadata, not practice, caption or system-reading behavior.
+Native Voice may still respond autonomously or paraphrase. Program and text checks do not certify live speech behavior.
+原生 Voice 仍可能自主回应或改述；程序与文字验证不等于真实语音验收。

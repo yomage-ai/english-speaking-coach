@@ -18,7 +18,7 @@ func (l *Live) currentTeachingKey(run string) string {
 	if s == nil || s["id"] != run || s["desired"] == "stopped" || terminal(s["status"]) || s["close_epoch"] != nil {
 		return ""
 	}
-	rows := query(l.db, "SELECT id,text,role FROM segments WHERE run=? AND role='user' ORDER BY seq DESC LIMIT 1", run)
+	rows := l.teachingRows(run)
 	return teachingKey(M{"conversation": rows})
 }
 

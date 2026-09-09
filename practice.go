@@ -165,7 +165,7 @@ func speakingContext(profile M, companion bool, phase string, scene M) M {
 	if roleplay && scene == nil {
 		voiceBrief = nil
 	}
-	next := "Open the prepared page once, allow at most one display recovery, then introduce this scene. Translation can continue connecting in the background."
+	next := "Inspect the exact visible page after opening; allow at most one needed recovery. Give the scene introduction and role question once in the completed response, or continue an already delivered opening. Translation connects independently."
 	if roleplay && scene == nil {
 		next = "Agent selects a fresh scene and reruns with --scene; do not hand off a generic readiness summary."
 	}
@@ -387,9 +387,9 @@ func preparePractice(args M) M {
 	if truth(args["with-project"]) && str(w["project_page"]) != "" {
 		result["project_context"] = string(readFile(str(w["project_page"])))
 	}
-	result["next_action"] = "Open url once and inspect. Introduce place, roles and goal in short English, then begin. Do not wait for translation. The local worker owns review; backend readiness is not proof of page or Voice delivery."
+	result["next_action"] = "Open url once and inspect the visible exact page; queued/unverified does not mean it failed to open. Deliver one short scene introduction plus one role question in the completed reply only, then wait. If an introduction was already delivered in this Voice, continue from its unanswered question instead of introducing again. Keep setup/status details on the written surface. Do not wait for translation."
 	if truth(args["opening"]) {
-		result = merge(omit(result, "context", "workspace"), M{"profile": c["profile"], "learning_context": c["learning_context"], "phase": c["phase"], "scene": omit(scene, "introduction"), "written_scene": scene["introduction"], "due_review": c["due_candidates"], "concept_review": c["concept_review_candidates"], "data_root": root})
+		result = merge(omit(result, "context", "workspace"), M{"profile": c["profile"], "policy": c["policy"], "turn_guidance": speakingTemplates["turn_guidance"], "learning_context": c["learning_context"], "phase": c["phase"], "scene": omit(scene, "introduction"), "due_review": c["due_candidates"], "concept_review": c["concept_review_candidates"], "data_root": root})
 		if c["phase"] == "review" {
 			result["next_action"] = "Open url once; start one due expression or word review, using saved drill preferences."
 		} else if scene == nil {

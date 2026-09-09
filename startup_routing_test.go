@@ -102,6 +102,9 @@ func TestActiveVoicePrepareReusesBindingAndSeparatesReadiness(t *testing.T) {
 	s.port = h.Listener.Addr().(*net.TCPAddr).Port
 	args := M{"root": root, "thread-id": testThread, "source": source, "auto-scene": true, "opening": true, "service-url": h.URL}
 	first := preparePractice(args)
+	if obj(first["policy"])["missing_expression_help"] != "immediate_before_content" || str(first["turn_guidance"]) == "" || first["written_scene"] != nil {
+		t.Fatal("Compact preparation lost teaching policy or returned a second scene script", first)
+	}
 	if !truth(first["conversation_may_start"]) || truth(first["companion_ready"]) || obj(first["binding"])["voice_id"] != testVoice || str(first["review_url"]) == "" {
 		t.Fatal(first)
 	}

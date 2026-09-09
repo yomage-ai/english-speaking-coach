@@ -465,7 +465,7 @@ func validateHint(value M, conversation A) M {
 	} else if en != "" || str(value["chinese"]) != "" || len(groups) > 0 || cue == "" {
 		return nil
 	}
-	return merge(pick(value, "kind", "source_id", "quote", "english", "chinese", "next_cue", "groups"), M{"source_text": latest["text"]})
+	return merge(pick(value, "kind", "source_id", "quote", "english", "chinese", "next_cue", "groups"), M{"source_text": latest["text"], "context_key": teachingKey(M{"conversation": conversation})})
 }
 func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, publish func(A, float64)) (out A, hint M, rejected M, latency float64) {
 	// Retain already source-checked streamed rows even if the final envelope is bad.

@@ -20,7 +20,7 @@ You can also select **English Speaking Coach** from the skill picker in the mess
 
 For troubleshooting, ask directly, for example: “Check why the bilingual page has no translations.” Codex pauses practice, handles the issue in your current language and resumes practice when you ask.
 
-Each practice introduces the setting, both roles and your goal before the dialogue begins. The AI helps you form useful expressions according to your chosen correction style and guides the next step, with opportunities to explain needs, give reasons and ask questions. New practices use your learning history to choose a fresh scene.
+Each practice starts with a brief introduction to the setting, both roles and your goal, then begins the dialogue. The AI helps you form useful expressions according to your chosen correction style and guides the next step, with opportunities to explain needs, give reasons and ask questions. New practices use your learning history to choose a fresh scene.
 
 ## Pages you can use
 
@@ -29,7 +29,7 @@ Codex automatically opens the local learning page at the start of every practice
 | Page | What you can do |
 | --- | --- |
 | Bilingual companion | Follow the original transcript, Chinese translations and a current expression hint |
-| Session review | Read expressions, suggestions and priorities; find the review again after switching pages |
+| Session review | Distinguish actual practice from suggestions for later; find the review again after switching pages |
 | Learning home / Review | Start the next activity on Home; inspect changes over time in Review |
 | Local learning data | Open the folder, download a full backup, restore a backup or use another copied archive |
 | Flashcards | Recall before flipping; hear standard English with system speech or expand reading and memory tips |

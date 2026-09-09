@@ -56,11 +56,18 @@ func (l *Live) copyLocalTranscripts(run string) {
 }
 
 func teachingKey(teaching M) string {
-	for _, v := range reverse(arr(teaching["conversation"])) {
-		r := obj(v)
-		if r["role"] == "user" {
-			return hash([]byte(str(r["id"]) + "\n" + str(r["text"])))
+	rows := arr(teaching["conversation"])
+	for i := len(rows) - 1; i >= 0; i-- {
+		if obj(rows[i])["role"] != "user" {
+			continue
 		}
+		// A coach reply can answer the pending question or change the next action.
+		// Bind help to both sides of this exchange, not just the learner's text.
+		version := A{}
+		for _, v := range rows[i:] {
+			version = append(version, pick(obj(v), "id", "role", "text"))
+		}
+		return hash([]byte(compact(version)))
 	}
 	return ""
 }

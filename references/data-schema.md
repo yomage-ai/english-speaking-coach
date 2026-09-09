@@ -55,6 +55,10 @@ Required: `id`, `date`, `title`, `summary`, nonempty actual `source_ids`, and `e
 
 Each expression requires nonempty `id`, `english`, `chinese`, `mastery`, `next_review` (YYYY-MM-DD), and `note`. Include `original` for selected learner wording. Inspect `add-session --check` itself before running dependent cleanup; a later successful command must not mask a failed save.
 
+Generated Voice reviews use `summary_points`: one to three `{text, kind, evidence:[{segment_id, quote}]}` observations, where kind is `conversation_event`, `received_help` or `demonstrated_use`. The writer assembles `summary` only from these points and retains them in the session. Each quote must match this Voice; received help needs coach evidence, while events/use need learner evidence. These checks prove attribution, not that a natural-language claim follows from its quotes. The reviewer must also check the summary against `coaching_notes` and keep unmet needs in `next_focus`. Legacy/manual summaries remain supported; no old lesson is rewritten.
+
+中文：自动复盘的摘要逐点引用本场原话；“得到讲解”必须有教练原话，“实际使用”必须有学习者原话。计划复习、课后补充和当场已学分开，摘要不能与教练漏教记录矛盾。引用校验不能代替语义判断，旧课次不自动重写。
+
 Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked need and later attempt when duplicate canonical expressions are coalesced. For Voice, the writer checks each quote against that closed Voice before saving; for text practice, the Agent checks it against the cited chat turns under the text closeout contract. This evidence does not create extra attempts or promote mastery.
 
 `original` is the learner's selected wording, `english` is the suggested form, `note` explains the observed support and limits. A scored attempt needs both `review_result` and `review_prompt`. `independent` requires `success / none`; `transfer` requires `transfer_success / changed_context`. Structural validation cannot verify that an utterance really happened; Agent must check the source. Do not promote historical mastery without actual evidence.
