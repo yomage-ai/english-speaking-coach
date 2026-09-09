@@ -6,7 +6,7 @@ The Agent owns installation, diagnosis, initialization, service setup and verifi
 
 - macOS / Linux: `sh "<skill>/scripts/coach" <command>`.
 - Windows: `& <skill>/scripts/coach.ps1 <command>`.
-- The entry reads `runtime-version.txt`, downloads the exact release artifact over HTTPS, verifies its SHA-256, and caches it in `<skill>/bin/`. Data remains outside the Skill. Subsequent calls need no download or development runtime.
+- The entry reads `runtime-version.txt` and verifies the matching program in `<skill>/bin/`. The formal plugin bundle already includes all supported platform programs; see [plugin-installation.md](plugin-installation.md). A legacy/source Skill without a program downloads the exact release artifact over HTTPS and verifies SHA-256. Data remains outside the Skill. Neither route needs a user-installed development runtime.
 - Published targets are macOS Intel/Apple Silicon, Linux x64/ARM64 and Windows x64/ARM64. Host features remain separate: local files, a Codex app-server CLI, existing ChatGPT login, and source-bound Voice transcript events. A compiled binary does not add unsupported Voice features to mobile, ChatGPT web or another agent.
 - Downloads can fail on a restricted network. The Agent may obtain the same pinned release through an allowed network path and verify the official checksum. Do not silently substitute an unknown executable, disable Gatekeeper/SmartScreen, or install a global language runtime as a fallback.
 
@@ -14,7 +14,7 @@ The Agent owns installation, diagnosis, initialization, service setup and verifi
 
 The Agent invokes the shell entry with `sh`, so losing its executable bit during a copy does not block startup. A cached program without its executable bit is verified against its local install receipt before Agent-owned mode repair. Do not equate a missing shell mode bit with Gatekeeper, quarantine, a sandbox denial or a missing runtime. Report a genuine OS/security restriction specifically; do not remove quarantine, re-sign an untrusted download or disable system protections. Preserve working data and use available text practice if a runtime cannot execute.
 
-A JS rewrite is an architecture change, not a permission repair. The existing Go program already avoids a user-installed language runtime. Do not remove its supervisor or archive backend based solely on an old assistant suggestion. A replacement needs verified host lifecycle support, source/translation/review parity and migration tests before replacing the working runtime.
+A JS rewrite is an architecture change, not a permission repair. This release packages the existing Go program as a Codex plugin and already avoids a user-installed language runtime. Node is technically feasible, but no first-use or authorization advantage has been established across supported hosts. Do not remove the supervisor or archive backend based solely on an old assistant suggestion. A replacement needs verified host lifecycle support, source/translation/review parity and migration tests before replacing the working runtime.
 
 ## Capability checks
 

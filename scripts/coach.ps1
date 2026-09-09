@@ -1,4 +1,4 @@
-# Agent entry point. No Python, Node.js, Go, administrator rights or API key needed.
+# Agent entry point. No language runtime or separate API key installation.
 $ErrorActionPreference = 'Stop'
 $coachRoot = Split-Path $PSScriptRoot -Parent
 $coachVersion = (Get-Content (Join-Path $coachRoot 'runtime-version.txt') -Raw).Trim()
@@ -9,6 +9,13 @@ if ($coachArch -notin @('amd64','arm64')) { throw 'Unsupported CPU architecture'
 $coachName = "english-coach_${coachVersion}_windows_${coachArch}"
 $coachBinDir = Join-Path $coachRoot 'bin'
 $coachBinary = Join-Path $coachBinDir "$coachName.exe"
+$coachReceipt = "$coachBinary.sha256"
+if ((Test-Path $coachBinary) -and (Test-Path $coachReceipt)) {
+    $coachCachedExpected = (Get-Content -LiteralPath $coachReceipt -Raw).Trim()
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $coachBinary).Hash.ToLowerInvariant() -ne $coachCachedExpected) {
+        throw 'Cached runtime checksum mismatch; nothing executed. Agent must restore the verified pinned release.'
+    }
+}
 if (-not (Test-Path $coachBinary)) {
     New-Item -ItemType Directory -Path $coachBinDir -Force | Out-Null
     $coachTemp = Join-Path $coachBinDir ('.download-' + [Guid]::NewGuid().ToString())
@@ -27,9 +34,11 @@ if (-not (Test-Path $coachBinary)) {
         $coachExtracted = Join-Path $coachTemp 'english-coach.exe'
         & $coachExtracted version | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Downloaded executable failed its version check' }
+        $coachBinaryHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $coachExtracted).Hash.ToLowerInvariant()
         Move-Item -LiteralPath (Join-Path $coachTemp 'LICENSE') -Destination (Join-Path $coachBinDir "$coachName.LICENSE") -Force
         Move-Item -LiteralPath (Join-Path $coachTemp 'THIRD_PARTY_NOTICES.txt') -Destination (Join-Path $coachBinDir "$coachName.NOTICES.txt") -Force
         Move-Item -LiteralPath $coachExtracted -Destination $coachBinary
+        Set-Content -LiteralPath $coachReceipt -Value $coachBinaryHash -Encoding ASCII
     } finally { Remove-Item -LiteralPath $coachTemp -Recurse -Force }
 }
 $env:ENGLISH_COACH_SKILL_ROOT = $coachRoot

@@ -1,6 +1,6 @@
 Copy this request to Codex to install:
 
-> Install english-speaking-coach from https://github.com/yomage-ai/english-speaking-coach, complete the initial setup, and confirm it appears in the skill list.
+> Install the English Speaking Coach plugin from https://github.com/yomage-ai/english-speaking-coach and complete the initial setup.
 
 [简体中文](README.md)
 
@@ -16,7 +16,7 @@ After installation, open Voice, then send this message to start practicing Engli
 
 > /$english-speaking-coach Help me practice English.
 
-You can also select **English Speaking Coach** from the skill picker in the message box. An ordinary text task starts text practice; live bilingual captions require an active Voice call.
+You can also select **English Speaking Coach** from the skill picker in the message box. Use a newly installed plugin in a new task. An ordinary text task starts text practice; live bilingual captions require an active Voice call.
 
 For troubleshooting, ask directly, for example: “Check why the bilingual page has no translations.” Codex pauses practice, handles the issue in your current language and resumes practice when you ask.
 
@@ -34,7 +34,7 @@ Codex automatically opens the local learning page at the start of every practice
 | Local learning data | Open the folder, download a full backup, restore a backup or use another copied archive |
 | Flashcards | Recall before flipping; hear standard English with system speech or expand reading and memory tips |
 
-On first use, Codex downloads and verifies the standalone program for this computer, then reuses it. **No Python, Node.js or Go installation is required.** Desktop support and limits are described below.
+The official plugin bundle includes programs for all supported platforms. Codex verifies, selects and starts the matching program; first practice needs no additional backend download. **No Python, Node.js or Go installation or manual program startup is required.** Older standalone Skill installations still let Codex fetch the matching program automatically. Desktop support and limits are described below.
 
 System speech reads only flashcard English and suggested expressions in reviews, never your original wording. Select “Read English” to play or stop; “Slow” selects a slower rate. It uses local English voices exposed by the browser, with no API key, paid speech service or microphone access. Availability, pronunciation and volume depend on your system and browser. If unavailable, the page suggests opening the local URL in Safari, Chrome or Edge. The current archive interface labels these controls “朗读英文” and “慢速”.
 
@@ -44,6 +44,7 @@ Speech is independent of Voice and is not a replay of the original practice. Fli
 
 - Use Codex on macOS, Windows or Linux with skill installation and local file access. Live bilingual captions additionally require the host to expose both sides of the transcript during a call; ordinary web chat and mobile apps do not automatically have this capability.
 - The bilingual companion and independent session reviews use your existing ChatGPT login and account quota, without a separate API key. Caption availability depends on the Voice transcript.
+- You only handle Codex login, Voice microphone permission or a system-required execution/file-access approval when actually needed. The plugin does not bypass system restrictions; Codex explains the specific need without asking you to install a development environment.
 - Learning records are separate from the Skill program. New users automatically start in `~/.codex/english-speaking-coach/data`, outside the Skill; installation does not require choosing a folder. Use “Open learning folder” to view the data. On a new computer, restore a backup or use the copied learning folder; Codex can handle this for you, and the old folder is retained. AI conversation and translation still use the connected model services; the bilingual companion temporarily keeps recent transcripts and translations.
 
 The local service generates reviews independently, so leaving the current chat does not interrupt them. The page first shows source-checked expression suggestions, then completes and saves the full review; failures can be retried. Model generation still takes time; there is no fixed-time guarantee.

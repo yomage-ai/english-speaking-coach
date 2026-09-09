@@ -1,0 +1,22 @@
+{
+  "name": "english-speaking-coach",
+  "version": "0.2.9",
+  "description": "Practice spoken English with bilingual captions, saved reviews and system reading. 英语口语练习、双语字幕与复习。",
+  "author": {
+    "name": "yomage-ai"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "English Speaking Coach",
+    "shortDescription": "英语口语练习、双语字幕与复习卡片",
+    "longDescription": "Practice spoken English through open conversation. Codex prepares a local bilingual page and saves selected learning evidence. 用户无需安装语言环境；安装与启动由 Agent 完成。",
+    "developerName": "yomage-ai",
+    "category": "Education",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": "帮我练英语。 / Help me practice English."
+  }
+}

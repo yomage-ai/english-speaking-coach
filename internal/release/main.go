@@ -99,6 +99,7 @@ func main() {
 	}
 	noticeBytes := []byte(notices.String())
 	sums := []string{}
+	pluginPrograms := map[string][]byte{}
 	manifest := map[string]any{"version": version, "code_revision": rev, "runtime": "go", "artifacts": []any{}}
 	for _, target := range strings.Split(*targets, ",") {
 		parts := strings.Split(target, "/")
@@ -120,6 +121,14 @@ func main() {
 		name := fmt.Sprintf("english-coach_%s_%s_%s", version, osName, arch)
 		var packed bytes.Buffer
 		b := read(dest)
+		programName := fmt.Sprintf("english-coach_%s_%s_%s", version, osName, arch)
+		if osName == "windows" {
+			programName += ".exe"
+		}
+		pluginPrograms[programName] = b
+		pluginPrograms[programName+".sha256"] = []byte(digest(b) + "\n")
+		pluginPrograms[strings.TrimSuffix(programName, ".exe")+".LICENSE"] = read("LICENSE")
+		pluginPrograms[strings.TrimSuffix(programName, ".exe")+".NOTICES.txt"] = noticeBytes
 		if osName == "windows" {
 			name += ".zip"
 			z := zip.NewWriter(&packed)
@@ -161,6 +170,12 @@ func main() {
 		must(os.RemoveAll(tmp))
 		fmt.Println(name)
 	}
+	pluginName := "english-speaking-coach_" + version + "_plugin.zip"
+	plugin := buildPlugin(".", version, rev, pluginPrograms)
+	must(os.WriteFile(filepath.Join(*out, pluginName), plugin, 0644))
+	sums = append(sums, digest(plugin)+"  "+pluginName)
+	manifest["plugin"] = map[string]any{"name": pluginName, "sha256": digest(plugin), "bytes": len(plugin), "platforms": strings.Split(*targets, ",")}
+	fmt.Println(pluginName)
 	sort.Strings(sums)
 	must(os.WriteFile(filepath.Join(*out, "SHA256SUMS"), []byte(strings.Join(sums, "\n")+"\n"), 0644))
 	b, e := json.MarshalIndent(manifest, "", "  ")
