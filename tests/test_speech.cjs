@@ -26,29 +26,33 @@ function browser(voices = [local], supported = true) {
   }
   return {synth,spoken,control,window,document,timers,events,windowEvents,
     click:target=>events.click({target}),close:()=>dialogClose(),cancels:()=>cancels,
-    expire(){const f=[...timers.values()][0];f();}};
+    runNext(){const id=[...timers.keys()].sort((a,b)=>a-b)[0],f=timers.get(id);timers.delete(id);f();},
+    expire(){this.runNext();}};
 }
 {
   const b=browser([{...local,localService:false,name:'Remote'}, {name:'Chinese',lang:'zh-CN',localService:true},local]);
   const a=b.control('Could you help me?'), c=b.control('I would like some tea.');
-  b.click(a.button);const first=b.spoken[0];assert.equal(first.text,'Could you help me?');assert.equal(first.voice,local);
+  b.click(a.button);assert.equal(b.spoken.length,0,'Playback waits for cancel to settle');b.runNext();
+  const first=b.spoken[0];assert.equal(first.text,'Could you help me?');assert.equal(first.voice,local);
   first.onstart();assert.match(a.status.textContent,/正在朗读/);
-  b.click(c.button);const second=b.spoken[1];assert.equal(b.cancels(),1);
+  b.click(c.button);b.runNext();const second=b.spoken[1];assert.equal(b.cancels(),3);
   first.onend();first.onerror({error:'interrupted'});assert.equal(c.button.attrs['aria-pressed'],'true','Old callbacks cannot clear new playback');
-  second.onend();assert.equal(c.button.attrs['aria-pressed'],'false');assert.equal(b.timers.size,0);
+  second.onend();b.runNext();assert.equal(c.button.attrs['aria-pressed'],'false');assert.equal(b.timers.size,0);
   b.click(a.speed);assert.equal(a.speed.attrs['aria-pressed'],'true');assert.equal(c.speed.attrs['aria-pressed'],'true');
-  b.click(a.button);assert.equal(b.spoken.at(-1).rate,0.8);b.click(a.button);assert.equal(a.status.textContent,'已停止');
+  b.click(a.button);b.runNext();assert.equal(b.spoken.at(-1).rate,0.78);b.click(a.button);assert.equal(a.status.textContent,'已停止');
   b.click(c.button);b.document.hidden=true;b.events.visibilitychange();assert.equal(c.status.textContent,'已停止');
   b.click(c.button);b.close();assert.equal(c.status.textContent,'已停止');
   b.click(c.button);b.windowEvents.pagehide();assert.equal(c.status.textContent,'已停止');
+  assert.deepEqual(Array.from(b.window.CoachSpeech.chunks('One long thought, followed by another. Final question?')),['One long thought, followed by another.','Final question?']);
+  assert.ok(Array.from(b.window.CoachSpeech.chunks('This is a deliberately long spoken sentence, '.repeat(8))).every(x=>x.length<=140));
 }
 {
   const b=browser([]), c=b.control('Hello.');b.click(c.button);assert.equal(b.spoken.length,0);assert.match(c.status.textContent,/尚未就绪/);
   b.synth.setVoices([{...local,localService:false}]);b.click(c.button);assert.equal(b.spoken.length,0);assert.match(c.status.textContent,/本地英语/);
-  b.synth.setVoices([local]);b.click(c.button);assert.equal(b.spoken.length,1,'A later click must reload asynchronously available voices');
+  b.synth.setVoices([local]);b.click(c.button);b.runNext();assert.equal(b.spoken.length,1,'A later click must reload asynchronously available voices');
   b.expire();assert.match(c.status.textContent,/未开始/);assert.equal(c.button.attrs['aria-pressed'],'false');
-  b.click(c.button);b.spoken.at(-1).onerror({error:'not-allowed'});assert.match(c.status.textContent,/未能朗读/);
-  b.synth.speak=()=>{throw Error('unavailable');};b.click(c.button);assert.equal(c.button.attrs['aria-pressed'],'false');assert.equal(b.timers.size,0);
+  b.click(c.button);b.runNext();b.spoken.at(-1).onerror({error:'not-allowed'});assert.match(c.status.textContent,/未能完整朗读/);
+  b.synth.speak=()=>{throw Error('unavailable');};b.click(c.button);b.runNext();assert.equal(c.button.attrs['aria-pressed'],'false');assert.equal(b.timers.size,0);
 }
 {
   const b=browser([],false), c=b.control('Hello.');b.click(c.button);assert.match(c.status.textContent,/不支持/);

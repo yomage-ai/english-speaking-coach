@@ -324,6 +324,95 @@ func learnerTurns(snapshot M) M {
 	}
 	return out
 }
+
+// completeReviewBookkeeping derives exhaustive per-turn accounting from the
+// model's selected evidence. These fields are mechanical validation metadata,
+// so asking the model to repeat one object for every learner turn only makes a
+// review slower and more likely to time out without adding judgment quality.
+func completeReviewBookkeeping(d, snapshot M, language string) M {
+	d = copyM(d)
+	turns := learnerTurns(snapshot)
+	learnerIDs := func(value any) A {
+		out := A{}
+		for _, rawID := range arr(value) {
+			if turns[str(rawID)] != nil {
+				out = append(out, rawID)
+			}
+		}
+		return unique(out)
+	}
+	selected := M{}
+	conceptsByTurn := map[string]A{}
+	needsHelp := M{}
+	for _, v := range arr(d["expressions"]) {
+		x := obj(v)
+		x["source_turn_ids"] = learnerIDs(x["source_turn_ids"])
+		for _, rawQuote := range arr(x["source_quotes"]) {
+			quote := obj(rawQuote)
+			quote["source_turn_ids"] = learnerIDs(quote["source_turn_ids"])
+		}
+		result, prompt := str(x["review_result"]), str(x["review_prompt"])
+		validAttempt := has(stringsA("failed", "partial", "success", "transfer_success"), result) && has(stringsA("source_text", "keywords", "none", "changed_context"), prompt)
+		if !validAttempt {
+			x["mastery"] = "not_tested"
+			delete(x, "review_result")
+			delete(x, "review_prompt")
+		}
+		for _, id := range arr(x["source_turn_ids"]) {
+			if turns[str(id)] != nil {
+				selected[str(id)] = true
+			}
+		}
+	}
+	for index, v := range arr(d["concept_observations"]) {
+		x := obj(v)
+		x["source_turn_ids"] = learnerIDs(x["source_turn_ids"])
+		for _, rawID := range arr(x["source_turn_ids"]) {
+			id := str(rawID)
+			if turns[id] == nil {
+				continue
+			}
+			selected[id] = true
+			conceptsByTurn[id] = append(conceptsByTurn[id], index)
+			if x["result"] != "success" || x["support"] != "none" {
+				needsHelp[id] = true
+			}
+		}
+	}
+	omissions := M{}
+	checks := A{}
+	for _, v := range arr(snapshot["segments"]) {
+		s := obj(v)
+		if s["role"] != "user" {
+			continue
+		}
+		id := str(s["id"])
+		reason := "No distinct word help selected."
+		omission := "No distinct review item selected after full-turn assessment."
+		if language == "zh-CN" {
+			reason = "本回合没有单独的词义求助。"
+			omission = "逐项检查后，本回合没有需要单独保留的复习点。"
+		}
+		if truth(needsHelp[id]) {
+			reason = "Selected word help is linked."
+			if language == "zh-CN" {
+				reason = "已关联本回合的词义求助。"
+			}
+		}
+		indices := conceptsByTurn[id]
+		if indices == nil {
+			indices = A{}
+		}
+		checks = append(checks, M{"segment_id": id, "needs_word_help": truth(needsHelp[id]), "reason": reason, "concept_indices": indices})
+		if selected[id] == nil {
+			omissions[id] = omission
+		}
+	}
+	d["word_checks"] = checks
+	d["omitted_turns"] = omissions
+	return d
+}
+
 func qualityCheck(d, snapshot M) {
 	checkSummaryEvidence(d, snapshot)
 	turns := learnerTurns(snapshot)
@@ -616,7 +705,7 @@ func compactReviewInput(state, snapshot M) M {
 			concepts = append(concepts, pick(c, "id", "term", "meaning"))
 		}
 	}
-	return M{"profile": pick(obj(state["profile"]), "help_language", "input_support"), "transcript": transcript, "expression_catalog": head(catalog, 16), "concept_catalog": head(concepts, 24), "finish_contract": contracts["finish_contract"]}
+	return M{"profile": pick(obj(state["profile"]), "help_language", "input_support"), "transcript": transcript, "expression_catalog": head(catalog, 16), "concept_catalog": head(concepts, 24)}
 }
 func checkedPreview(expressions A, snapshot M) A {
 	turns := learnerTurns(snapshot)
@@ -699,6 +788,7 @@ func processReview(ctx context.Context, root string, job M) {
 			draft = generate(payload)
 			writeJSON(draftFile, draft)
 		}
+		draft = completeReviewBookkeeping(draft, snapshot, language)
 		for trial := 0; trial < 2; trial++ {
 			var result M
 			failure := attempt(func() {
@@ -727,6 +817,7 @@ func processReview(ctx context.Context, root string, job M) {
 			// Keep source-checked suggestions visible while the same draft is repaired.
 			setReviewStage(root, thread, voice, "generating", M{"repair_reason": failure.Error(), "preview": checkedPreview(arr(draft["expressions"]), snapshot)}, false)
 			draft = generate(merge(payload, M{"prior_draft": draft, "validation_error": failure.Error()}))
+			draft = completeReviewBookkeeping(draft, snapshot, language)
 			writeJSON(draftFile, draft)
 		}
 	})

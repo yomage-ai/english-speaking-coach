@@ -12,7 +12,16 @@ const shortDate = d => d ? d.slice(5).replace('-', '.') : '';
 const fullDate = d => d ? `${d.slice(0,4)} 年 ${Number(d.slice(5,7))} 月 ${Number(d.slice(8,10))} 日` : '';
 const tag = (text, type = '') => `<span class="tag ${type}">${esc(text)}</span>`;
 const tip = (name, body) => `<span class="help"><button type="button" aria-label="${esc(name)}说明" aria-expanded="false">?</button><span class="help-body" role="tooltip">${esc(body)}</span></span>`;
-const speechButton = english => english?.trim() ? `<div class="speech-control"><button type="button" class="button small" data-speak-english="${esc(english)}" aria-pressed="false">朗读英文</button><button type="button" class="speech-rate" data-speech-rate aria-pressed="false" aria-label="慢速朗读，按下后再次点击朗读英文">慢速</button><span class="speech-status" role="status"></span></div>` : '';
+const speakableEnglish = english => {
+  const text=english?.trim()||'';
+  // Pattern placeholders and mixed-language notes are useful on screen but do
+  // not form an utterance. Sending them to system speech creates broken prose.
+  return text && /[A-Za-z]/.test(text) && !/[\p{Script=Han}…]|\.\.\.|[_{}\[\]<>]|\s\/\s/u.test(text) ? text : '';
+};
+const speechButton = english => {
+  const text=speakableEnglish(english);
+  return text ? `<div class="speech-control"><button type="button" class="button small" data-speak-english="${esc(text)}" aria-pressed="false">朗读英文</button><button type="button" class="speech-rate" data-speech-rate aria-pressed="false" aria-label="清晰慢速，按下后再次点击朗读英文">慢速</button><span class="speech-status" role="status"></span></div>` : '';
+};
 const list = items => items.map(x => `<p>${esc(x)}</p>`).join('');
 const empty = (title, body, path) => `<div class="empty"><strong>${esc(title)}</strong>${esc(body)}${path ? `<br><a class="button" href="${esc(href(path))}">查看全部记录</a>` : ''}</div>`;
 const heading = (kicker, title, description, action = '') => `<div class="page-heading"><div><span class="eyebrow">${esc(kicker)}</span><h1>${esc(title)}</h1><p>${esc(description)}</p></div>${action}</div>`;

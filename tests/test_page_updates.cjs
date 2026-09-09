@@ -153,5 +153,6 @@ const lesson = {...meta,id:'SES-20260101-002',date:'2026-01-01',title:'Synthetic
   const previewHtml=vm.runInContext("reviewPreview({preview:[sample]})",preview.context);
   assert.match(previewHtml,/data-speak-english="Could I try this on\?"/);
   assert.equal(vm.runInContext("speechButton('')",preview.context),'');
+  assert.equal(vm.runInContext("speechButton('If …, I will …')",preview.context),'','Incomplete pattern cards must not be spoken as sentences');
   console.log('Passed page checks: exact review, stale response, nonblocking lesson, rapid flip reversals, reduced motion, persistent review navigation, full coverage and coach feedback.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

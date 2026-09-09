@@ -59,6 +59,8 @@ For caption preparation and drain errors, use [live-companion.md](live-companion
 
 Use the single preparation entry in `SKILL.md`. If the host also requires a knowledge or preference lookup, obey it but return the approved preferences and relevant learning facts compactly; do not dump an unrelated full index or reread every old lesson into startup. Complete nonessential maintenance after the practice/review delivery. Local readiness, Agent turn time, browser display and translation latency are separate measurements. Do not block first speech on the first transcript or Chinese translation. A queued display gets one permitted recovery, then an accurate visible link/status; avoid repeated opens and spoken diagnostics. Report `timing.local_preparation_ms` as local work only.
 
+Native Voice may emit holding phrases such as “let me think/check” while it waits for a delegated Agent, and it may answer simple turns without consulting the Skill. Those utterances are produced by the host Voice layer, not by the local preparation, caption or review workers. Keep post-start practice turns tool-free and answer directly to reduce delegation time, but do not claim that a Skill prompt can silence or correct autonomous host speech. Verify this distinction from the transcript and Agent turn trace when diagnosing intermittent behavior.
+
 If no permitted API controls the speech model or delegates every learner turn, skill instructions cannot guarantee its autonomous replies. Do not inject configuration through a fake dialogue. Fix the delegated response itself, record the observed boundary, and assess actual spoken turns separately.
 
 ## Installed app-server capability checks

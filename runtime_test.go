@@ -837,11 +837,43 @@ func TestReviewSchemaPreservesStreamingOrder(t *testing.T) {
 	}
 	must(json.Unmarshal(rawContracts["review_schema"], &schema))
 	raw := string(rawContracts["review_schema"])
-	if strings.Index(raw, `"expressions"`) > strings.Index(raw, `"word_checks"`) {
+	if strings.Index(raw, `"expressions"`) > strings.Index(raw, `"concept_observations"`) {
 		t.Fatal("Expressions no longer first")
 	}
 	expression := string(schema.Properties["expressions"])
 	if strings.Index(expression, `"source_turn_ids"`) > strings.Index(expression, `"reading_guide"`) {
 		t.Fatal("Quote fields moved behind slow optional fields")
+	}
+	if schema.Properties["word_checks"] != nil || schema.Properties["omitted_turns"] != nil {
+		t.Fatal("Mechanical per-turn bookkeeping must not consume model output")
+	}
+}
+
+func TestAutomaticReviewBookkeepingCoversEveryLearnerTurn(t *testing.T) {
+	snapshot := M{"segments": A{
+		M{"id": "u1", "role": "user", "text": "How do I say 发票?"},
+		M{"id": "a1", "role": "assistant", "text": "You can say invoice."},
+		M{"id": "u2", "role": "user", "text": "Okay."},
+		M{"id": "u3", "role": "user", "text": "I need an invoice."},
+	}}
+	draft := M{
+		"expressions":          A{M{"source_turn_ids": stringsA("u3", "a1"), "mastery": "source_text", "review_result": "success"}},
+		"concept_observations": A{M{"source_turn_ids": stringsA("u1"), "result": "explained", "support": "model"}},
+	}
+	got := completeReviewBookkeeping(draft, snapshot, "zh-CN")
+	checks := arr(got["word_checks"])
+	if len(checks) != 3 || !truth(obj(checks[0])["needs_word_help"]) || truth(obj(checks[1])["needs_word_help"]) {
+		t.Fatal("Word checks were not derived from selected concept evidence", checks)
+	}
+	if len(arr(obj(checks[0])["concept_indices"])) != 1 || obj(got["omitted_turns"])["u2"] == nil || obj(got["omitted_turns"])["u3"] != nil {
+		t.Fatal("Coverage did not distinguish selected and omitted turns", got)
+	}
+	expression := obj(arr(got["expressions"])[0])
+	if !equal(expression["source_turn_ids"], stringsA("u3")) || expression["mastery"] != "not_tested" || expression["review_result"] != nil {
+		t.Fatal("Invalid assistant links and incomplete attempt fields were not normalized", expression)
+	}
+	input := compactReviewInput(M{"profile": M{}}, snapshot)
+	if input["finish_contract"] != nil {
+		t.Fatal("The automatic model input must not repeat the manual finish contract")
 	}
 }
