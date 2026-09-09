@@ -1,4 +1,4 @@
-# v0.2.14 — Honest Web reading surface / 可靠的网页阅读界面
+# v0.2.15 — Honest Web reading surface / 可靠的网页阅读界面
 
 - 真实 Chrome 验收仍出现“未完整出声却立即显示结束”；移除普通与慢速浏览器朗读控件，保留书面读法和记忆提示，避免不可靠功能误导学习者。
 - Real Chrome acceptance still observed false completion without audible full playback. Remove normal/slow browser speech controls while keeping written reading and memory guidance.
