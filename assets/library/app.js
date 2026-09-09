@@ -12,16 +12,9 @@ const shortDate = d => d ? d.slice(5).replace('-', '.') : '';
 const fullDate = d => d ? `${d.slice(0,4)} 年 ${Number(d.slice(5,7))} 月 ${Number(d.slice(8,10))} 日` : '';
 const tag = (text, type = '') => `<span class="tag ${type}">${esc(text)}</span>`;
 const tip = (name, body) => `<span class="help"><button type="button" aria-label="${esc(name)}说明" aria-expanded="false">?</button><span class="help-body" role="tooltip">${esc(body)}</span></span>`;
-const speakableEnglish = english => {
-  const text=english?.trim()||'';
-  // Pattern placeholders and mixed-language notes are useful on screen but do
-  // not form an utterance. Sending them to system speech creates broken prose.
-  return text && /[A-Za-z]/.test(text) && !/[\p{Script=Han}…]|\.\.\.|[_{}\[\]<>]|\s\/\s/u.test(text) ? text : '';
-};
-const speechButton = english => {
-  const text=speakableEnglish(english);
-  return text ? `<div class="speech-control"><button type="button" class="button small" data-speak-english="${esc(text)}" aria-pressed="false">朗读英文</button><button type="button" class="speech-rate" data-speech-rate aria-pressed="false" aria-label="清晰慢速，按下后再次点击朗读英文">慢速</button><span class="speech-status" role="status"></span></div>` : '';
-};
+// Browser speech was removed after real-host checks showed false completion
+// and inconsistent audio. Keep rendering calls inert for older view helpers.
+const speechButton = () => '';
 const list = items => items.map(x => `<p>${esc(x)}</p>`).join('');
 const empty = (title, body, path) => `<div class="empty"><strong>${esc(title)}</strong>${esc(body)}${path ? `<br><a class="button" href="${esc(href(path))}">查看全部记录</a>` : ''}</div>`;
 const heading = (kicker, title, description, action = '') => `<div class="page-heading"><div><span class="eyebrow">${esc(kicker)}</span><h1>${esc(title)}</h1><p>${esc(description)}</p></div>${action}</div>`;
@@ -80,7 +73,7 @@ function readingGuide(e) {
   return `<details class="reading-guide"><summary>怎么念 · 怎么记 <span>含英文提示</span></summary><div class="reading-body"><p class="fine">按意思分组，/ 处可轻停；粗体略重。网页换行不代表停顿。</p><p class="reading-line" lang="en">${g.groups.map(group=>`<span class="reading-group">${marked(group)}</span>`).join('<span class="reading-break" aria-label="可轻停"> / </span>')} <span class="reading-tone" aria-hidden="true">${arrows[g.tone]||''}</span></p><p class="tone-note">${esc(g.tone_note)}</p><h3>先记住这些表达块</h3><div class="memory-parts">${g.memory.map(p=>`<div><strong lang="en">${esc(p.text)}</strong><span>${esc(p.meaning)}</span></div>`).join('')}</div><p class="fine">记忆块方便起头和替换，不要求每块都停顿。这是参考读法，不是实际语音评分。</p></div></details>`;
 }
 function excerpt(e) {
-  return `<article class="excerpt"><span class="small-label">我当时说</span><p class="original" lang="en">${esc(e.original || '这条没有记录原话。')}</p><span class="small-label">${e.original?.trim()===e.english.trim()?'这句话可以继续用':'表达参考'}</span><p class="model" lang="en">${esc(e.english)}</p>${speechButton(e.english)}<p class="chinese">${esc(e.chinese)}</p><p class="evidence-note">${esc(e.note)}</p>${e.source_quotes?.length>1?`<details class="source-quotes"><summary>这句话的求助与后续尝试</summary>${e.source_quotes.map(q=>`<p>${esc(q.quote)}</p>`).join('')}</details>`:''}${readingGuide(e)}</article>`;
+  return `<article class="excerpt"><span class="small-label">我当时说</span><p class="original" lang="en">${esc(e.original || '这条没有记录原话。')}</p><span class="small-label">${e.original?.trim()===e.english.trim()?'这句话可以继续用':'表达参考'}</span><p class="model" lang="en">${esc(e.english)}</p><p class="chinese">${esc(e.chinese)}</p><p class="evidence-note">${esc(e.note)}</p>${e.source_quotes?.length>1?`<details class="source-quotes"><summary>这句话的求助与后续尝试</summary>${e.source_quotes.map(q=>`<p>${esc(q.quote)}</p>`).join('')}</details>`:''}${readingGuide(e)}</article>`;
 }
 function lessonPage(s) {
   const selected=new Set(s.review_priority_ids || []);
@@ -100,7 +93,7 @@ function expressionCard(t, mode) {
   const frontLabel = question + '。点击翻面，查看' + answerLabel;
   const backLabel = answer + '。点击翻回，重新回想';
   const content = mode === 'read' ? `<h2 lang="en">${esc(t.english)}</h2><p class="chinese">${esc(t.chinese)}</p>` : `<button type="button" class="flip-control" data-answer="answer-${esc(t.id)}" data-front-label="${esc(frontLabel)}" data-back-label="${esc(backLabel)}" aria-label="${esc(frontLabel)}" aria-expanded="false" aria-controls="answer-${esc(t.id)}"><span class="flip-inner"><span class="flip-face flip-front" aria-hidden="false"><span class="flashcard-label">${mode === 'meaning' ? '想一想，它是什么意思？' : '试着用英语说出来'}</span><span class="flip-word ${mode === 'meaning' ? 'en' : 'zh'} ${question.length>60?'long':''}" lang="${mode === 'meaning' ? 'en' : 'zh-CN'}">${esc(question)}</span><span class="flip-hint">↻ 点击卡片，翻到答案</span></span><span class="flip-face flip-back" id="answer-${esc(t.id)}" aria-hidden="true" inert><span class="flashcard-label">${answerLabel}</span><span class="flip-word ${mode === 'meaning' ? 'zh' : 'en'} ${answer.length>60?'long':''}" lang="${mode === 'meaning' ? 'zh-CN' : 'en'}">${esc(answer)}</span><span class="flip-hint">↻ 点击卡片，再想一遍</span></span></span></button>`;
-  return `<article class="term-card ${mode === 'read' ? '' : 'flashcard flip-item'}"><div class="meta">${tag(t.kind || t.book,'neutral')}<span>${esc(t.state_label)}</span></div>${content}${speechButton(t.english)}<div class="card-bottom"><a href="${esc(href('sessions/'+t.source_session))}">${esc(shortDate(t.date))} · 回到这次对话</a>${t.concept_id?`<a href="${esc(href('progress/'+t.concept_id))}">查看练习历程 ↗</a>`:''}</div><details class="card-notes"><summary>用法与原话</summary><div><span class="flashcard-label">原记录中的表达</span><p>${esc(t.original || '这一条没有单独记录原话。')}</p><span class="flashcard-label">用法与观察</span><p>${esc(t.note)}</p></div></details>${readingGuide(t)}</article>`;
+  return `<article class="term-card ${mode === 'read' ? '' : 'flashcard flip-item'}"><div class="meta">${tag(t.kind || t.book,'neutral')}<span>${esc(t.state_label)}</span></div>${content}<div class="card-bottom"><a href="${esc(href('sessions/'+t.source_session))}">${esc(shortDate(t.date))} · 回到这次对话</a>${t.concept_id?`<a href="${esc(href('progress/'+t.concept_id))}">查看练习历程 ↗</a>`:''}</div><details class="card-notes"><summary>用法与原话</summary><div><span class="flashcard-label">原记录中的表达</span><p>${esc(t.original || '这一条没有单独记录原话。')}</p><span class="flashcard-label">用法与观察</span><p>${esc(t.note)}</p></div></details>${readingGuide(t)}</article>`;
 }
 function termsPage(data, args) {
   const mode = cardMode(args), recall = mode !== 'read';
@@ -111,7 +104,7 @@ function termsPage(data, args) {
   return heading('WORDS & EXPRESSIONS','生词与表达','按课次回顾，或查看所有积累。') +
     `<section class="term-scope" aria-label="闪卡范围"><div class="scope-switch"><a class="chip ${!selected?'active':''}" ${!selected?'aria-current="page"':''} href="${esc(switchScope())}">全部积累 · ${scope.all_count}</a>${data.latest_session?`<a class="chip ${selected===data.latest_session.id?'active':''}" href="${esc(switchScope(data.latest_session.id))}">最近一次</a>`:''}</div><p><strong>${selected?'本次词句':'全部历史词句'}</strong> · ${scope.count} 张${selected?`<br>${esc(scope.session_title||'所选课次')} <a href="${esc(href('sessions/'+selected))}">查看复盘 ↗</a>`:''}</p></section>` +
     `<div class="chips"><a class="chip ${!args.book?'active':''}" href="${esc(changeBook(''))}">全部生词本</a>${data.books.map(b => `<a class="chip ${args.book===b.name?'active':''}" href="${esc(changeBook(b.name))}">${esc(b.name)} · ${b.count}</a>`).join('')}</div>` + `<details class="term-filters" ${args.q||args.from||args.to||args.state?'open':''}><summary>搜索与筛选 <span>关键词 · 日期 · 表达状态</span></summary>${filters('terms',args,data.books)}</details>` +
-    `<div class="study-toolbar"><div class="study-modes" role="group" aria-label="查看方式"><button type="button" data-study-mode="speak" aria-pressed="${mode==='speak'}">练表达<span>中文 → 英文</span></button><button type="button" data-study-mode="meaning" aria-pressed="${mode==='meaning'}">认词义<span>英文 → 中文</span></button><button type="button" data-study-mode="read" aria-pressed="${mode==='read'}">中英对照<span>一起查看</span></button></div><p>${mode==='speak'?'先自己说一句，点击卡片翻到英文答案；也可听系统朗读，再跟着读。':mode==='meaning'?'先想一想词义，点击卡片翻到中文答案。':'中英文同时显示，方便查找和阅读。'}</p></div><div class="filter-meta"><span>${args.session?'来自所选对话 · ':''}${args.due==='1'?'建议回顾 · ':''}筛选后 ${data.total} 张 · 本页显示 ${data.items.length} 张 ${tip('表达状态','反映最近有证据的一次提示情况，不表示永久掌握或英语等级。查看详情可追溯原话和复述记录。自己翻卡不会改变学习状态。')}</span>${recall&&data.items.length?'<button type="button" class="button small" id="hide-answers">隐藏本页全部答案</button>':''}</div>`+
+    `<div class="study-toolbar"><div class="study-modes" role="group" aria-label="查看方式"><button type="button" data-study-mode="speak" aria-pressed="${mode==='speak'}">练表达<span>中文 → 英文</span></button><button type="button" data-study-mode="meaning" aria-pressed="${mode==='meaning'}">认词义<span>英文 → 中文</span></button><button type="button" data-study-mode="read" aria-pressed="${mode==='read'}">中英对照<span>一起查看</span></button></div><p>${mode==='speak'?'先自己说一句，再点击卡片翻到英文答案。':mode==='meaning'?'先想一想词义，点击卡片翻到中文答案。':'中英文同时显示，方便查找和阅读。'}</p></div><div class="filter-meta"><span>${args.session?'来自所选对话 · ':''}${args.due==='1'?'建议回顾 · ':''}筛选后 ${data.total} 张 · 本页显示 ${data.items.length} 张 ${tip('表达状态','反映最近有证据的一次提示情况，不表示永久掌握或英语等级。查看详情可追溯原话和复述记录。自己翻卡不会改变学习状态。')}</span>${recall&&data.items.length?'<button type="button" class="button small" id="hide-answers">隐藏本页全部答案</button>':''}</div>`+
     (args.due==='1'?'<p class="section-note">已到建议重访日期；一次选几条就好，不是欠下的作业。<a href="'+esc(href('terms',{mode}))+'">查看全部表达</a></p>':'')+
     (data.items.length ? `<div class="terms-grid">${data.items.map(t => expressionCard(t,mode)).join('')}</div>${pager(data,'terms',args)}${recall?'<p class="boundary">翻看答案只用于自主回顾，不会被计为“已掌握”。需要确认表达能力时，回到对话里实际用一用。</p>':''}` : empty('没有找到匹配的表达','试试搜索中文意思，或重置筛选条件。','terms'));
 }
@@ -177,11 +170,9 @@ async function showTerm(id) {
     const t = await api('/api/terms/'+encodeURIComponent(id));
     $('#dialog-content').innerHTML = `${tag(t.book)}<h2 class="dialog-title" id="dialog-title" lang="en">${esc(t.english)}</h2><p class="muted">${esc(t.chinese)}</p>${speechButton(t.english)}${readingGuide(t)}<div class="dialog-section"><h3>我当时说</h3><p>${esc(t.original || '这条没有记录原话。')}</p></div><div class="dialog-section"><h3>用法与练习观察</h3><p>${esc(t.note)}</p><p class="evidence-note">${esc(t.state_label)} · 最近记录于 ${esc(t.updated)}<br>建议再聊：${esc(t.next_review)}。翻看答案不会改变这个状态。</p></div>${t.attempts?.length?`<details class="source-box"><summary>查看 ${t.attempts.length} 条练习观察</summary>${t.attempts.map(a=>`<p>${esc(a.date)} · ${esc(labels[a.prompt]||a.prompt)} · ${esc(a.note||'旧记录未保存更详细的提示过程。')}</p>`).join('')}</details>`:''}<div class="dialog-section"><h3>回到来源对话</h3><div class="source-links">${t.sources.map(s=>`<a href="${esc(href('sessions/'+s.id))}">${esc(shortDate(s.date))} · ${esc(s.title)} ↗</a>`).join('')}</div></div>`;
     $('#term-dialog').showModal();
-    window.CoachSpeech?.refresh();
   } catch(error) {toast(error.message);}
 }
 async function render() {
-  window.CoachSpeech?.stop();
   const version = ++renderVersion, {path,args} = route();
   const section = path.split('/')[0];
   document.body.classList.toggle('live-view', section==='live');
@@ -219,8 +210,8 @@ async function render() {
     else if(path==='storage'){data=await api('/api/storage');markup=storagePage(data);}
     else throw new Error('这个页面不存在，请从左侧导航重新打开。');
     if(version!==renderVersion)return;
+    markup=markup.replace('可用系统声音朗读表达参考；你的原话保留供对照，不参与朗读。<br>','你的原话保留供对照；书面表达建议不冒充会中原话。<br>');
     main.innerHTML=markup;
-    window.CoachSpeech?.refresh();
     if(data.profile){overview=data;$('#goal').textContent=data.profile.goal;}
     else if(!overview)loadGoalInBackground();
     if(path==='live')window.CoachLive.mount(data,args);else updateMeta(data);
@@ -301,7 +292,7 @@ function applyReviewToCurrentPage(data) {
   if(state)state.textContent=reviewMessage(data).body;
   const retry=document.querySelector('[data-retry-review]');if(retry)retry.hidden=data.status!=='error';
   const preview=$('#review-preview');
-  if(preview){const markup=reviewPreview(data);preview.hidden=!markup;if(preview.dataset.markup!==markup){preview.innerHTML=markup;preview.dataset.markup=markup;window.CoachSpeech?.refresh();}}
+  if(preview){const markup=reviewPreview(data);preview.hidden=!markup;if(preview.dataset.markup!==markup){preview.innerHTML=markup;preview.dataset.markup=markup;}}
 }
 async function refreshReviews() {
   if(reviewPolling)return;

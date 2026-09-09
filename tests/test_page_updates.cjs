@@ -142,17 +142,13 @@ const lesson = {...meta,id:'SES-20260101-002',date:'2026-01-01',title:'Synthetic
   preview.context.sample=sample;
   for(const mode of ['speak','meaning','read']) {
     const html=vm.runInContext(`expressionCard(sample,'${mode}')`,preview.context);
-    assert.match(html,/data-speak-english="Could I try this on\?"/);
-    assert.doesNotMatch(html,/data-speak-english="try clothes me"/);
-    const flip=html.match(/<button[^>]*class="flip-control"[\s\S]*?<\/button>/)?.[0]||'';
-    assert.doesNotMatch(flip,/data-speak-english/,'Playback must not nest in the flip button');
+    assert.doesNotMatch(html,/data-speak-english|朗读英文|慢速/,'Unreliable browser speech controls must stay removed');
   }
   const excerptHtml=vm.runInContext('excerpt(sample)',preview.context);
-  assert.match(excerptHtml,/data-speak-english="Could I try this on\?"/);
-  assert.doesNotMatch(excerptHtml,/data-speak-english="try clothes me"/);
+  assert.doesNotMatch(excerptHtml,/data-speak-english|朗读英文|慢速/);
   const previewHtml=vm.runInContext("reviewPreview({preview:[sample]})",preview.context);
-  assert.match(previewHtml,/data-speak-english="Could I try this on\?"/);
+  assert.doesNotMatch(previewHtml,/data-speak-english|朗读英文|慢速/);
   assert.equal(vm.runInContext("speechButton('')",preview.context),'');
-  assert.equal(vm.runInContext("speechButton('If …, I will …')",preview.context),'','Incomplete pattern cards must not be spoken as sentences');
+  assert.equal(vm.runInContext("speechButton('Could I try this on?')",preview.context),'','Browser speech stays disabled after false-completion evidence');
   console.log('Passed page checks: exact review, stale response, nonblocking lesson, rapid flip reversals, reduced motion, persistent review navigation, full coverage and coach feedback.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

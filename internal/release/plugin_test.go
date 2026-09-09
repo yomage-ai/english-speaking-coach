@@ -19,7 +19,7 @@ func TestPluginShipsVerifiedProgramsWithoutPrivateOrDeveloperRuntime(t *testing.
 		must(os.WriteFile(p, []byte(text), 0644))
 	}
 	put(".codex-plugin/plugin.json", `{"name":"english-speaking-coach","version":"0.2.9","skills":"./skills/"}`)
-	for _, name := range []string{"SKILL.md", "runtime-version.txt", "README.md", "README.en.md", "LICENSE", "scripts/coach", "scripts/coach.ps1", "agents/openai.yaml", "references/runtime-installation.md", "assets/library/speech.js"} {
+	for _, name := range []string{"SKILL.md", "runtime-version.txt", "README.md", "README.en.md", "LICENSE", "scripts/coach", "scripts/coach.ps1", "agents/openai.yaml", "references/runtime-installation.md"} {
 		put(name, "fixture")
 	}
 	for _, name := range []string{"data/profile.json", "Live/companion.sqlite3", ".env", "scripts/legacy.py", "node/experiment.mjs", "bin/old-program", "assets/.DS_Store"} {

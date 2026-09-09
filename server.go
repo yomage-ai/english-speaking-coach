@@ -169,7 +169,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if path == "/" {
 		path = "/index.html"
 	}
-	if has(stringsA("/index.html", "/app.js", "/app.css", "/live.js", "/live.css", "/storage.js", "/speech.js", "/favicon.svg"), path) {
+	if has(stringsA("/index.html", "/app.js", "/app.css", "/live.js", "/live.css", "/storage.js", "/favicon.svg"), path) {
 		b, e := bundled.ReadFile("assets/library" + path)
 		must(e)
 		typ := mime.TypeByExtension(filepath.Ext(path))

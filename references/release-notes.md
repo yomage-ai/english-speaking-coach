@@ -1,3 +1,8 @@
+# v0.2.14 — Honest Web reading surface / 可靠的网页阅读界面
+
+- 真实 Chrome 验收仍出现“未完整出声却立即显示结束”；移除普通与慢速浏览器朗读控件，保留书面读法和记忆提示，避免不可靠功能误导学习者。
+- Real Chrome acceptance still observed false completion without audible full playback. Remove normal/slow browser speech controls while keeping written reading and memory guidance.
+
 # v0.2.13 — One-pass review normalization / 单次复盘归一化
 
 - 模型偶尔多返回一条“后续重点”或“教练建议”时，程序按已约定的优先级保留前几项，不再为纯数量超限发起第二次完整模型生成。

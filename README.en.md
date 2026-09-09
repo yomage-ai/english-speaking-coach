@@ -32,13 +32,11 @@ Codex automatically opens the local learning page at the start of every practice
 | Session review | Distinguish actual practice from suggestions for later; find the review again after switching pages |
 | Learning home / Review | Start the next activity on Home; inspect changes over time in Review |
 | Local learning data | Open the folder, download a full backup, restore a backup or use another copied archive |
-| Flashcards | Recall before flipping; hear complete English through local system speech or expand reading and memory tips |
+| Flashcards | Recall before flipping; expand grouping, stress, intonation and memory tips |
 
 The official plugin bundle includes programs for all supported platforms. Codex verifies, selects and starts the matching program; first practice needs no additional backend download. **No Python, Node.js or Go installation or manual program startup is required.** Older standalone Skill installations still let Codex fetch the matching program automatically. Desktop support and limits are described below.
 
-System speech reads only complete, directly speakable flashcard English and review suggestions. It does not read pattern templates with ellipsis placeholders or your original wording. Select “Read English” to play or stop; “Slow” plays a clear slower sentence queue. The page prefers reliable local English voices, chunks longer text and prevents speed changes from interrupting the next playback. It needs no API key, paid speech service or microphone access. Timbre, pronunciation and volume still depend on the system and browser; the page reports when no suitable local English voice is available. The current archive interface labels these controls “朗读英文” and “慢速”.
-
-Speech is independent of Voice and is not a replay of the original practice. Flipping, listening and reading along do not create practice evidence or change mastery. This release does not add Web recording, speech recognition or a new practice log.
+The Web library no longer exposes browser system speech. Real-device checks found that Web Speech could report completion without audibly finishing, while voice quality and completion could not be guaranteed across browsers and systems. The page keeps complete English, Chinese meaning and written reading guidance. Flipping cards or reading along does not create practice evidence or change mastery. This release does not add Web recording, speech recognition or a new practice log.
 
 ## Before you use it
 
