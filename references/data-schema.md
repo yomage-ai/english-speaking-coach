@@ -61,7 +61,7 @@ Generated Voice reviews use `summary_points`: one to three `{text, kind, evidenc
 
 Optional `source_quotes: [{quote, source_turn_ids}]` preserves the exact linked need and later attempt when duplicate canonical expressions are coalesced. For Voice, the writer checks each quote against that closed Voice before saving; for text practice, the Agent checks it against the cited chat turns under the text closeout contract. This evidence does not create extra attempts or promote mastery.
 
-`original` is the learner's selected wording, `english` is the suggested form, `note` explains the observed support and limits. A scored attempt needs both `review_result` and `review_prompt`. `independent` requires `success / none`; `transfer` requires `transfer_success / changed_context`. Structural validation cannot verify that an utterance really happened; Agent must check the source. Do not promote historical mastery without actual evidence.
+`original` is the learner's selected wording, `english` is the suggested form, `note` explains the observed support and limits. An observed attempt needs both `review_result` and `review_prompt`. `independent` requires `success / none`; `transfer` requires `transfer_success / changed_context`. Structural validation cannot verify that an utterance really happened; Agent must check the source. Do not promote historical mastery without actual evidence.
 
 必填包括真实来源和表达数组，表达数组允许为空。同一表达复用 ID；补录保留实际练习日期并注明补录日期。原话、推荐表达、提示程度和判断依据分开。脚本只验证结构，真实证据由 Agent 核对。
 
@@ -128,3 +128,9 @@ On the user's explicit text-practice end, the Agent uses the observed chat, not 
 Prepare the ordinary session payload above from selected actual utterances. Use unused SES/EXP IDs after reading current state; reuse a matching existing expression where appropriate. Preserve source locators and distinguish model-supplied wording from independent use. `modality` for concept evidence is `text`. Technical maintenance turns are not language mistakes, word needs or practice achievements; note a relevant coach fault separately, and preserve a brief coverage explanation without copying technical logs. A pure maintenance task saves no lesson.
 
 Run `sh "<skill>/scripts/coach" add-session --input <selected.json> --check`. The writer checks and commits under its archive lock; a conflicting ID is rejected rather than overwritten. Inspect any collision, retain the exact practice identity, and select unused IDs only if this is not already saved. Verify saved/already_saved and validation before claiming completion. Obtain the overview origin with `open --page overview --no-browser`, then open `/#sessions/<saved-id>` and inspect the matching lesson. An unavailable page does not undo a successful save, and a page alone is not proof of saving. Never invent a voice-id or feed text dialogue into the closed-Voice worker.
+
+## Source-linked conversational attempts / 有来源的会中尝试
+
+A learner repeating or reusing a heard/displayed model is a real supported attempt; no grade or drill is required. Use existing `source_text` mastery/prompt, never independent mastery. `attempt_evidence` stores `{learner: {segment_id, quote}, coach: {segment_id, quote}}`; independent attempts use coach=null. The original problem quote remains in `original`. Review-only suggestions and yes-only acknowledgements stay untested. Program checks IDs, roles, exact quotes and coach-before-learner ordering; the reviewing Agent judges whether the words constitute a useful attempt.
+
+中文：听到或看到示范后说出句子，记为“有原句提示说出”，不需要打分，不等于独立掌握。保留教练示范与学习者后续原话；只听过、只回答 yes 或课后新增的建议，不能冒充说过。旧课次修正必须有原始证据、修改前备份和明确修正说明，保留用户补充及未涉及字段。

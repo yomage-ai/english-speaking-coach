@@ -14,7 +14,7 @@ import (
 
 var sessionID = regexp.MustCompile(`^SES-\d{8}-\d{3}$`)
 var expressionID = regexp.MustCompile(`^EXP-\d{8}-\d{3}$`)
-var mastery = M{"not_tested": "尚未尝试", "source_text": "看原句说出", "keywords": "借关键词说出", "independent": "曾独立说出", "transfer": "曾换场景使用"}
+var mastery = M{"not_tested": "尚未尝试", "source_text": "有原句提示说出", "keywords": "借关键词说出", "independent": "曾独立说出", "transfer": "曾换场景使用"}
 
 func block(marker string, v any) string { return "<!-- " + marker + "\n" + string(encode(v)) + "-->\n" }
 func extract(p, marker string) M {
@@ -253,7 +253,12 @@ func buildState(root string) M {
 			prior := obj(expressions[id])
 			attempts := arr(clone(get(prior, "attempts", A{})))
 			if str(x["review_result"]) != "" {
-				attempts = append(attempts, M{"date": r["date"], "session": r["id"], "result": x["review_result"], "prompt": x["review_prompt"], "original": x["original"], "note": x["note"]})
+				attempt := M{"date": r["date"], "session": r["id"], "result": x["review_result"], "prompt": x["review_prompt"], "original": x["original"], "note": x["note"]}
+				if evidence := obj(x["attempt_evidence"]); len(evidence) > 0 {
+					attempt["original"] = obj(evidence["learner"])["quote"]
+					attempt["attempt_evidence"] = clone(evidence)
+				}
+				attempts = append(attempts, attempt)
 			}
 			newer := str(prior["updated"]) > str(r["date"])
 			for _, sid := range arr(get(prior, "seen_in_sessions", A{prior["source_session"]})) {

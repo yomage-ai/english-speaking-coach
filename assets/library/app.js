@@ -2,7 +2,7 @@
 const $ = (s, root = document) => root.querySelector(s);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const main = $('#content');
-const labels = {not_tested:'尚未尝试',source_text:'看原句说出',keywords:'借关键词说出',independent:'曾独立说出',transfer:'曾换场景使用'};
+const labels = {not_tested:'尚未尝试',source_text:'有原句提示说出',keywords:'借关键词说出',independent:'曾独立说出',transfer:'曾换场景使用'};
 const bookEnglish = {'旅行出行':'Out & about','宠物咨询':'Care & ask','日常聊天':'Everyday life'};
 let overview, overviewLoading, renderVersion = 0, toastTimer, reviewTimer, reviewPolling = false;
 const trackedReviews = new Map(), reviewSeen = new Map();
@@ -72,8 +72,13 @@ function readingGuide(e) {
   const arrows={rise:'↗',fall:'↘',level:'→','fall-rise':'↘↗',context:'↔'};
   return `<details class="reading-guide"><summary>怎么念 · 怎么记 <span>含英文提示</span></summary><div class="reading-body"><p class="fine">按意思分组，/ 处可轻停；粗体略重。网页换行不代表停顿。</p><p class="reading-line" lang="en">${g.groups.map(group=>`<span class="reading-group">${marked(group)}</span>`).join('<span class="reading-break" aria-label="可轻停"> / </span>')} <span class="reading-tone" aria-hidden="true">${arrows[g.tone]||''}</span></p><p class="tone-note">${esc(g.tone_note)}</p><h3>先记住这些表达块</h3><div class="memory-parts">${g.memory.map(p=>`<div><strong lang="en">${esc(p.text)}</strong><span>${esc(p.meaning)}</span></div>`).join('')}</div><p class="fine">记忆块方便起头和替换，不要求每块都停顿。这是参考读法，不是实际语音评分。</p></div></details>`;
 }
+function attemptEvidence(e) {
+  const a=e.attempt_evidence;
+  if(!a?.learner?.quote)return '';
+  return `<details class="source-quotes"><summary>这次尝试的依据</summary>${a.coach?.quote?`<span class="small-label">教练先给出的提示</span><p lang="en">${esc(a.coach.quote)}</p>`:''}<span class="small-label">我随后说</span><p lang="en">${esc(a.learner.quote)}</p><p class="fine">${a.coach?'有提示的尝试，不代表独立掌握。':'此条记录引用了学习者的实际发言。'}</p></details>`;
+}
 function excerpt(e) {
-  return `<article class="excerpt"><span class="small-label">我当时说</span><p class="original" lang="en">${esc(e.original || '这条没有记录原话。')}</p><span class="small-label">${e.original?.trim()===e.english.trim()?'这句话可以继续用':'表达参考'}</span><p class="model" lang="en">${esc(e.english)}</p><p class="chinese">${esc(e.chinese)}</p><p class="evidence-note">${esc(e.note)}</p>${e.source_quotes?.length>1?`<details class="source-quotes"><summary>这句话的求助与后续尝试</summary>${e.source_quotes.map(q=>`<p>${esc(q.quote)}</p>`).join('')}</details>`:''}${readingGuide(e)}</article>`;
+  return `<article class="excerpt"><span class="small-label">我当时说</span><p class="original" lang="en">${esc(e.original || '这条没有记录原话。')}</p><span class="small-label">${e.original?.trim()===e.english.trim()?'这句话可以继续用':'表达参考'}</span><p class="model" lang="en">${esc(e.english)}</p><p class="chinese">${esc(e.chinese)}</p><p class="evidence-note">${esc(e.note)}</p>${e.source_quotes?.length>1?`<details class="source-quotes"><summary>这句话的求助与后续尝试</summary>${e.source_quotes.map(q=>`<p>${esc(q.quote)}</p>`).join('')}</details>`:''}${attemptEvidence(e)}${readingGuide(e)}</article>`;
 }
 function lessonPage(s) {
   const selected=new Set(s.review_priority_ids || []);
@@ -93,7 +98,7 @@ function expressionCard(t, mode) {
   const frontLabel = question + '。点击翻面，查看' + answerLabel;
   const backLabel = answer + '。点击翻回，重新回想';
   const content = mode === 'read' ? `<h2 lang="en">${esc(t.english)}</h2><p class="chinese">${esc(t.chinese)}</p>` : `<button type="button" class="flip-control" data-answer="answer-${esc(t.id)}" data-front-label="${esc(frontLabel)}" data-back-label="${esc(backLabel)}" aria-label="${esc(frontLabel)}" aria-expanded="false" aria-controls="answer-${esc(t.id)}"><span class="flip-inner"><span class="flip-face flip-front" aria-hidden="false"><span class="flashcard-label">${mode === 'meaning' ? '想一想，它是什么意思？' : '试着用英语说出来'}</span><span class="flip-word ${mode === 'meaning' ? 'en' : 'zh'} ${question.length>60?'long':''}" lang="${mode === 'meaning' ? 'en' : 'zh-CN'}">${esc(question)}</span><span class="flip-hint">↻ 点击卡片，翻到答案</span></span><span class="flip-face flip-back" id="answer-${esc(t.id)}" aria-hidden="true" inert><span class="flashcard-label">${answerLabel}</span><span class="flip-word ${mode === 'meaning' ? 'zh' : 'en'} ${answer.length>60?'long':''}" lang="${mode === 'meaning' ? 'zh-CN' : 'en'}">${esc(answer)}</span><span class="flip-hint">↻ 点击卡片，再想一遍</span></span></span></button>`;
-  return `<article class="term-card ${mode === 'read' ? '' : 'flashcard flip-item'}"><div class="meta">${tag(t.kind || t.book,'neutral')}<span>${esc(t.state_label)}</span></div>${content}<div class="card-bottom"><a href="${esc(href('sessions/'+t.source_session))}">${esc(shortDate(t.date))} · 回到这次对话</a>${t.concept_id?`<a href="${esc(href('progress/'+t.concept_id))}">查看练习历程 ↗</a>`:''}</div><details class="card-notes"><summary>用法与原话</summary><div><span class="flashcard-label">原记录中的表达</span><p>${esc(t.original || '这一条没有单独记录原话。')}</p><span class="flashcard-label">用法与观察</span><p>${esc(t.note)}</p></div></details>${readingGuide(t)}</article>`;
+  return `<article class="term-card ${mode === 'read' ? '' : 'flashcard flip-item'}"><div class="meta">${tag(t.kind || t.book,'neutral')}<span>${esc(t.state_label)}</span></div>${content}<div class="card-bottom"><a href="${esc(href('sessions/'+t.source_session))}">${esc(shortDate(t.date))} · 回到这次对话</a>${t.concept_id?`<a href="${esc(href('progress/'+t.concept_id))}">查看练习历程 ↗</a>`:''}</div><details class="card-notes"><summary>用法与原话</summary><div><span class="flashcard-label">原记录中的表达</span><p>${esc(t.original || '这一条没有单独记录原话。')}</p><span class="flashcard-label">用法与观察</span><p>${esc(t.note)}</p></div></details>${attemptEvidence(t)}${readingGuide(t)}</article>`;
 }
 function termsPage(data, args) {
   const mode = cardMode(args), recall = mode !== 'read';

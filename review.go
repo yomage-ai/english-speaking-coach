@@ -331,6 +331,54 @@ func learnerTurns(snapshot M) M {
 	return out
 }
 
+// Evidence proves provenance and order; the review model still judges whether
+// the learner actually produced the expression. A prompted attempt needs no grade.
+func normalizeExpressionAttempt(x, snapshot M) {
+	proof, present := x["attempt_evidence"]
+	if !present {
+		return
+	} // Legacy/manual records keep their existing contract.
+	result, prompt := str(x["review_result"]), str(x["review_prompt"])
+	if proof == nil {
+		require(result == "" && prompt == "", "An attempted expression needs source evidence")
+		x["mastery"] = "not_tested"
+		return
+	}
+	require(has(stringsA("failed", "partial", "success", "transfer_success"), result), "Attempt evidence needs a result")
+	segments, positions := M{}, M{}
+	for i, v := range arr(snapshot["segments"]) {
+		s := obj(v)
+		segments[str(s["id"])], positions[str(s["id"])] = s, i
+	}
+	e := obj(proof)
+	check := func(ref M, role string) string {
+		id, quote := str(ref["segment_id"]), str(ref["quote"])
+		s := obj(segments[id])
+		require(s["role"] == role && strings.TrimSpace(quote) != "" && strings.Contains(str(s["text"]), quote), "Attempt evidence must quote the correct speaker's actual segment")
+		return id
+	}
+	learner := check(obj(e["learner"]), "user")
+	require(has(x["source_turn_ids"], learner), "Attempt must be linked to its learner turn")
+	switch prompt {
+	case "source_text", "keywords":
+		coach := check(obj(e["coach"]), "assistant")
+		require(integer(positions[coach]) < integer(positions[learner]), "Supplied wording must precede the learner attempt")
+		require(result != "transfer_success", "Prompted use is not independent transfer")
+		x["mastery"] = prompt
+	case "none", "changed_context":
+		require(e["coach"] == nil, "Independent attempt cannot contain supplied wording")
+		// Do not silently promote failed or partial unprompted attempts.
+		if result == "success" && prompt == "none" {
+			x["mastery"] = "independent"
+		}
+		if result == "transfer_success" && prompt == "changed_context" {
+			x["mastery"] = "transfer"
+		}
+	default:
+		panic(fmt.Errorf("Attempt needs a supported prompt type"))
+	}
+}
+
 // completeReviewBookkeeping derives exhaustive per-turn accounting from the
 // model's selected evidence. These fields are mechanical validation metadata,
 // so asking the model to repeat one object for every learner turn only makes a
@@ -353,6 +401,7 @@ func completeReviewBookkeeping(d, snapshot M, language string) M {
 	for _, v := range arr(d["expressions"]) {
 		x := obj(v)
 		x["source_turn_ids"] = learnerIDs(x["source_turn_ids"])
+		normalizeExpressionAttempt(x, snapshot)
 		for _, rawQuote := range arr(x["source_quotes"]) {
 			quote := obj(rawQuote)
 			quote["source_turn_ids"] = learnerIDs(quote["source_turn_ids"])
@@ -534,6 +583,7 @@ func normalizeReview(root string, d M, thread, voice string, snapshot, state M) 
 	}
 	for _, v := range arr(d["expressions"]) {
 		x := copyM(v)
+		normalizeExpressionAttempt(x, snapshot)
 		sourceTurns(x, str(x["original"]))
 		for _, v := range arr(x["source_quotes"]) {
 			sourceTurns(obj(v), str(obj(v)["quote"]))

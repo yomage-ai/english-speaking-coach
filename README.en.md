@@ -14,9 +14,9 @@ Practice dialogue stays in English. For non-English or mixed input, the coach he
 
 After installation, open Voice, then send this message to start practicing English:
 
-> /$english-speaking-coach Help me practice English.
+> /$english-speaking-coach Help me practice English. Reply only in English during practice, even when I use Chinese; keep Chinese help on the page.
 
-You can also select **English Speaking Coach** from the skill picker in the message box. Use a newly installed plugin in a new task. An ordinary text task starts text practice; live bilingual captions require an active Voice call.
+You can also select **English Speaking Coach** from the skill picker and send it with the same practice request. Use a newly installed plugin in a new task. An ordinary text task starts text practice; live bilingual captions require an active Voice call.
 
 For troubleshooting, ask directly, for example: “Check why the bilingual page has no translations.” Codex pauses practice, handles the issue in your current language and resumes practice when you ask.
 

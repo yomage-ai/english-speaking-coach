@@ -64,3 +64,9 @@ Storage verification includes five or more different useful needs in one lesson,
 Include a plain text task, an ended Voice, conflicting task metadata, host-active state without source identity and a damaged complete line. None may create a live binding, watcher, scene history or supervisor through prepare. Pair them with an active Voice that ingests valid segments and survives an exact retry. Check legacy empty bindings in the page: a model connection alone must not claim captions are ready. Test a copied shell entry and cached binary with lost executable bits, and reject changed bytes with an existing checksum receipt. Record Intel cross-compilation separately from native Intel execution.
 
 Rehearse a practice → Chinese page-fault report → technical discussion → explicit return to practice sequence. No diagnostic request needs an English meaning check, and repairs do not resume the exercise on their own. Preserve practice wording help and pacing controls on either side of the maintenance interval.
+
+## Language-drift recovery regression
+
+Rehearse a mixed-language utterance, its acknowledgement, a language complaint in English and Chinese, a continued scene turn, then an explicit request to diagnose the app. The first five stay in practice and English; only the technical request enters maintenance. The coach owns a language error without blaming the learner, preserves the pending action, and does not restart the scene or drill the complaint. Inspect both STATUS and COMPLETE where used.
+
+For the actual host check, verify the submitted startup message (a Skill chip is not evidence that its default prompt was sent), then compare each unique spoken transcript with backend calls. Include autonomous replies and speech while a backend call is pending. Report an observed language violation as failed; a new instruction edit, source synchronization or textual rehearsal cannot reset that failure to passed.

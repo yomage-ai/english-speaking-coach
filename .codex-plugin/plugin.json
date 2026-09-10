@@ -17,6 +17,6 @@
       "Read",
       "Write"
     ],
-    "defaultPrompt": "帮我练英语。 / Help me practice English."
+    "defaultPrompt": "Help me practice English. Speak only English during the exercise, even when I use Chinese; keep Chinese help on the written page."
   }
 }
