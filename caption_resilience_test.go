@@ -43,11 +43,11 @@ func TestTranslationPoisonRowIsolation(t *testing.T) {
 	root := testRoot(t)
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, voiceLog(t, false), defaultModel, true)
+	s := l.bind(testThread, voiceLog(t, false), defaultCaptionModel, true)
 	id := str(s["id"])
 	rows := A{M{"id": "good", "role": "assistant", "text": "Good morning."}, M{"id": "bad", "role": "user", "text": "这是 backpack"}, M{"id": "next", "role": "assistant", "text": "Can I help?"}}
 	l.insertSegments(id, rows)
-	batch := l.batch(id)
+	batch := l.batch(id, false)
 	units := translationUnits(batch)
 	translations := A{}
 	for _, v := range units {
@@ -65,12 +65,20 @@ func TestTranslationPoisonRowIsolation(t *testing.T) {
 	l.translated(id, out, 1, M{"good": "Good morning.", "next": "Can I help?"})
 	l.failBatch(id, batch)
 	l.insertSegments(id, A{M{"id": "new", "role": "user", "text": "Thank you."}})
-	retry := l.batch(id)
+	retry := l.batch(id, false)
 	if obj(retry[0])["id"] != "new" {
 		t.Fatal("Retry blocked newer text", retry)
 	}
-	l.failBatch(id, retry)
-	if integer(l.counts(id)["translated"]) != 2 || integer(l.counts(id)["failed"]) != 1 {
+	l.translated(id, A{M{"id": "new", "chinese": "谢谢。"}}, 1, M{"new": "Thank you."})
+	if queued := l.batch(id, false); len(queued) != 0 {
+		t.Fatal("Poison row retried during active conversation", queued)
+	}
+	deferred := l.batch(id, true)
+	if len(deferred) != 1 || obj(deferred[0])["id"] != "bad" {
+		t.Fatal("Deferred poison row was not recoverable", deferred)
+	}
+	l.failBatch(id, deferred)
+	if integer(l.counts(id)["translated"]) != 3 || integer(l.counts(id)["failed"]) != 1 {
 		t.Fatal(l.counts(id))
 	}
 	if l.run(id)["desired"] != "running" {
@@ -88,7 +96,7 @@ func TestClosedCaptionRetryCannotStealActiveBinding(t *testing.T) {
 	l := openLive(root)
 	defer l.close()
 	source := voiceLog(t, false)
-	s := l.bind(testThread, source, defaultModel, true)
+	s := l.bind(testThread, source, defaultCaptionModel, true)
 	id := str(s["id"])
 	l.patch(id, M{"status": "ended", "desired": "stopped"})
 	reject(t, func() { l.retry(id) }) // a state label is not actual close evidence
@@ -118,14 +126,14 @@ func TestTranslationWorkerContinuesPastPoisonSentence(t *testing.T) {
 	root := testRoot(t)
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, voiceLog(t, false), defaultModel, true)
+	s := l.bind(testThread, voiceLog(t, false), defaultCaptionModel, true)
 	id := str(s["id"])
 	l.insertSegments(id, A{M{"id": "bad", "role": "user", "text": "这是 backpack"}, M{"id": "good", "role": "assistant", "text": "Good morning."}})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	done := make(chan struct{})
 	go func() { defer close(done); runTranslations(ctx, root) }()
 	defer func() { cancel(); <-done }()
-	for integer(l.counts(id)["failed"]) == 0 && ctx.Err() == nil {
+	for obj(l.run(id)["translation_rejected"])["bad"] == nil && ctx.Err() == nil {
 		time.Sleep(20 * time.Millisecond)
 	}
 	l.insertSegments(id, A{M{"id": "later", "role": "assistant", "text": "How can I help?"}})
@@ -137,6 +145,10 @@ func TestTranslationWorkerContinuesPastPoisonSentence(t *testing.T) {
 	}
 	if obj(l.run(id)["translation_rejected"])["bad"] == nil {
 		t.Fatal("Lost an unresolved sentence's diagnostic")
+	}
+	bad := obj(query(l.db, "SELECT status,attempts FROM segments WHERE run=? AND id='bad'", id)[0])
+	if bad["status"] != "pending" || integer(bad["attempts"]) != 1 {
+		t.Fatal("Poison sentence was retried before drain", bad)
 	}
 }
 
@@ -196,12 +208,12 @@ func TestRealMixedNameTranslation(t *testing.T) {
 	if os.Getenv("ENGLISH_COACH_REAL_MODEL_TEST") != "1" {
 		t.Skip("Explicit development opt-in required")
 	}
-	c := newModelClient(defaultModel, 45*time.Second)
+	c := newModelClient(defaultCaptionModel, 45*time.Second)
 	defer c.close()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	rows := A{M{"id": "u1", "role": "user", "text": "这个 iPad 可以放进包里吗？"}, M{"id": "a1", "role": "assistant", "text": "Yes, the backpack is big enough."}, M{"id": "u2", "role": "user", "text": "这个 backpack 怎么说？"}}
-	out, _, rejected, seconds := c.translate(ctx, rows, nil, nil)
+	out, rejected, seconds := c.translate(ctx, rows, nil)
 	if len(rejected) != 0 || len(out) != 3 {
 		t.Fatal(out, rejected)
 	}

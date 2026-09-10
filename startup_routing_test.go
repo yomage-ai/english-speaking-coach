@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -77,7 +76,7 @@ func TestUnboundPreparePreservesExistingArchiveAndPractice(t *testing.T) {
 	root := testRoot(t)
 	l := openLive(root)
 	defer l.close()
-	active := l.bind(testThread, voiceLog(t, false), defaultModel, true)
+	active := l.bind(testThread, voiceLog(t, false), defaultCaptionModel, true)
 	profile := readFile(filepath.Join(root, "profile.json"))
 	for _, enabled := range []bool{true, false} {
 		l.setMeta("enabled", fmt.Sprint(enabled))
@@ -89,7 +88,7 @@ func TestUnboundPreparePreservesExistingArchiveAndPractice(t *testing.T) {
 		if len(glob(filepath.Join(root, "Runtime", "ReviewWatches", "*.json"))) != 0 || exists(filepath.Join(root, "Runtime", "scene-history.json")) || !bytes.Equal(profile, readFile(filepath.Join(root, "profile.json"))) {
 			t.Fatal("Text task wrote a watcher, scene history or preferences")
 		}
-		reject(t, func() { l.bind(testVoice, source, defaultModel, true) })
+		reject(t, func() { l.bind(testVoice, source, defaultCaptionModel, true) })
 	}
 }
 
@@ -133,7 +132,7 @@ func TestTailerKeepsConcreteDiagnosticsAndValidCaptions(t *testing.T) {
 	root, source := testRoot(t), voiceLog(t, false)
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, source, defaultModel, true)
+	s := l.bind(testThread, source, defaultCaptionModel, true)
 	l.readTail(s)
 	f, err := os.OpenFile(source, os.O_APPEND|os.O_WRONLY, 0600)
 	must(err)
@@ -207,37 +206,5 @@ func TestCopiedLauncherRepairsVerifiedModeAndRejectsChangedBytes(t *testing.T) {
 	out, err = exec.Command("sh", launcher, "version").CombinedOutput()
 	if err == nil || strings.Contains(string(out), "UNVERIFIED_EXECUTED") {
 		t.Fatal("Changed cached bytes executed", string(out))
-	}
-}
-
-func TestRealMaintenanceDoesNotBecomeWrittenLanguageHelp(t *testing.T) {
-	if os.Getenv("ENGLISH_COACH_REAL_MAINTENANCE_TEST") != "1" {
-		t.Skip("Explicit isolated account integration opt-in required")
-	}
-	c := newModelClient(defaultModel, 45*time.Second)
-	defer c.close()
-	c.freshTurns = true
-	c.instructions = "Return only the requested JSON teaching object. Do not translate transcripts or use tools. " + str(contracts["teaching_instructions"])
-	schema := json.RawMessage(`{"type":"object","properties":{"teaching":` + string(rawContracts["teaching_schema"]) + `},"required":["teaching"],"additionalProperties":false}`)
-	conversation := A{M{"id": "a1", "role": "assistant", "text": "Welcome to the gift shop. What are you looking for?"}}
-	for i, item := range []struct{ text, kind string }{
-		{"检查双语网页为什么没有翻译，我现在要排查问题。", "none"},
-		{"换成 JS 会不会简单一点？", "none"},
-		{"好了，继续买礼物的练习。围巾这个词怎么说？", "help"},
-	} {
-		conversation = append(conversation, M{"id": fmt.Sprintf("u%d", i), "role": "user", "text": item.text})
-		payload := M{"teaching_context": M{"conversation": conversation, "scene": M{"setting": "A gift shop"}, "profile": M{"correction": "in_character", "input_support": "short_turns"}}}
-		answer := c.generate(context.Background(), payload, schema, nil)
-		hint := obj(answer["teaching"])
-		if hint["kind"] != item.kind || item.kind == "none" && (str(hint["english"]) != "" || str(hint["next_cue"]) != "") {
-			t.Fatalf("case %d: %v", i, hint)
-		}
-		if item.kind == "help" {
-			word := strings.Trim(strings.ToLower(str(hint["english"])), " .!\"'“”")
-			if validateHint(hint, conversation) == nil || (word != "scarf" && word != "a scarf") {
-				t.Fatal("Word lookup invented a scene intention instead of supplying the word", hint)
-			}
-		}
-		t.Logf("case %d: %s; response=%v", i, item.kind, hint)
 	}
 }

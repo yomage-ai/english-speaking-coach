@@ -18,7 +18,10 @@ import (
 	"unicode"
 )
 
-const defaultModel = "gpt-5.6-sol"
+const (
+	defaultCaptionModel = "gpt-5.6-luna"
+	defaultReviewModel  = "gpt-5.6-sol"
+)
 
 type ModelClient struct {
 	model        string
@@ -417,57 +420,7 @@ func partialTranslations(segments, units, translated A) (A, M) {
 	}
 	return out, rejected
 }
-func validateHint(value M, conversation A) M {
-	var latest M
-	for _, v := range reverse(conversation) {
-		if obj(v)["role"] == "user" {
-			latest = obj(v)
-			break
-		}
-	}
-	if latest == nil || value["kind"] == "none" || obj(latest["fragment"])["kind"] == "word_tail" {
-		return nil
-	}
-	if !has(stringsA("help", "continue"), value["kind"]) || value["source_id"] != latest["id"] {
-		return nil
-	}
-	quote := str(value["quote"])
-	if strings.TrimSpace(quote) == "" || !strings.Contains(str(latest["text"]), quote) {
-		return nil
-	}
-	for _, k := range []string{"english", "chinese", "next_cue"} {
-		if _, ok := value[k].(string); !ok || len([]rune(str(value[k]))) > 600 {
-			return nil
-		}
-	}
-	en, cue := strings.TrimSpace(str(value["english"])), strings.TrimSpace(str(value["next_cue"]))
-	if hanRE.MatchString(en+cue) || hasOtherLetters(en+cue) || (cue != "" && !latinRE.MatchString(cue)) || len(strings.Fields(en)) > 25 || len(strings.Fields(cue)) > 12 {
-		return nil
-	}
-	groups := arr(value["groups"])
-	if len(groups) > 2 {
-		return nil
-	}
-	parts := []string{}
-	for _, v := range groups {
-		if _, ok := v.(string); !ok || len([]rune(str(v))) > 400 {
-			return nil
-		}
-		parts = append(parts, str(v))
-	}
-	if value["kind"] == "help" {
-		if !validExpressionLanguages(value) || !equal(words(strings.Join(parts, " ")), words(en)) {
-			return nil
-		}
-		if len(words(en)) <= 7 {
-			value["groups"] = stringsA(en)
-		}
-	} else if en != "" || str(value["chinese"]) != "" || len(groups) > 0 || cue == "" {
-		return nil
-	}
-	return merge(pick(value, "kind", "source_id", "quote", "english", "chinese", "next_cue", "groups"), M{"source_text": latest["text"], "context_key": teachingKey(M{"conversation": conversation})})
-}
-func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, publish func(A, float64)) (out A, hint M, rejected M, latency float64) {
+func (c *ModelClient) translate(ctx context.Context, segments A, publish func(A, float64)) (out A, rejected M, latency float64) {
 	// Retain already source-checked streamed rows even if the final envelope is bad.
 	visible := A{}
 	defer func() {
@@ -485,7 +438,7 @@ func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, pub
 			}
 		}
 	}()
-	return c.translateBatch(ctx, segments, teaching, func(part A, seconds float64) {
+	return c.translateBatch(ctx, segments, func(part A, seconds float64) {
 		visible = append(visible, part...)
 		if publish != nil {
 			publish(part, seconds)
@@ -493,13 +446,13 @@ func (c *ModelClient) translate(ctx context.Context, segments A, teaching M, pub
 	})
 }
 
-func (c *ModelClient) translateBatch(ctx context.Context, segments A, teaching M, publish func(A, float64)) (A, M, M, float64) {
+func (c *ModelClient) translateBatch(ctx context.Context, segments A, publish func(A, float64)) (A, M, float64) {
 	segments, units, invalid := planTranslations(segments)
 	if len(segments) == 0 && len(invalid) > 0 {
-		return A{}, nil, invalid, 0
+		return A{}, invalid, 0
 	}
-	if len(units) == 0 && teaching == nil {
-		return assembleTranslations(segments, units, A{}), nil, invalid, 0
+	if len(units) == 0 {
+		return assembleTranslations(segments, units, A{}), invalid, 0
 	}
 	start := time.Now()
 	payloadRows, unitRows := A{}, A{}
@@ -510,17 +463,8 @@ func (c *ModelClient) translateBatch(ctx context.Context, segments A, teaching M
 		unitRows = append(unitRows, pick(obj(v), "id", "segment_id", "text"))
 	}
 	payload := M{"segments": payloadRows, "prior_context": c.contextTail, "units": unitRows}
-	var schema any = rawContracts["translation_schema"]
-	if teaching != nil {
-		payload["teaching_context"] = teaching
-		var transport struct {
-			Properties map[string]json.RawMessage `json:"properties"`
-		}
-		must(json.Unmarshal(rawContracts["translation_schema"], &transport))
-		schema = json.RawMessage(`{"type":"object","properties":{"translations":` + string(transport.Properties["translations"]) + `,"teaching":` + string(rawContracts["teaching_schema"]) + `},"required":["translations","teaching"],"additionalProperties":false}`)
-	}
 	published := M{}
-	answer := c.generate(ctx, payload, schema, func(raw string) {
+	answer := c.generate(ctx, payload, rawContracts["translation_schema"], func(raw string) {
 		if publish == nil {
 			return
 		}
@@ -546,14 +490,8 @@ func (c *ModelClient) translateBatch(ctx context.Context, segments A, teaching M
 	for id, reason := range invalid {
 		rejected[id] = reason
 	}
-	// Returned to the worker separately from connection failures. Valid rows and
-	// the current teaching cue can still be used when one sentence is rejected.
-	var hint M
-	if teaching != nil {
-		hint = validateHint(obj(answer["teaching"]), arr(teaching["conversation"]))
-	}
 	c.contextTail = tail(append(c.contextTail, payloadRows...), 4)
-	return out, hint, rejected, time.Since(start).Seconds()
+	return out, rejected, time.Since(start).Seconds()
 }
 
 // Publish four complete phrase fields before optional notes/groups have finished.

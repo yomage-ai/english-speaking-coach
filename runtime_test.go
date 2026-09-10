@@ -116,7 +116,7 @@ func TestSourceReplacementRewindsWithoutDuplicateSegments(t *testing.T) {
 	root, source := testRoot(t), voiceLog(t, false)
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, source, defaultModel, true)
+	s := l.bind(testThread, source, defaultCaptionModel, true)
 	l.readTail(s)
 	s = l.run(str(s["id"]))
 	original := string(readFile(source))
@@ -299,7 +299,7 @@ func TestSourcePartialUTF8AndCumulativeRevision(t *testing.T) {
 	source := voiceLog(t, false)
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, source, defaultModel, true)
+	s := l.bind(testThread, source, defaultCaptionModel, true)
 	l.readTail(s)
 	if integer(l.view(M{})["total"]) != 3 {
 		t.Fatal("missing source rows")
@@ -337,10 +337,10 @@ func TestExactBindingAndClosedSnapshot(t *testing.T) {
 	source := voiceLog(t, false)
 	l := openLive(root)
 	defer l.close()
-	reject(t, func() { l.bind("33333333-3333-4333-8333-333333333333", source, defaultModel, true) })
-	l.bind(testThread, source, defaultModel, true)
+	reject(t, func() { l.bind("33333333-3333-4333-8333-333333333333", source, defaultCaptionModel, true) })
+	l.bind(testThread, source, defaultCaptionModel, true)
 	other := voiceLog(t, false)
-	reject(t, func() { l.bind(testThread, other, defaultModel, true) })
+	reject(t, func() { l.bind(testThread, other, defaultCaptionModel, true) })
 	reject(t, func() { snapshotVoice(source, testThread, testVoice) })
 	appendClose(source)
 	snap := snapshotVoice(source, testThread, testVoice)
@@ -355,7 +355,7 @@ func TestTranslationFailureDoesNotStopIngestion(t *testing.T) {
 	fakeCodex(t, "account-error")
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, source, defaultModel, true)
+	s := l.bind(testThread, source, defaultCaptionModel, true)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); runTranslations(ctx, root) }()
@@ -372,21 +372,17 @@ func TestTranslationFailureDoesNotStopIngestion(t *testing.T) {
 		t.Fatal("Translation stopped transcript ingestion", l.active())
 	}
 }
-func TestStaleTranslationAndTeachingRejected(t *testing.T) {
+func TestStaleTranslationRejected(t *testing.T) {
 	root := testRoot(t)
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, voiceLog(t, false), defaultModel, true)
+	s := l.bind(testThread, voiceLog(t, false), defaultCaptionModel, true)
 	l.readTail(s)
 	run := str(s["id"])
 	l.translated(run, A{M{"id": "u1", "chinese": "错误旧译文"}}, 1, M{"u1": "old text"})
 	rows := query(l.db, "SELECT chinese FROM segments WHERE run=? AND id='u1'", run)
 	if obj(rows[0])["chinese"] != nil {
 		t.Fatal("Stale translation committed")
-	}
-	hint := M{"kind": "help", "source_id": "u1", "quote": "I want", "english": "I'd like two rolls.", "chinese": "我想要两个小面包。", "next_cue": "", "groups": stringsA("I'd like two rolls.")}
-	if validateHint(hint, arr(l.teachingContext(run)["conversation"])) != nil {
-		t.Fatal("Stale hint accepted")
 	}
 }
 func TestBackupRestoreAndTamper(t *testing.T) {
@@ -413,7 +409,7 @@ func TestBackupIncludesConsistentSQLiteAndDetaches(t *testing.T) {
 	root := testRoot(t)
 	l := openLive(root)
 	source := voiceLog(t, false)
-	s := l.bind(testThread, source, defaultModel, true)
+	s := l.bind(testThread, source, defaultCaptionModel, true)
 	l.readTail(s)
 	l.patch(str(s["id"]), M{"status": "ended", "desired": "stopped"})
 	l.close()
@@ -498,7 +494,7 @@ func TestModelProtocolAndFailureBoundary(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			t.Setenv("CODEX_HOME", t.TempDir())
 			fakeCodex(t, mode)
-			c := newModelClient(defaultModel, 3*time.Second)
+			c := newModelClient(defaultCaptionModel, 3*time.Second)
 			defer c.close()
 			err := attempt(func() { c.connect(context.Background()); c.generate(context.Background(), M{}, M{}, nil) })
 			if (mode == "good") != (err == nil) {
@@ -545,9 +541,12 @@ func fakeModelServer() {
 			}
 			result = M{"account": M{"type": typ}}
 		case "model/list":
-			result = M{"data": A{M{"model": defaultModel, "supportedReasoningEfforts": A{M{"reasoningEffort": "low"}}}}, "nextCursor": nil}
+			result = M{"data": A{M{"model": defaultCaptionModel, "supportedReasoningEfforts": A{M{"reasoningEffort": "low"}}}, M{"model": defaultReviewModel, "supportedReasoningEfforts": A{M{"reasoningEffort": "low"}}}}, "nextCursor": nil}
 		case "thread/start":
-			model := defaultModel
+			model := str(obj(row["params"])["model"])
+			if model == "" {
+				model = defaultCaptionModel
+			}
 			if mode == "model-mismatch" {
 				model = "other"
 			}
@@ -559,7 +558,7 @@ func fakeModelServer() {
 				continue
 			}
 			answer := "{}"
-			if mode == "translation-poison" || mode == "content-malformed" || mode == "latency-lanes" || mode == "stream-captions" {
+			if mode == "translation-poison" || mode == "content-malformed" || mode == "stream-captions" {
 				payload := parseObject(str(obj(arr(obj(row["params"])["input"])[0])["text"]))
 				translations := A{}
 				for _, v := range arr(payload["units"]) {
@@ -576,27 +575,6 @@ func fakeModelServer() {
 					send(M{"method": "item/agentMessage/delta", "params": M{"turnId": "test-turn", "itemId": "answer", "delta": prefix}})
 					time.Sleep(800 * time.Millisecond)
 				}
-				if mode == "latency-lanes" {
-					if payload["teaching_context"] != nil {
-						conversation := arr(obj(payload["teaching_context"])["conversation"])
-						var latest M
-						for _, v := range conversation {
-							if obj(v)["role"] == "user" {
-								latest = obj(v)
-							}
-						}
-						if marker := os.Getenv("ENGLISH_COACH_TEST_HINT_STARTED"); marker != "" {
-							atomicWrite(marker, []byte(str(latest["id"])))
-						}
-						if release := os.Getenv("ENGLISH_COACH_TEST_HINT_RELEASE"); release != "" {
-							for !exists(release) {
-								time.Sleep(20 * time.Millisecond)
-							}
-						}
-						answer = compact(M{"teaching": M{"kind": "help", "source_id": latest["id"], "quote": latest["text"], "english": "I need a quieter room.", "chinese": "我需要更安静的房间。", "groups": stringsA("I need a quieter room."), "next_cue": ""}})
-					}
-				}
-
 				if mode == "content-malformed" {
 					for _, unit := range arr(payload["units"]) {
 						if obj(unit)["text"] == "broken" {
@@ -628,7 +606,7 @@ func TestTransientTranslationDisconnectCanRetry(t *testing.T) {
 	source := voiceLog(t, false)
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, source, defaultModel, true)
+	s := l.bind(testThread, source, defaultCaptionModel, true)
 	l.patch(str(s["id"]), M{"translation_status": "unavailable", "translation_error": "Offline", "translation_failures": 3})
 	l.readTail(l.active())
 	l.retry(str(s["id"]))
@@ -641,7 +619,7 @@ func TestNativeSourceCloseRegistersReviewWithoutTranslation(t *testing.T) {
 	source := voiceLog(t, false)
 	l := openLive(root)
 	defer l.close()
-	s := l.bind(testThread, source, defaultModel, true)
+	s := l.bind(testThread, source, defaultCaptionModel, true)
 	l.patch(str(s["id"]), M{"auto_review": true, "translation_status": "unavailable", "translation_error": "Offline"})
 	appendClose(source)
 	l.readTail(l.active())
@@ -682,20 +660,19 @@ func TestRealModelTranslation(t *testing.T) {
 	if os.Getenv("ENGLISH_COACH_REAL_MODEL_TEST") != "1" {
 		t.Skip("Explicit development integration opt-in required")
 	}
-	c := newModelClient(defaultModel, 45*time.Second)
+	c := newModelClient(defaultCaptionModel, 45*time.Second)
 	defer c.close()
-	c.instructions = str(contracts["translation_instructions"]) + str(contracts["teaching_instructions"])
 	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
 	defer cancel()
 	rows := A{M{"id": "u1", "role": "user", "text": "I want buy two bread rolls for breakfast."}}
-	out, hint, rejected, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A bakery"}, "profile": M{"correction": "in_character", "help_language": "zh-CN", "input_support": "short_turns"}}, nil)
+	out, rejected, seconds := c.translate(ctx, rows, nil)
 	if len(rejected) > 0 {
 		t.Fatalf("Rejected translations: %v", rejected)
 	}
-	if len(out) != 1 || !hanRE.MatchString(str(obj(out[0])["chinese"])) || hint == nil || hint["kind"] != "help" {
-		t.Fatal("Unexpected translation/teaching", out, hint)
+	if len(out) != 1 || !hanRE.MatchString(str(obj(out[0])["chinese"])) {
+		t.Fatal("Unexpected translation", out)
 	}
-	t.Logf("Real isolated account integration: %.2fs, translation=%v hint=%v", seconds, out, hint)
+	t.Logf("Real isolated account integration: %.2fs, translation=%v", seconds, out)
 }
 
 func TestRealReviewIntegration(t *testing.T) {

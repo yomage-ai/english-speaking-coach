@@ -18,10 +18,6 @@ window.CoachLive = (() => {
       </section>`;
   }
   function notice(text) {const el=get('#live-notice');if(el){el.hidden=!text;get('#live-notice-text').textContent=text;}}
-  function hintCard(hint) {
-    if(!hint||options.page||options.offset!==undefined)return '';
-    return `<aside class="live-hint" aria-label="当前表达提示"><div class="live-speaker"><strong>${hint.kind==='help'?'这一句可以这样说':'接下来可以聊'}</strong><span class="help"><button type="button" aria-label="表达提示说明" aria-expanded="false">?</button><span class="help-body" role="tooltip">这是根据最新发言生成的书面建议，不是 Voice 原话，也不代表已经掌握。一次保留一个说法；说顺后继续场景。断句按意思轻停，不必每块都停。</span></span></div>${hint.english?`<p class="live-english" lang="en">${e(hint.english)}</p><p class="live-translation">${e(hint.chinese)}</p>${hint.groups?.length>1?`<p class="live-groups"><span>轻停参考</span> ${hint.groups.map(e).join(' / ')}</p>`:''}`:''}${hint.next_cue?`<p class="live-next" lang="en">${e(hint.next_cue)}</p>`:''}</aside>`;
-  }
   function utterance(x, open, state) {
     const fragment=x.fragment,tail=fragment?.kind==='word_tail';
     const annotation=tail?`<p class="live-fragment">转写续接 · 可能与前段连读 <strong lang="en">${e(fragment.joined_word)}</strong>，不是单独词条。</p>`:fragment?'<p class="live-fragment">前句续接 · 原始转写片段</p>':'';
@@ -49,7 +45,7 @@ window.CoachLive = (() => {
     const timing=s?.translation_timing;
     const speed=timing?`最近一批 ${timing.segments} 句${Number.isFinite(timing.first_sentence_seconds)?` · 首句 ${timing.first_sentence_seconds.toFixed(1)} 秒`:''}${Number.isFinite(timing.request_seconds)?` · 请求完成 ${timing.request_seconds.toFixed(1)} 秒`:''}`:'';
     const sourceState=s?(s.voice_id?`Voice 已绑定；收到 ${data.total} 句原话`:'没有活动 Voice 身份；尚无可翻译的原话'):'';
-    get('#live-diagnostic').textContent=[sourceState,s?.error,s?.translation_error,s?.review_error,s?.teaching_error?`书面提示：${s.teaching_error}`:'',...Object.values(s?.translation_rejected||{}),speed].filter(Boolean).join(' · ')||'暂无异常';
+    get('#live-diagnostic').textContent=[sourceState,s?.error,s?.translation_error,s?.review_error,...Object.values(s?.translation_rejected||{}),speed].filter(Boolean).join(' · ')||'暂无异常';
     const retry=get('#live-retry-translation');if(retry){retry.hidden=!!s?.imported||!((s?.translation_error||failed||(ended&&pending))&&s.status!=='recovering');retry.disabled=!!s?.recovery_requested;retry.textContent=s?.recovery_requested?'补译已排队':'重试中文';}
     if(s?.invalid_lines)messages.push(`有 ${s.invalid_lines} 行日志未能读取，请让 Agent 检查遗漏。`);
     notice(messages.join(' '));
@@ -58,7 +54,7 @@ window.CoachLive = (() => {
     get('#live-count').textContent=` · ${data.total} 句`;
     get('#live-time').textContent=s?`转写 ${stamp(s.last_transcript_at)}${pending?` · ${pending} 句待翻译`:''}`:'开始后自动绑定本次 Voice';
     const review=get('#live-review');if(review){review.hidden=!s?.voice_id;if(s?.voice_id)review.href='#review?'+new URLSearchParams({thread:s.thread_id,voice:s.voice_id});}
-    const signature=JSON.stringify([s?.id,s?.voice_id,s?.status,s?.translation_status,s?.ready,data.items.map(x=>[x.seq,x.text,x.status,x.chinese,x.fragment]),data.teaching,chinese,options.page,options.offset]);
+    const signature=JSON.stringify([s?.id,s?.voice_id,s?.status,s?.translation_status,s?.ready,data.items.map(x=>[x.seq,x.text,x.status,x.chinese,x.fragment]),chinese,options.page,options.offset]);
     if(signature!==fingerprint) {
       const scroll=feed.scrollTop;
       const top=feed.getBoundingClientRect?.().top;
@@ -71,7 +67,7 @@ window.CoachLive = (() => {
         const unbound=s&&!s.voice_id;
         feed.innerHTML=`<div class="live-empty"><span aria-hidden="true">Aa ↗</span><h2>${!s?'尚未开始双语伴随':unbound?'尚未绑定活动 Voice':ended?'这次没有收到双方转写':'已绑定 Voice，等待原话'}</h2><p>${!s||unbound?'实时双语需要活动 Voice。打开 Voice 后，Agent 会核对本场身份并绑定；文字练习可直接在聊天中继续。':ended?'Agent 需要检查本场转写来源；刷新页面或重试翻译不能补出缺失的原话。':'收到本场转写后，英文会先出现，中文随后补充。如果已经说了几句仍是空白，Agent 需要检查宿主是否提供会中转写。'}</p></div>`;
       } else {
-        feed.innerHTML=data.items.map(x=>utterance(x,open,s)).join('')+hintCard(data.teaching);
+        feed.innerHTML=data.items.map(x=>utterance(x,open,s)).join('');
       }
       fingerprint=signature;
       if(follow&&!options.page)feed.scrollTop=feed.scrollHeight;else {

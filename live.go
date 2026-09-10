@@ -37,6 +37,10 @@ func openLive(root string) *Live {
 	db.SetMaxOpenConns(1)
 	_, e = db.Exec(`CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,desired TEXT NOT NULL,state TEXT NOT NULL);CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);CREATE TABLE IF NOT EXISTS segments(seq INTEGER PRIMARY KEY AUTOINCREMENT,run TEXT NOT NULL,id TEXT NOT NULL,role TEXT NOT NULL,text TEXT NOT NULL,timestamp TEXT,ordinal INTEGER,ingested_at TEXT NOT NULL,chinese TEXT,status TEXT NOT NULL DEFAULT 'pending',attempts INTEGER NOT NULL DEFAULT 0,translated_at TEXT,latency REAL,UNIQUE(run,id));CREATE INDEX IF NOT EXISTS segment_queue ON segments(run,status,seq);`)
 	must(e)
+	// Written live predictions were removed. Purge legacy ephemeral hints so an
+	// upgraded service cannot expose stale model output through old metadata.
+	_, e = db.Exec(`DELETE FROM meta WHERE key LIKE 'hint:%'`)
+	must(e)
 	require(exists(path), "字幕数据库没有创建在指定目录；已停止，未采用其他路径。")
 	_ = os.Chmod(path, 0600)
 	return &Live{root, db}
@@ -95,7 +99,7 @@ func stateRow(row M) M {
 	if len(row) == 0 {
 		return nil
 	}
-	return merge(parseObject(str(row["state"])), M{"desired": row["desired"]})
+	return omit(merge(parseObject(str(row["state"])), M{"desired": row["desired"]}), "teaching_status", "teaching_error")
 }
 func (l *Live) active() M {
 	rows := query(l.db, "SELECT runs.* FROM runs JOIN meta ON meta.value=runs.id WHERE meta.key='active'")
@@ -300,12 +304,18 @@ func (l *Live) counts(run string) M {
 	}
 	return c
 }
-func (l *Live) batch(run string) A {
+func (l *Live) batch(run string, includeRetries bool) A {
 	tx, e := l.db.Begin()
 	must(e)
 	defer tx.Rollback()
-	// New sentences precede retries, so a poison sentence cannot hold the queue.
-	rows := query(tx, "SELECT * FROM segments WHERE run=? AND status='pending' ORDER BY attempts,seq LIMIT 3", run)
+	// During an active conversation, only first attempts may enter the single
+	// model lane. Failed rows wait for drain or an explicit user retry, so a slow
+	// automatic retry can never get in flight ahead of a later fresh caption.
+	q := "SELECT * FROM segments WHERE run=? AND status='pending' AND attempts=0 ORDER BY seq LIMIT 3"
+	if includeRetries {
+		q = "SELECT * FROM segments WHERE run=? AND status='pending' ORDER BY attempts,seq LIMIT 3"
+	}
+	rows := query(tx, q, run)
 	selected := A{}
 	size := 0
 	for _, v := range rows {
@@ -352,14 +362,6 @@ func (l *Live) rememberTranslationErrors(run string, valid A, rejected M, expect
 	}
 	l.patch(run, M{"translation_rejected": errors})
 }
-func (l *Live) teachingRows(run string) A {
-	return reverse(query(l.db, "SELECT id,role,text,timestamp FROM segments WHERE run=? ORDER BY seq DESC LIMIT 30", run))
-}
-func (l *Live) teachingContext(run string) M {
-	rows := l.teachingRows(run)
-	profile := obj(readJSON(filepath.Join(l.root, "profile.json")))
-	return M{"conversation": annotateFragments(rows), "scene": sceneFor(l.root, run), "profile": pick(profile, "correction", "input_support", "help_language")}
-}
 func (l *Live) view(a M) M {
 	active := l.active()
 	id := textOr(a["run"], str(active["id"]))
@@ -383,28 +385,17 @@ func (l *Live) view(a M) M {
 	lookback := min(4, offset)
 	rows := query(l.db, "SELECT * FROM segments WHERE run=? ORDER BY seq LIMIT ? OFFSET ?", id, 40+lookback, offset-lookback)
 	rows = annotateFragments(rows)[lookback:]
-	var hint any
-	if raw := str(l.meta("hint:" + id)); raw != "" {
-		hint = parseObject(raw)
-	}
-	key := teachingKey(M{"conversation": l.teachingRows(id)})
-	if key == "" || obj(hint)["context_key"] != key {
-		hint = nil
-	}
 	if s != nil {
 		s = omit(s, "source", "file_identity", "source_file_id", "cursor")
 		s["scene_introduction"] = l.meta("scene:" + id)
 		s["stale"] = s["desired"] != "stopped" && !terminal(s["status"]) && epoch()-num(s["heartbeat_epoch"]) > 8
-		if terminal(s["status"]) || s["desired"] == "stopped" || s["close_epoch"] != nil {
-			hint = nil
-		}
 	}
 	history := A{}
 	for _, v := range query(l.db, "SELECT state FROM runs ORDER BY rowid DESC LIMIT 12") {
 		r := parseObject(str(obj(v)["state"]))
 		history = append(history, pick(r, "id", "created_at", "demo", "status", "thread_id", "recovery_mode", "voice_started_at"))
 	}
-	return M{"state": s, "items": rows, "teaching": hint, "total": total, "counts": counts, "page": page, "pages": pages, "offset": offset, "enabled": l.enabled(), "server_time": now(), "history": history}
+	return M{"state": s, "items": rows, "total": total, "counts": counts, "page": page, "pages": pages, "offset": offset, "enabled": l.enabled(), "server_time": now(), "history": history}
 }
 func (l *Live) registerReview(s M) {
 	thread, voice := str(s["thread_id"]), str(s["voice_id"])
@@ -504,7 +495,7 @@ func runTranslations(ctx context.Context, root string) {
 			failures = 0
 			retryAt = 0
 			l.patch(id, M{"translation_retry": false})
-			sqlExec(l.db, "UPDATE segments SET status='pending',attempts=0 WHERE run=? AND status IN ('failed','translating')", id)
+			sqlExec(l.db, "UPDATE segments SET status='pending',attempts=0 WHERE run=? AND status!='translated'", id)
 		}
 		if failures >= 3 || epoch() < retryAt {
 			if !sleepContext(ctx, 350*time.Millisecond) {
@@ -521,7 +512,8 @@ func runTranslations(ctx context.Context, root string) {
 				client.connect(ctx)
 				l.patch(id, M{"ready": true, "translation_status": "ready", "connection": M{"model": s["model"], "effort": "low", "auth": "chatgpt", "ephemeral": true}})
 			}
-			rows = l.batch(id)
+			includeRetries := s["desired"] == "drain" || s["close_epoch"] != nil
+			rows = l.batch(id, includeRetries)
 			if len(rows) == 0 {
 				return
 			}
@@ -532,7 +524,7 @@ func runTranslations(ctx context.Context, root string) {
 				expected[str(r["id"])] = r["text"]
 			}
 			timing := M{"started_at": now(), "segments": len(rows)}
-			out, _, rejected, latency := client.translate(ctx, rows, nil, func(part A, seconds float64) {
+			out, rejected, latency := client.translate(ctx, rows, func(part A, seconds float64) {
 				l.translated(id, part, seconds, expected)
 				if timing["first_sentence_seconds"] == nil {
 					timing["first_sentence_seconds"] = seconds

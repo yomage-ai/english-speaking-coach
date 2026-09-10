@@ -1,11 +1,6 @@
 package main
 
-import (
-	"context"
-	"os"
-	"testing"
-	"time"
-)
+import "testing"
 
 func TestEnglishPracticePolicyPreservesLegacyPreferences(t *testing.T) {
 	root := testRoot(t)
@@ -34,18 +29,6 @@ func TestEnglishPracticePolicyPreservesLegacyPreferences(t *testing.T) {
 	}
 }
 
-func TestBilingualTeachingHintKeepsSourceAndEnglishConfirmation(t *testing.T) {
-	rows := A{M{"id": "u1", "role": "user", "text": "maybe go shop"}}
-	hint := M{"kind": "help", "source_id": "u1", "quote": "maybe go shop", "english": "Maybe we could go shopping.", "chinese": "也许我们可以去购物。", "next_cue": "Have I understood you correctly?", "groups": stringsA("Maybe we could go shopping.")}
-	validated := validateHint(hint, rows)
-	if validated == nil || validated["chinese"] != hint["chinese"] || validated["source_text"] != "maybe go shop" || validated["next_cue"] != hint["next_cue"] {
-		t.Fatal("Bilingual written hint or its English meaning check was lost")
-	}
-	if validateHint(hint, append(rows, M{"id": "u2", "role": "user", "text": "Yes"})) != nil {
-		t.Fatal("Stale confirmation was retained after a new learner turn")
-	}
-}
-
 func TestPracticeControlsKeepTheirDistinctEffects(t *testing.T) {
 	root := testRoot(t)
 	for _, event := range []string{"pause", "user_end", "host_closed", "scene_complete_and_continuing"} {
@@ -66,44 +49,4 @@ func TestPracticeControlsKeepTheirDistinctEffects(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestRealMixedInputBilingualHint(t *testing.T) {
-	if os.Getenv("ENGLISH_COACH_REAL_MODEL_TEST") != "1" {
-		t.Skip("Explicit development integration opt-in required")
-	}
-	c := newModelClient(defaultModel, 45*time.Second)
-	defer c.close()
-	c.instructions = str(contracts["translation_instructions"]) + str(contracts["teaching_instructions"])
-	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
-	defer cancel()
-	rows := A{M{"id": "u1", "role": "user", "text": "I want some 车厘子."}}
-	out, hint, rejected, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A grocery store"}, "profile": M{"practice_language": "bilingual", "correction": "in_character", "help_language": "zh-CN"}}, nil)
-	if len(rejected) > 0 {
-		t.Fatalf("Rejected translations: %v", rejected)
-	}
-	if len(out) != 1 || hint == nil || hint["kind"] != "help" || !hanRE.MatchString(str(hint["chinese"])) || hanRE.MatchString(str(hint["english"])+str(hint["next_cue"])) || str(hint["next_cue"]) == "" {
-		t.Fatal("Bilingual meaning or English confirmation missing", out, hint)
-	}
-	t.Logf("Real isolated mixed-input integration: %.2fs, translation=%v hint=%v", seconds, out, hint)
-}
-
-func TestRealUncertainObjectHint(t *testing.T) {
-	if os.Getenv("ENGLISH_COACH_REAL_MODEL_TEST") != "1" {
-		t.Skip("Explicit development integration opt-in required")
-	}
-	c := newModelClient(defaultModel, 45*time.Second)
-	defer c.close()
-	c.instructions = str(contracts["translation_instructions"]) + str(contracts["teaching_instructions"])
-	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
-	defer cancel()
-	rows := A{M{"id": "u1", "role": "user", "text": "I want buy two bread for breakfast."}}
-	out, hint, rejected, seconds := c.translate(ctx, rows, M{"conversation": rows, "scene": M{"setting": "A bakery"}, "profile": M{"correction": "in_character", "help_language": "zh-CN"}}, nil)
-	if len(rejected) > 0 {
-		t.Fatalf("Rejected translations: %v", rejected)
-	}
-	if len(out) != 1 || hint == nil || hint["kind"] != "continue" || str(hint["next_cue"]) == "" {
-		t.Fatal("Uncertain item was silently chosen instead of clarified", out, hint)
-	}
-	t.Logf("Real isolated uncertain-object integration: %.2fs, translation=%v hint=%v", seconds, out, hint)
 }

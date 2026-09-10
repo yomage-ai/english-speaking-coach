@@ -17,8 +17,8 @@ el('#live-pause').handlers.click();assert.ok(timers.size>0,'Pausing scrolling ke
 response=data(42,'translated','稍后补到的中文');const [pauseId,pauseTick]=[...timers][0];timers.delete(pauseId);await pauseTick();assert.match(feed.innerHTML,/稍后补到的中文/);assert.match(requests.at(-1).url,/offset=2/,'Paused reading requests the same window');assert.equal(feed.scrollTop,100,'Delayed translations preserve manual position');
 response=data(43);el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/Synthetic line 43/);assert.equal(feed.scrollTop,3500);
 response={...data(44,'translated','错误的独立词义'),items:[{id:'tail',seq:44,role:'user',text:'- buster',status:'translated',chinese:'错误的独立词义',fragment:{kind:'word_tail',joined_word:'blockbuster'}}],teaching:{kind:'help',english:'Could we see a movie?',chinese:'可以看电影吗？',groups:['Could we see a movie?'],next_cue:''}};
-el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/blockbuster/);assert.doesNotMatch(feed.innerHTML,/错误的独立词义/);assert.match(feed.innerHTML,/这一句可以这样说/);
-response=data(45);el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.doesNotMatch(feed.innerHTML,/这一句可以这样说/,'A new turn cannot retain an old hint');
+el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.match(feed.innerHTML,/blockbuster/);assert.doesNotMatch(feed.innerHTML,/错误的独立词义/);assert.doesNotMatch(feed.innerHTML,/这一句可以这样说/,'Legacy prediction payloads must be ignored');
+response=data(45);el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.doesNotMatch(feed.innerHTML,/这一句可以这样说/,'Live predictions stay removed after a new turn');
 assert.equal(el('#live-retry-translation').hidden,true,'Healthy captions must not offer an irrelevant retry');
 response={...data(46),state:{...data(46).state,translation_status:'unavailable',translation_error:'Fictional connection failure',desired:'running'}};
 el('#live-follow').handlers.click();await new Promise(r=>setImmediate(r));assert.equal(el('#live-retry-translation').hidden,false);assert.match(feed.innerHTML,/Synthetic line 46/);

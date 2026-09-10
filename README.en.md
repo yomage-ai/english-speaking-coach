@@ -28,7 +28,7 @@ Codex automatically opens the local learning page at the start of every practice
 
 | Page | What you can do |
 | --- | --- |
-| Bilingual companion | Follow the original transcript, Chinese translations and a current expression hint |
+| Bilingual companion | Follow both speakers' original transcript and Chinese translations, without a predicted next-reply card |
 | Session review | Distinguish actual practice from suggestions for later; find the review again after switching pages |
 | Learning home / Review | Start the next activity on Home; inspect changes over time in Review |
 | Local learning data | Open the folder, download a full backup, restore a backup or use another copied archive |

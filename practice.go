@@ -327,7 +327,7 @@ func preparePractice(args M) M {
 			l.close()
 		}()
 		prior := l.active()
-		binding = l.bind(thread, source, defaultModel, false)
+		binding = l.bind(thread, source, defaultCaptionModel, false)
 		newBinding = prior == nil || prior["id"] != binding["id"]
 		require(binding["voice_id"] == sourceState["voice_id"], "Voice 在准备期间已切换；Agent 需要重新核对当前场次。")
 		if str(args["scene"]) == "" {

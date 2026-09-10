@@ -70,7 +70,7 @@ func recoverCaptionsContext(ctx context.Context, root, thread, voice, source, mo
 	failure := attempt(func() {
 		for {
 			must(ctx.Err())
-			rows := l.batch(id)
+			rows := l.batch(id, true)
 			if len(rows) == 0 {
 				if connectionFailures > 0 {
 					panic(connectionError)
@@ -83,7 +83,7 @@ func recoverCaptionsContext(ctx context.Context, root, thread, voice, source, mo
 			}
 			l.patch(id, M{"heartbeat": now(), "heartbeat_epoch": epoch()})
 			err := attempt(func() {
-				out, _, rejected, latency := client.translate(ctx, rows, nil, func(part A, seconds float64) { l.translated(id, part, seconds, expected) })
+				out, rejected, latency := client.translate(ctx, rows, func(part A, seconds float64) { l.translated(id, part, seconds, expected) })
 				l.translated(id, out, latency, expected)
 				l.rejectTranslations(id, rejected, expected)
 				l.failBatch(id, rows)
@@ -136,7 +136,7 @@ func runCaptionRecoveries(ctx context.Context, root string) {
 				continue
 			}
 			err := attempt(func() {
-				recoverCaptionsContext(ctx, root, str(s["thread_id"]), str(s["voice_id"]), str(s["source"]), textOr(s["model"], defaultModel), false)
+				recoverCaptionsContext(ctx, root, str(s["thread_id"]), str(s["voice_id"]), str(s["source"]), textOr(s["model"], defaultCaptionModel), false)
 			})
 			if ctx.Err() != nil {
 				return // keep request for restart

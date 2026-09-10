@@ -118,12 +118,12 @@ func runCLI(args []string) any {
 			result["codex_error"] = err.Error()
 		}
 		if truth(o["probe"]) {
-			c := newModelClient(defaultModel, 45*time.Second)
+			c := newModelClient(defaultCaptionModel, 45*time.Second)
 			defer c.close()
 			if err := attempt(func() { c.connect(context.Background()) }); err != nil {
 				result["translation_error"] = err.Error()
 			} else {
-				result["translation"] = M{"status": "ready", "auth": "chatgpt", "model": defaultModel, "effort": "low"}
+				result["translation"] = M{"status": "ready", "auth": "chatgpt", "model": defaultCaptionModel, "effort": "low"}
 			}
 		}
 		return result
@@ -144,10 +144,10 @@ func runCLI(args []string) any {
 			action = commands[1]
 		}
 		if action == "probe" {
-			c := newModelClient(defaultModel, 45*time.Second)
+			c := newModelClient(defaultCaptionModel, 45*time.Second)
 			defer c.close()
 			c.connect(context.Background())
-			return M{"model": defaultModel, "effort": "low", "auth": "chatgpt", "ephemeral": true}
+			return M{"model": defaultCaptionModel, "effort": "low", "auth": "chatgpt", "ephemeral": true}
 		}
 		require(exists(filepath.Join(root, "profile.json")), "学习档案不可用，未创建空替代。")
 		l := openLive(root)
@@ -158,7 +158,7 @@ func runCLI(args []string) any {
 			if source == "" {
 				source = findSource(thread)
 			}
-			s := l.bind(thread, source, textOr(o["model"], defaultModel), truth(o["demo"]))
+			s := l.bind(thread, source, textOr(o["model"], defaultCaptionModel), truth(o["demo"]))
 			return merge(pick(s, "thread_id", "voice_id"), M{"status": "bound", "run_id": s["id"]})
 		case "stop":
 			s := l.run(id)
@@ -271,7 +271,7 @@ func runCLI(args []string) any {
 		panic("Unknown storage action")
 	}
 	if cmd == "recover-voice" {
-		return recoverCaptions(root, thread, voice, source, textOr(o["model"], defaultModel), truth(o["refresh-translations"]))
+		return recoverCaptions(root, thread, voice, source, textOr(o["model"], defaultCaptionModel), truth(o["refresh-translations"]))
 	}
 	var result M
 	withLock(filepath.Join(root, ".write.lock"), func() {

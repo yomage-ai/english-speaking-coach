@@ -778,7 +778,7 @@ func processReview(ctx context.Context, root string, job M) {
 		}
 		generate := func(input M) M {
 			if client == nil {
-				client = newModelClient(defaultModel, 120*time.Second)
+				client = newModelClient(defaultReviewModel, 120*time.Second)
 				client.instructions = str(contracts["review_instructions"])
 			}
 			t := time.Now()
@@ -790,7 +790,7 @@ func processReview(ctx context.Context, root string, job M) {
 		if exists(draftFile) {
 			draft = reconcileReview(obj(readJSON(draftFile)), language)
 		} else {
-			setReviewStage(root, thread, voice, "generating", M{"attempt": integer(job["attempt"]) + 1, "model": defaultModel, "effort": "low", "input_chars": len([]rune(compact(payload)))}, false)
+			setReviewStage(root, thread, voice, "generating", M{"attempt": integer(job["attempt"]) + 1, "model": defaultReviewModel, "effort": "low", "input_chars": len([]rune(compact(payload)))}, false)
 			draft = generate(payload)
 			writeJSON(draftFile, draft)
 		}
