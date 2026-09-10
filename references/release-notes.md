@@ -1,31 +1,11 @@
-# Unreleased maintenance / 未发布维护
+# v1.0.0 — First public release / 首次公开发布
 
-- 实时页只保留原话与中文翻译；不再启动书面教学/下一句预测 worker，不再请求或展示 hint 卡，并在升级时清理旧 hint 元数据。
-- 新字幕与独立字幕恢复默认使用 `gpt-5.6-luna`（low）；保存复盘继续使用 `gpt-5.6-sol`（low）。两条模型职责由独立常量和测试约束。
-- 活动对话优先处理所有新句子的首次尝试。失败的低优先级重试只在 drain、结束恢复或显式重试时运行，不再占住唯一字幕连接阻塞后续新句子。
-- 保留逐句来源修订保护、混合中英文覆盖、姓名与原文、Voice 隔离、有限重试、结束恢复和手动恢复。
+- 在 Voice 或文字任务中进行全英文情景练习，需要时用英语确认中文或中英混合表达。
+- 练习时提供本地双语伴随页，结束后保存课次复盘、复习卡片和学习进度。
+- 学习档案保存在本机，可备份、恢复并迁移到另一台电脑。
+- 插件包包含受支持平台所需的程序，不要求用户安装开发环境。
 
-# v0.2.15 — Honest Web reading surface / 可靠的网页阅读界面
-
-- 真实 Chrome 验收仍出现“未完整出声却立即显示结束”；移除普通与慢速浏览器朗读控件，保留书面读法和记忆提示，避免不可靠功能误导学习者。
-- Real Chrome acceptance still observed false completion without audible full playback. Remove normal/slow browser speech controls while keeping written reading and memory guidance.
-
-# v0.2.13 — One-pass review normalization / 单次复盘归一化
-
-- 模型偶尔多返回一条“后续重点”或“教练建议”时，程序按已约定的优先级保留前几项，不再为纯数量超限发起第二次完整模型生成。
-- If a model returns one extra focus or coaching note, keep the already-prioritized leading items in code instead of issuing a second full model repair call.
-
-# v0.2.12 — Reliable review and reading / 稳定复盘与朗读
-
-- 复盘模型只生成需要语义判断的内容；程序补齐并校验逐回合覆盖和词义记账，显著缩短长对话复盘，保留来源与完整性检查。
-- 修复网页慢速朗读的取消竞态和长句中断，改用短句队列并优先选择可靠的本地英语声音。
-- 带省略号、占位符或混合语言的句型模板不再硬送给系统朗读，避免产生像坏语法一样的残缺语音。
-- Voice 开场不再等待截图、字幕或翻译；禁止用 “let me think/check/sort” 之类等待话术冒充教学内容。
-
-- Generate semantic review judgments only; derive and validate exhaustive turn/word bookkeeping in code, substantially reducing long-review latency without dropping provenance checks.
-- Fix slow-playback cancellation races and long utterance cutoffs with a bounded sentence queue and preferred reliable local English voices.
-- Do not send ellipsis, placeholder or mixed-language pattern cards to system speech as broken utterances.
-- Start Voice without waiting for screenshots, captions or translations, and never use holding phrases as teaching content.
-
-Native Voice may still respond autonomously, emit holding phrases or paraphrase before the delegated Agent returns. Skill instructions cannot fully control that host layer; verify actual Voice separately.
-原生 Voice 仍可能在 Agent 返回前自主回应、说等待话术或改述；Skill 指令无法完全控制宿主语音层，真实 Voice 仍需单独验收。
+- Practice through English-only situations in Voice or text, with English meaning checks when Chinese or mixed-language wording is used.
+- Use a local bilingual companion during practice, then keep session reviews, flashcards and learning progress.
+- Keep learning records locally, with backup, restore and migration support.
+- Install a self-contained plugin package without setting up a development environment.
