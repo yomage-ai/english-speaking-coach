@@ -1,6 +1,6 @@
 {
   "name": "english-speaking-coach",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Practice spoken English with bilingual captions, saved reviews and flashcards. 英语口语练习、双语字幕与复习卡片。",
   "author": {
     "name": "yomage-ai"
@@ -17,6 +17,6 @@
       "Read",
       "Write"
     ],
-    "defaultPrompt": "Help me practice English."
+    "defaultPrompt": "Help me practice English. Keep the exercise in English, even when I use Chinese; keep Chinese help on the written page."
   }
 }
