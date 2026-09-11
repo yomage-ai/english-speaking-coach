@@ -12,13 +12,9 @@ Practice English in travel, restaurant, interview and other everyday situations.
 
 After installation, start in a new task:
 
-- Voice practice: open Voice, then send `/$english-speaking-coach Help me practice English.`
-- Text practice: send the same message without opening Voice.
-- A specific situation: include it in your request, for example `/$english-speaking-coach Help me practice checking in at a hotel.`
+Open Voice, then send `/$english-speaking-coach`. You can also choose **English Speaking Coach** from the Skill menu in the message box.
 
-You can also choose **English Speaking Coach** from the Skill menu in the message box.
-
-Practice dialogue uses English. If you do not know how to say something, you can express the meaning in your own language; the coach checks your meaning in English and helps you form a useful phrase. Chinese translations and written reviews remain on the local learning page.
+Tip: Practice dialogue uses English. If you do not know how to say something, express the meaning in Chinese; the coach checks your meaning in English and helps you form a useful phrase.
 
 ## What you can review
 
@@ -32,12 +28,10 @@ Practice dialogue uses English. If you do not know how to say something, you can
 
 ## Before you use it
 
-- Use Codex on macOS, Windows or Linux with Skill installation and local file access. Voice practice requires Voice; live bilingual captions also depend on the current Voice providing both sides of the transcript.
+- Voice practice requires Voice.
 - It uses your existing ChatGPT login and account quota; no separate API key is needed. You only need to handle login, microphone or system file permission when prompted.
-- Learning records stay on your computer. AI conversation and translation still use your connected model service; the bilingual companion temporarily keeps recent transcripts and translations.
+- Learning records stay on your computer. AI conversation and translation use your chosen model service.
 
 ## License
 
 Source is publicly available. Personal noncommercial learning is free; selling the software, paid services, commercial product integration, employer-provided training and other commercial uses require a separate written license. Independent personal interview preparation or learning work-related English remains free. [Full license](LICENSE) · [Commercial licensing contact](https://github.com/yomage-ai/english-speaking-coach/issues)
-
-Code previously released under the MIT License keeps its original rights. Third-party components retain their own licenses.

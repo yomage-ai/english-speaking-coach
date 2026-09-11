@@ -109,3 +109,59 @@ func TestRealReviewTracksPromptedReuse(t *testing.T) {
 		t.Fatal("The selected useful modeled sentence was lost")
 	}
 }
+
+func TestRealReviewMeaningAndConceptSupport(t *testing.T) {
+	if os.Getenv("ENGLISH_COACH_REAL_REVIEW_TEST") != "1" {
+		t.Skip("Explicit isolated integration opt-in required")
+	}
+	root := testRoot(t)
+	source := filepath.Join(t.TempDir(), "source.jsonl")
+	atomicWrite(source, nil)
+	appendLog(source, M{"type": "session_meta", "payload": M{"id": testThread}})
+	appendLog(source, M{"type": "realtime_item", "timestamp": "2026-09-08T01:00:00Z", "payload": M{"type": "realtime_session_started", "realtime_session_id": testVoice}})
+	appendSegment(source, "tea", "user", "I like black tea. 薄荷茶, is that right?")
+	appendSegment(source, "wrong", "assistant", "Yes, that's right.")
+	appendSegment(source, "complaint", "user", "But I said Chinese before, you didn't teach me how to say it in English.")
+	appendSegment(source, "misread", "assistant", "Okay, I won't teach you when you use Chinese.")
+	appendSegment(source, "lunch", "user", "How do I say 我要点午饭?")
+	appendSegment(source, "model", "assistant", "You can say, 'I'm going to order lunch.' Is that right?")
+	appendSegment(source, "repeat", "user", "Yes. I'm going to order lunch.")
+	appendSegment(source, "end", "user", "Goodbye.")
+	appendClose(source)
+	job := enqueueReview(root, testThread, testVoice, source, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer cancel()
+	processReview(ctx, root, job)
+	status := reviewStatus(root, testThread, testVoice)
+	if status["status"] != "saved" {
+		t.Fatal(status)
+	}
+	s := obj(arr(buildState(root)["sessions"])[0])
+	for _, v := range arr(s["concept_observations"]) {
+		x := obj(v)
+		if has(x["source_turn_ids"], "repeat") && x["result"] == "success" && x["support"] == "none" {
+			t.Fatal("Prompted concept promoted", x)
+		}
+	}
+	t.Logf("REVIEW: %s", compact(s))
+}
+
+func TestRealTranslationMissedHelpComplaint(t *testing.T) {
+	if os.Getenv("ENGLISH_COACH_REAL_MODEL_TEST") != "1" {
+		t.Skip("Explicit isolated integration opt-in required")
+	}
+	c := newModelClient(defaultCaptionModel, 45*time.Second)
+	defer c.close()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	rows := A{
+		M{"id": "need", "role": "user", "text": "今天心情很好, how do I say?"},
+		M{"id": "missed", "role": "assistant", "text": "What would you like to order?"},
+		M{"id": "complaint", "role": "user", "text": "But I say Chinese, you don't teach me how to say it before."},
+	}
+	out, rejected, seconds := c.translate(ctx, rows, nil)
+	if len(rejected) != 0 || len(out) != len(rows) {
+		t.Fatal(out, rejected)
+	}
+	t.Logf("Missed-help translation %.2fs: %v", seconds, out)
+}

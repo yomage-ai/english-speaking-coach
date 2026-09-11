@@ -379,6 +379,58 @@ func normalizeExpressionAttempt(x, snapshot M) {
 	}
 }
 
+// Reuse the already validated sentence evidence only for the same quoted words
+// in the same learner attempt. Other words or a separate use remain independent
+// of this reconciliation; mere vocabulary overlap is not evidence of a prompt.
+func reconcileConceptAttempt(x M, expressions A, snapshot M, language string) {
+	if x["result"] != "success" || x["support"] != "none" || !has(stringsA("meaning", "use"), x["dimension"]) {
+		return
+	}
+	quote := str(x["quote"])
+	if strings.TrimSpace(quote) == "" {
+		return
+	}
+	turns := learnerTurns(snapshot)
+	support := ""
+	for _, rawID := range arr(x["source_turn_ids"]) {
+		id := str(rawID)
+		if !strings.Contains(str(obj(turns[id])["text"]), quote) {
+			continue
+		}
+		matched := ""
+		for _, v := range expressions {
+			e := obj(v)
+			proof := obj(e["attempt_evidence"])
+			learner := obj(proof["learner"])
+			prompt := str(e["review_prompt"])
+			if learner["segment_id"] != id || !strings.Contains(str(learner["quote"]), quote) {
+				continue
+			}
+			if prompt == "source_text" {
+				matched = "model"
+				break
+			}
+			if prompt == "keywords" && strings.Contains(str(obj(proof["coach"])["quote"]), quote) {
+				matched = "keywords"
+			}
+		}
+		if matched == "" {
+			return // A separate cited use cannot be classified from another attempt.
+		}
+		if support != "model" {
+			support = matched
+		}
+	}
+	if support != "" {
+		x["support"], x["result"] = support, "supported"
+		note := "These words were used in the cited prompted attempt; independent use was not established."
+		if language == "zh-CN" {
+			note = "这次词语使用来自有提示的句子尝试，尚不能证明独立运用。"
+		}
+		x["note"] = strings.TrimSpace(str(x["note"]) + " " + note)
+	}
+}
+
 // completeReviewBookkeeping derives exhaustive per-turn accounting from the
 // model's selected evidence. These fields are mechanical validation metadata,
 // so asking the model to repeat one object for every learner turn only makes a
@@ -422,6 +474,7 @@ func completeReviewBookkeeping(d, snapshot M, language string) M {
 	for index, v := range arr(d["concept_observations"]) {
 		x := obj(v)
 		x["source_turn_ids"] = learnerIDs(x["source_turn_ids"])
+		reconcileConceptAttempt(x, arr(d["expressions"]), snapshot, language)
 		for _, rawID := range arr(x["source_turn_ids"]) {
 			id := str(rawID)
 			if turns[id] == nil {
@@ -619,6 +672,7 @@ func normalizeReview(root string, d M, thread, voice string, snapshot, state M) 
 	for index, v := range arr(d["concept_observations"]) {
 		x := copyM(v)
 		sourceTurns(x, str(x["quote"]))
+		reconcileConceptAttempt(x, arr(r["expressions"]), snapshot, textOr(obj(state["profile"])["help_language"], "zh-CN"))
 		cid := str(x["concept_id"])
 		if cid != "" {
 			require(concepts[cid] != nil, "Unknown concept_id; new senses need term and meaning")

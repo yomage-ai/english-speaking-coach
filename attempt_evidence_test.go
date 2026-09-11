@@ -39,3 +39,53 @@ func TestExpressionAttemptEvidence(t *testing.T) {
 		t.Fatal(independent)
 	}
 }
+
+func TestConceptSupportFollowsTheActualSentenceAttempt(t *testing.T) {
+	model := "I'm going to order lunch."
+	snapshot := M{"segments": A{
+		M{"id": "need", "role": "user", "text": "How do I say 点午餐?"},
+		M{"id": "coach", "role": "assistant", "text": model},
+		M{"id": "try", "role": "user", "text": model + " My train leaves soon."},
+		M{"id": "later", "role": "user", "text": "I can order dinner myself."},
+	}}
+	expression := M{"source_turn_ids": stringsA("need", "try"), "review_prompt": "source_text", "review_result": "success", "attempt_evidence": M{"learner": M{"segment_id": "try", "quote": model}, "coach": M{"segment_id": "coach", "quote": model}}}
+	observation := M{"source_turn_ids": stringsA("need", "try"), "term": "order", "quote": model, "dimension": "use", "result": "success", "support": "none", "expression_indices": A{0}}
+	draft := M{"expressions": A{expression}, "concept_observations": A{observation}}
+	got := completeReviewBookkeeping(obj(clone(draft)), snapshot, "zh-CN")
+	o := obj(arr(got["concept_observations"])[0])
+	if o["result"] != "supported" || o["support"] != "model" || o["quote"] != model || !equal(o["source_turn_ids"], observation["source_turn_ids"]) {
+		t.Fatal("Sentence and concept disagree about the same prompted attempt", o)
+	}
+	first := compact(got)
+	if compact(completeReviewBookkeeping(got, snapshot, "zh-CN")) != first {
+		t.Fatal("Repeated bookkeeping changed evidence")
+	}
+	for name, change := range map[string]M{
+		"unprompted clause in same turn": {"quote": "My train leaves soon.", "term": "train"},
+		"separate use":                   {"quote": "order", "source_turn_ids": stringsA("try", "later")},
+		"other dimension":                {"dimension": "reading"},
+		"unsuccessful attempt":           {"result": "needs_help"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			x := merge(obj(clone(observation)), change)
+			before := compact(x)
+			normalizeExpressionAttempt(expression, snapshot)
+			reconcileConceptAttempt(x, A{expression}, snapshot, "en")
+			if compact(x) != before {
+				t.Fatal("Unrelated evidence was reclassified", x)
+			}
+		})
+	}
+	// A supplied keyword cannot make every other word in the sentence prompted.
+	keywords := obj(clone(expression))
+	keywords["review_prompt"] = "keywords"
+	obj(obj(keywords["attempt_evidence"])["coach"])["quote"] = "order"
+	normalizeExpressionAttempt(keywords, snapshot)
+	for quote, want := range map[string]string{"order": "supported", "lunch": "success"} {
+		x := merge(obj(clone(observation)), M{"quote": quote})
+		reconcileConceptAttempt(x, A{keywords}, snapshot, "en")
+		if x["result"] != want {
+			t.Fatal(quote, x)
+		}
+	}
+}
